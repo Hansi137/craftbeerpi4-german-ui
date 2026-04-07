@@ -34,7 +34,7 @@
 
   var translations = {
     'Settings': { de: 'Einstellungen', en: 'Settings' },
-    'Dashboard': { de: 'Übersicht', en: 'Dashboard' },
+    'Dashboard': { de: 'Anlagenbild', en: 'Dashboard' },
     'Hardware': { de: 'Hardware', en: 'Hardware' },
     'Plugins': { de: 'Erweiterungen', en: 'Plugins' },
     'System': { de: 'System', en: 'System' },
@@ -632,9 +632,9 @@
   // ============================================================
   var menuDesc = {
     de: {
-      'Übersicht': 'Dein Brau-Cockpit',
+      'Anlagenbild': 'Brauanlage visuell gestalten',
       'Brau-Cockpit': 'Dein Brau-Cockpit',
-      'Dashboard': 'Dein Brau-Cockpit',
+      'Dashboard': 'Brauanlage visuell gestalten',
       'Hardware': 'Sensoren, Aktoren & Kessel',
       'Brauplan': 'Aktueller Brauvorgang & Schritte',
       'Maischprofil': 'Aktueller Brauvorgang & Schritte',
@@ -653,7 +653,7 @@
       'Analytics': 'Sensor-Verlauf & Diagramme'
     },
     en: {
-      'Dashboard': 'Your brew cockpit',
+      'Dashboard': 'Visual brewery layout',
       'Brew Cockpit': 'Your brew cockpit',
       'Hardware': 'Sensors, actors & kettles',
       'Brew Plan': 'Active brew process & steps',
@@ -688,7 +688,7 @@
   // SEITENTITEL (permanente Überschrift pro Route)
   // ============================================================
   var pageTitles = {
-    '/dashboard':    { de: '� Brau-Cockpit',         en: '🍺 Brew Cockpit' },
+    '/dashboard':    { de: function() { return _cockpitMode ? '🍺 Brau-Cockpit' : '🏭 Anlagenbild'; }, en: function() { return _cockpitMode ? '🍺 Brew Cockpit' : '🏭 Dashboard'; } },
     '/hardware':     { de: '🔧 Hardware',            en: '🔧 Hardware' },
     '/settings':     { de: '⚙️ Einstellungen',       en: '⚙️ Settings' },
     '/mashprofile':  { de: '📋 Brauplan',            en: '📋 Brew Plan' },
@@ -709,8 +709,12 @@
   // ============================================================
   var pageHelp = {
     '/dashboard': {
-      de: '� <b>Dein Brau-Cockpit</b> – Hier siehst du Temperatur, aktuelle Schritte und Aktoren auf einen Blick. Wenn ein Rezept geladen ist, kannst du hier direkt starten, stoppen und den Fortschritt verfolgen.',
-      en: '🍺 <b>Your Brew Cockpit</b> – See temperature, current steps and actors at a glance. When a recipe is loaded, you can start, stop and track progress right here.'
+      de: function() { return _cockpitMode
+        ? '🍺 <b>Dein Brau-Cockpit</b> – Hier siehst du Temperatur, aktuelle Schritte und Aktoren auf einen Blick. Wenn ein Rezept geladen ist, kannst du hier direkt starten, stoppen und den Fortschritt verfolgen.'
+        : '🏭 <b>Anlagenbild</b> – Hier kannst du deine Brauanlage visuell gestalten. Ziehe Sensoren, Aktoren, Kessel und Verbindungen auf die Arbeitsfläche.'; },
+      en: function() { return _cockpitMode
+        ? '🍺 <b>Your Brew Cockpit</b> – See temperature, current steps and actors at a glance. When a recipe is loaded, you can start, stop and track progress right here.'
+        : '🏭 <b>Dashboard</b> – Design your brewery layout visually. Drag sensors, actors, kettles and connections onto the canvas.'; }
     },
     '/hardware': {
       de: '🔧 <b>Hardware einrichten</b> – Hier konfigurierst du deine physischen Geräte in 3 Schritten:<br>' +
@@ -870,12 +874,17 @@
     var path = '/' + (hash.split('/')[1] || '');
     var titleObj = pageTitles[path];
 
+    // Titel können Funktionen sein (z.B. cockpit/dashboard Umschaltung)
+    function resolveTitle(t, lang) {
+      var val = t[lang];
+      return typeof val === 'function' ? val() : val;
+    }
+
     var existing = document.getElementById('cbpi-page-title');
-    // Prüfe ob Titel schon korrekt für diese Route
-    if (existing && existing.getAttribute('data-path') === path) {
-      // Nur Sprache updaten falls nötig
-      if (titleObj && existing.textContent !== titleObj[currentLang]) {
-        existing.textContent = titleObj[currentLang];
+    // Bei /dashboard immer neu rendern (Modus kann gewechselt haben)
+    if (existing && existing.getAttribute('data-path') === path && path !== '/dashboard') {
+      if (titleObj && existing.textContent !== resolveTitle(titleObj, currentLang)) {
+        existing.textContent = resolveTitle(titleObj, currentLang);
       }
       return;
     }
@@ -893,7 +902,7 @@
     h.id = 'cbpi-page-title';
     h.className = 'cbpi-page-title';
     h.setAttribute('data-path', path);
-    h.textContent = titleObj[currentLang];
+    h.textContent = resolveTitle(titleObj, currentLang);
     target.insertBefore(h, target.firstChild);
     _isOurDomChange = false;
   }
@@ -905,10 +914,16 @@
 
     var existing = document.getElementById('cbpi-help-banner');
 
+    // Hilfetexte können Funktionen sein (z.B. cockpit/dashboard-Umschaltung)
+    function resolveHelp(h, lang) {
+      var val = h[lang];
+      return typeof val === 'function' ? val() : val;
+    }
+
     // Banner schon korrekt vorhanden → nur Sprache updaten
     if (existing && existing.getAttribute('data-path') === path) {
       var content = existing.querySelector('.cbpi-help-content');
-      if (help && content) content.innerHTML = help[currentLang];
+      if (help && content) content.innerHTML = resolveHelp(help, currentLang);
       return;
     }
 
@@ -926,7 +941,7 @@
     var banner = document.createElement('div');
     banner.id = 'cbpi-help-banner';
     banner.setAttribute('data-path', path);
-    banner.innerHTML = '<div class="cbpi-help-content">' + help[currentLang] + '</div>';
+    banner.innerHTML = '<div class="cbpi-help-content">' + resolveHelp(help, currentLang) + '</div>';
 
     var closeBtn = document.createElement('button');
     closeBtn.className = 'cbpi-help-close';
@@ -1204,19 +1219,24 @@
         (isLast ? (currentLang === 'de' ? 'Los geht\'s! 🚀' : 'Let\'s go! 🚀') : (currentLang === 'de' ? 'Weiter →' : 'Next →')) +
         '</button>' +
         '</div></div>';
-
-      document.getElementById('ob-next').onclick = function () {
-        if (isLast) { localStorage.setItem(ONBOARDING_KEY, '1'); overlay.remove(); }
-        else { idx++; render(); }
-      };
-      var skip = document.getElementById('ob-skip');
-      if (skip) skip.onclick = function () { localStorage.setItem(ONBOARDING_KEY, '1'); overlay.remove(); };
-      var prev = document.getElementById('ob-prev');
-      if (prev) prev.onclick = function () { idx--; render(); };
     }
 
     render();
     document.body.appendChild(overlay);
+
+    // Event-Delegation auf dem Overlay (innerHTML zerstört direkte onclick-Handler)
+    overlay.addEventListener('click', function (e) {
+      var btn = e.target.closest('button');
+      if (!btn) return;
+      if (btn.id === 'ob-next') {
+        if (idx === s.length - 1) { localStorage.setItem(ONBOARDING_KEY, '1'); overlay.remove(); }
+        else { idx++; render(); }
+      } else if (btn.id === 'ob-skip') {
+        localStorage.setItem(ONBOARDING_KEY, '1'); overlay.remove();
+      } else if (btn.id === 'ob-prev') {
+        idx--; render();
+      }
+    });
   }
 
   function checkOnboarding() {
@@ -1267,45 +1287,125 @@
   var expertMode = localStorage.getItem(EXPERT_KEY) === '1';
 
   // Routen im Anfänger-Modus (nur das Wesentliche)
-  var beginnerRoutes = ['dashboard', 'mashprofile', 'recipes', 'hardware', 'settings', 'system'];
+  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'hardware', 'settings', 'system'];
   // Zusätzliche Routen im Experten-Modus
   var expertRoutes = ['actor', 'sensor', 'kettle', 'fermenter', 'analytics', 'plugins', 'about'];
 
   var navGroups = {
     de: [
-      { label: 'Brauen', routes: ['dashboard', 'mashprofile', 'recipes'] },
+      { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes'] },
       { label: 'Einrichtung', routes: ['hardware', 'settings'] },
       { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
       { label: 'System', routes: ['system', 'about'] }
     ],
     en: [
-      { label: 'Brewing', routes: ['dashboard', 'mashprofile', 'recipes'] },
+      { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes'] },
       { label: 'Setup', routes: ['hardware', 'settings'] },
       { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
       { label: 'System', routes: ['system', 'about'] }
     ]
   };
 
+  // Cockpit-Menüpunkt in die Sidebar injizieren
+  function injectCockpitNavItem(drawer) {
+    if (drawer.querySelector('#cbpi-nav-cockpit')) return;
+    var list = drawer.querySelector('.MuiList-root');
+    if (!list) return;
+    // Ersten existierenden MuiListItem als Template nehmen
+    var firstItem = list.querySelector('.MuiListItem-root');
+    if (!firstItem) return;
+
+    _isOurDomChange = true;
+    var li = firstItem.cloneNode(true);
+    li.id = 'cbpi-nav-cockpit';
+    li.style.cursor = 'pointer';
+
+    // Click-Handler direkt auf das Element (MUI-Items sind divs, keine <a>-Tags)
+    li.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      _cockpitMode = true;
+      _cockpitRenderLock = 0; // Lock aufheben bei Navigation
+      // Alten Titel/Banner entfernen
+      var oldTitle = document.getElementById('cbpi-page-title');
+      if (oldTitle) { _isOurDomChange = true; oldTitle.remove(); _isOurDomChange = false; }
+      var oldBanner = document.getElementById('cbpi-help-banner');
+      if (oldBanner) { _isOurDomChange = true; oldBanner.remove(); _isOurDomChange = false; }
+      if (window.location.hash !== '#/dashboard') {
+        // Von anderer Seite: navigieren → hashchange → buildCockpit
+        window.location.hash = '#/dashboard';
+        // Retry: React braucht Zeit zum Rendern des Containers
+        var retries = 0;
+        var retryBuild = setInterval(function () {
+          retries++;
+          if (document.getElementById('cbpi-cockpit') || retries > 20) {
+            clearInterval(retryBuild);
+            return;
+          }
+          var t = findContentTarget();
+          if (t) {
+            clearInterval(retryBuild);
+            buildCockpit();
+            addPageTitle();
+            addPageHeaders();
+          }
+        }, 200);
+      } else {
+        // Schon auf Dashboard: nur Cockpit starten
+        buildCockpit();
+        addPageTitle();
+        addPageHeaders();
+      }
+    });
+    // Icon: SVG durch Cockpit-Icon ersetzen
+    var svg = li.querySelector('svg');
+    if (svg) {
+      svg.innerHTML = '<path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>';
+    }
+    // Text
+    var textEl = li.querySelector('.MuiListItemText-primary');
+    if (textEl) textEl.textContent = currentLang === 'de' ? 'Brau-Cockpit' : 'Brew Cockpit';
+    // Beschreibung
+    var descEl = li.querySelector('.cbpi-menu-desc');
+    if (descEl) descEl.textContent = currentLang === 'de' ? 'Dein Brau-Cockpit' : 'Your brew cockpit';
+
+    // Vor dem ersten Item einfügen
+    list.insertBefore(li, firstItem);
+    _isOurDomChange = false;
+  }
+
   function applyExpertMode() {
     var drawer = document.querySelector('.MuiDrawer-paper');
     if (!drawer) return;
+
+    // Cockpit-Menüpunkt einfügen (vor dem Dashboard-Link)
+    injectCockpitNavItem(drawer);
+
     var items = drawer.querySelectorAll('.MuiListItem-root');
     items.forEach(function (item) {
       var link = item.querySelector('a');
       var text = item.querySelector('.MuiListItemText-primary');
       var href = link ? link.getAttribute('href') : '';
+      // Kein <a>? Dann href aus dem Item selbst lesen (MUI ListItem als Link)
+      if (!href) {
+        href = item.getAttribute('href') || '';
+      }
       var label = text ? text.textContent.trim().toLowerCase() : '';
 
       // Route aus href oder Text ermitteln
       var route = '';
-      if (href) {
+      // Cockpit-Nav-Item per ID erkennen (hat auch href=#/dashboard)
+      if (item.id === 'cbpi-nav-cockpit') {
+        route = 'cockpit';
+      } else if (href) {
         var m = href.match(/#\/(\w+)/);
         if (m) route = m[1];
       }
       if (!route) {
         // Per Text matchen
         var routeMap = {
-          'dashboard': 'dashboard', 'übersicht': 'dashboard',
+          'dashboard': 'dashboard', 'anlagenbild': 'dashboard', 'übersicht': 'dashboard',
+          'brau-cockpit': 'cockpit', 'brew cockpit': 'cockpit',
           'hardware': 'hardware',
           'mash profile': 'mashprofile', 'maischprofil': 'mashprofile',
           'recipe book': 'recipes', 'rezeptbuch': 'recipes',
@@ -1323,6 +1423,23 @@
       }
 
       if (!route) return;
+
+      // Dashboard-Link (Anlagenbild): Cockpit-Modus deaktivieren bei Klick
+      if (route === 'dashboard' && !item._cbpiDashboardHandler) {
+        item._cbpiDashboardHandler = true;
+        item.addEventListener('click', function () {
+          _cockpitMode = false;
+          stopCockpit();
+          // Titel/Banner aktualisieren falls schon auf /dashboard
+          if (window.location.hash === '#/dashboard') {
+            var oldTitle = document.getElementById('cbpi-page-title');
+            if (oldTitle) { _isOurDomChange = true; oldTitle.remove(); _isOurDomChange = false; }
+            var oldBanner = document.getElementById('cbpi-help-banner');
+            if (oldBanner) { _isOurDomChange = true; oldBanner.remove(); _isOurDomChange = false; }
+            setTimeout(function () { addPageTitle(); addPageHeaders(); }, 100);
+          }
+        });
+      }
 
       if (!expertMode && expertRoutes.indexOf(route) !== -1) {
         item.classList.add('cbpi-nav-hidden');
@@ -1354,7 +1471,8 @@
         var href = link ? link.getAttribute('href') : '';
         var label = text ? text.textContent.trim().toLowerCase() : '';
         var route = '';
-        if (href) { var m = href.match(/#\/(\w+)/); if (m) route = m[1]; }
+        if (item.id === 'cbpi-nav-cockpit') { route = 'cockpit'; }
+        else if (href) { var m = href.match(/#\/(\w+)/); if (m) route = m[1]; }
         visibleItems.push({ el: item, route: route, label: label });
       }
     });
@@ -1676,7 +1794,8 @@
 
   function buildCockpit() {
     var hash = window.location.hash.replace('#', '');
-    if (hash !== '/dashboard' && hash !== '/' && hash !== '') return;
+    // Cockpit nur auf /dashboard UND wenn Cockpit-Modus aktiv
+    if (hash !== '/dashboard' || !_cockpitMode) return;
 
     // Nur starten, kein Doppel-Interval
     if (!_cockpitInterval) {
@@ -1710,13 +1829,15 @@
 
   function renderCockpit(force) {
     var hash = window.location.hash.replace('#', '');
-    if (hash !== '/dashboard' && hash !== '/' && hash !== '') {
+    // Cockpit nur auf /dashboard im Cockpit-Modus
+    if (hash !== '/dashboard' || !_cockpitMode) {
       stopCockpit();
       return;
     }
     // Render-Lock: Intervall-Renders blockieren nach User-Interaktion
-    // Auch blockieren solange Kessel-Panel offen ist (Inputs nicht zerstören)
-    if (!force && _cockpitRenderLock > Date.now()) return;
+    // ABER: Wenn noch kein Cockpit-DOM existiert, immer rendern (initialer Aufbau)
+    var cockpitExists = !!document.getElementById('cbpi-cockpit');
+    if (!force && cockpitExists && _cockpitRenderLock > Date.now()) return;
     // Bei offenem Kessel-Panel: nur Temperaturen aktualisieren, kein voller Re-Render
     if (!force && _kettleSettingsOpen) {
       updateCockpitTempsOnly();
@@ -1771,17 +1892,13 @@
       }
 
       var isBrewing = !!activeStep;
-      var html = '';
 
-      if (isBrewing) {
-        html = renderBrewingCockpit(steps, activeStep, activeIdx, sensorValueMap, actors, kettles, recipeName);
-      } else if (steps.length > 0) {
-        html = renderReadyCockpit(steps, sensorValueMap, actors, kettles, recipeName);
-      } else {
-        html = renderIdleCockpit(sensorList, actors, kettles, sensorValueMap);
-      }
+      // Cockpit-Modus bestimmen: brewing, ready, idle
+      var cockpitState = isBrewing ? 'brewing' : (steps.length > 0 ? 'ready' : 'idle');
 
       var cockpit = document.getElementById('cbpi-cockpit');
+      var needsFullRender = force || !cockpit || cockpit.getAttribute('data-state') !== cockpitState;
+
       if (!cockpit) {
         // Original-Dashboard-Content verstecken
         _isOurDomChange = true;
@@ -1801,9 +1918,25 @@
         cockpit.addEventListener('change', cockpitChangeHandler);
         _isOurDomChange = false;
       }
-      _isOurDomChange = true;
-      cockpit.innerHTML = html;
-      _isOurDomChange = false;
+
+      if (needsFullRender) {
+        // Voll-Render: Modus hat sich geändert oder erster Render
+        var html = '';
+        if (isBrewing) {
+          html = renderBrewingCockpit(steps, activeStep, activeIdx, sensorValueMap, actors, kettles, recipeName);
+        } else if (steps.length > 0) {
+          html = renderReadyCockpit(steps, sensorValueMap, actors, kettles, recipeName);
+        } else {
+          html = renderIdleCockpit(sensorList, actors, kettles, sensorValueMap);
+        }
+        _isOurDomChange = true;
+        cockpit.innerHTML = html;
+        cockpit.setAttribute('data-state', cockpitState);
+        _isOurDomChange = false;
+      } else {
+        // Smart-Update: nur Werte im DOM aktualisieren, Buttons nicht anfassen
+        smartUpdateCockpit(cockpit, steps, activeStep, activeIdx, sensorValueMap, actors, kettles, recipeName);
+      }
 
       // Temperaturverlauf: Datenpunkt aufzeichnen + Chart zeichnen
       if (isBrewing && activeStep) {
@@ -1815,6 +1948,81 @@
       } else {
         // Nicht brewing → History leeren
         if (_tempHistory.length > 0) clearTempHistory();
+      }
+    });
+  }
+
+  // Smart-Update: Nur geänderte Werte im DOM aktualisieren, kein innerHTML-Replace
+  // Buttons und Click-Targets bleiben intakt
+  function smartUpdateCockpit(cockpit, steps, activeStep, activeIdx, sensorValueMap, actors, kettles, recipeName) {
+    // 1. Temperaturen aktualisieren
+    cockpit.querySelectorAll('[data-sensor-id]').forEach(function(el) {
+      var sid = el.getAttribute('data-sensor-id');
+      var val = getSensorValue(sensorValueMap, sid);
+      var newText = formatTemp(val);
+      if (el.textContent !== newText) el.textContent = newText;
+    });
+
+    // 2. Delta aktualisieren
+    var deltaEl = cockpit.querySelector('.cockpit-temp-delta');
+    if (deltaEl && activeStep) {
+      var sensorId = activeStep.props ? activeStep.props.Sensor : null;
+      var curTemp = getSensorValue(sensorValueMap, sensorId);
+      var tarTemp = (activeStep.props && activeStep.props.Temp) ? parseFloat(activeStep.props.Temp) : null;
+      if (curTemp !== null && tarTemp !== null) {
+        var delta = curTemp - tarTemp;
+        var deltaClass = 'cockpit-temp-delta ' + (Math.abs(delta) < 1 ? 'close' : (delta > 0 ? 'positive' : 'negative'));
+        deltaEl.className = deltaClass;
+        var newDelta = '\u0394 ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + '\u00b0C';
+        if (deltaEl.textContent !== newDelta) deltaEl.textContent = newDelta;
+      }
+    }
+
+    // 3. Soll-Temperatur aktualisieren
+    var targetEl = cockpit.querySelector('.cockpit-target-temp');
+    if (targetEl && activeStep && activeStep.props && activeStep.props.Temp) {
+      var newTarget = (currentLang === 'de' ? 'Ziel: ' : 'Target: ') + parseFloat(activeStep.props.Temp).toFixed(1) + '\u00b0C';
+      if (targetEl.textContent !== newTarget) targetEl.textContent = newTarget;
+    }
+
+    // 4. Timer/Status aktualisieren
+    var timerEl = cockpit.querySelector('.cockpit-timer-text');
+    if (timerEl && activeStep) {
+      var timerText = formatTimer(activeStep.state_text);
+      if (timerEl.textContent !== timerText) timerEl.textContent = timerText;
+    }
+
+    // 5. Progress-Bar aktualisieren
+    var progressFill = cockpit.querySelector('.cockpit-progress-fill');
+    if (progressFill && activeStep && activeStep.state_text) {
+      var parts = activeStep.state_text.split('/');
+      if (parts.length === 2) {
+        var elapsed = parseTimerParts(parts[0].trim());
+        var total = parseTimerParts(parts[1].trim());
+        if (total > 0) {
+          var pct = Math.min(100, Math.round((elapsed / total) * 100));
+          progressFill.style.width = pct + '%';
+        }
+      }
+    }
+
+    // 6. Aktor-States aktualisieren (ohne Buttons zu ersetzen)
+    actors.forEach(function(actor) {
+      var btn = cockpit.querySelector('.cockpit-actor-toggle[data-actor-id="' + actor.id + '"]');
+      if (!btn) return;
+      // Nicht aktualisieren wenn gerade beschäftigt (optimistic UI)
+      if (_actorBusy[actor.id]) return;
+      var serverState = actor.state ? '1' : '0';
+      var domState = btn.getAttribute('data-actor-state');
+      if (serverState !== domState) {
+        btn.setAttribute('data-actor-state', serverState);
+        if (serverState === '1') {
+          btn.classList.remove('off'); btn.classList.add('on');
+          btn.innerHTML = '<span class="cockpit-actor-led on"></span> EIN';
+        } else {
+          btn.classList.remove('on'); btn.classList.add('off');
+          btn.innerHTML = '<span class="cockpit-actor-led off"></span> AUS';
+        }
       }
     });
   }
@@ -2380,6 +2588,9 @@
   // Event Delegation Handler – wird einmal auf #cbpi-cockpit registriert
   // und bleibt aktiv auch wenn innerHTML aktualisiert wird.
   function cockpitClickHandler(e) {
+    // Jeder Klick im Cockpit: kurzes Render-Lock gegen Flackern
+    _cockpitRenderLock = Date.now() + 3500;
+
     // Brau-Steuerung (Start/Stop/Next/Reset)
     var ctrlBtn = e.target.closest('.cockpit-ctrl-btn[data-action]');
     if (ctrlBtn) {
@@ -2856,10 +3067,14 @@
     document.head.appendChild(style);
   }
 
+  // Cockpit-Modus: true = Cockpit anzeigen, false = Anlagenbild (Dashboard-Editor)
+  var _cockpitMode = true;
+
   function init() {
-    // Auto-Redirect: Dashboard als Startseite
+    // Auto-Redirect: Dashboard als Startseite (Cockpit-Modus aktiv)
     var hash = window.location.hash.replace('#', '');
     if (!hash || hash === '/' || hash === '') {
+      _cockpitMode = true;
       window.location.hash = '#/dashboard';
     }
     injectLateStyles();
@@ -2879,9 +3094,10 @@
     var h = window.location.hash;
     if (h !== lastHash) {
       lastHash = h;
-      // Cockpit stoppen wenn weg von Dashboard
+      // Cockpit stoppen wenn weg von /dashboard oder Cockpit-Modus aus
       var path = h.replace('#', '');
-      if (path !== '/dashboard' && path !== '/' && path !== '') {
+      if (path !== '/dashboard') {
+        _cockpitMode = false;
         stopCockpit();
       }
       setTimeout(function () {
