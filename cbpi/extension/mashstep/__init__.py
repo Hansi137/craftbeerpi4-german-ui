@@ -64,7 +64,8 @@ class NotificationStep(CBPiStep):
              Property.Sensor(label="Sensor"),
              Property.Kettle(label="Kettle"),
              Property.Text(label="Notification",configurable = True, description = "Text for notification when Temp is reached"),
-             Property.Select(label="AutoMode",options=["Yes","No"], description="Switch Kettlelogic automatically on and off -> Yes")])
+             Property.Select(label="AutoMode",options=["Yes","No"], description="Switch Kettlelogic automatically on and off -> Yes"),
+             Property.Actor(label="Agitator", description="Turn agitator on during this step")])
 class MashInStep(CBPiStep):
 
     async def NextStep(self, **kwargs):
@@ -73,6 +74,8 @@ class MashInStep(CBPiStep):
     async def on_timer_done(self,timer):
         self.summary = ""
         self.kettle.target_temp = 0
+        if self.agitator:
+            await self.actor_off(self.agitator)
         await self.push_update()
         if self.AutoMode == True:
             await self.setAutoMode(False)
@@ -88,6 +91,9 @@ class MashInStep(CBPiStep):
             self.kettle.target_temp = int(self.props.get("Temp", 0))
         if self.AutoMode == True:
             await self.setAutoMode(True)
+        self.agitator = self.props.get("Agitator", None)
+        if self.agitator:
+            await self.actor_on(self.agitator)
         self.summary = "Waiting for Target Temp"
         if self.cbpi.kettle is not None and self.timer is None:
             self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
@@ -95,6 +101,8 @@ class MashInStep(CBPiStep):
 
     async def on_stop(self):
         await self.timer.stop()
+        if self.agitator:
+            await self.actor_off(self.agitator)
         self.summary = ""
         if self.AutoMode == True:
             await self.setAutoMode(False)
@@ -111,6 +119,7 @@ class MashInStep(CBPiStep):
         return StepResult.DONE
 
     async def reset(self):
+        self.agitator = self.props.get("Agitator", None)
         self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
     async def setAutoMode(self, auto_state):
@@ -129,6 +138,7 @@ class MashInStep(CBPiStep):
              Property.Number(label="Temp", configurable=True),
              Property.Sensor(label="Sensor"),
              Property.Kettle(label="Kettle"),
+             Property.Actor(label="Agitator", description="Turn agitator on during this step"),
              Property.Select(label="AutoMode",options=["Yes","No"], description="Switch Kettlelogic automatically on and off -> Yes")])
 class MashStep(CBPiStep):
 
@@ -153,6 +163,8 @@ class MashStep(CBPiStep):
     async def on_timer_done(self,timer):
         self.summary = ""
         self.kettle.target_temp = 0
+        if self.agitator:
+            await self.actor_off(self.agitator)
         if self.AutoMode == True:
             await self.setAutoMode(False)
         self.cbpi.notify(self.name, 'Step finished', NotificationType.SUCCESS)
@@ -165,11 +177,14 @@ class MashStep(CBPiStep):
 
     async def on_start(self):
         self.AutoMode = True if self.props.get("AutoMode", "No") == "Yes" else False
+        self.agitator = self.props.get("Agitator", None)
         self.kettle=self.get_kettle(self.props.Kettle)
         if self.kettle is not None:
             self.kettle.target_temp = int(self.props.get("Temp", 0))
         if self.AutoMode == True:
             await self.setAutoMode(True)
+        if self.agitator:
+            await self.actor_on(self.agitator)
         await self.push_update()
 
         if self.cbpi.kettle is not None and self.timer is None:
@@ -186,12 +201,15 @@ class MashStep(CBPiStep):
 
     async def on_stop(self):
         await self.timer.stop()
+        if self.agitator:
+            await self.actor_off(self.agitator)
         self.summary = ""
         if self.AutoMode == True:
             await self.setAutoMode(False)
         await self.push_update()
 
     async def reset(self):
+        self.agitator = self.props.get("Agitator", None)
         self.timer = Timer(int(self.props.get("Timer",0)) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
     async def run(self):
