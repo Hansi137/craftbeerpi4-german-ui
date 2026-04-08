@@ -125,6 +125,7 @@
 /* ==================== FONT ==================== */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+  font-size: 0.875rem !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: var(--bg-body) !important;
@@ -169,7 +170,7 @@ header,
 /* ==================== CARDS & PAPER ==================== */
 .MuiPaper-root {
   background-color: var(--bg-surface) !important;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   border: 1px solid var(--border) !important;
   transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
@@ -184,7 +185,7 @@ header,
 
 .MuiCard-root {
   background: var(--card-bg) !important;
-  border-radius: 16px !important;
+  border-radius: 12px !important;
   overflow: visible !important;
 }
 
@@ -664,15 +665,15 @@ button.MuiFab-extended,
 /* ==================== SEITEN-TITEL ==================== */
 .cbpi-page-title {
   font-family: 'Inter', sans-serif;
-  font-size: 26px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
-  margin: 16px 0 4px 0;
+  margin: 12px 0 4px 0;
   padding: 0;
   letter-spacing: -0.3px;
   line-height: 1.3;
   border-bottom: 2px solid var(--accent-border);
-  padding-bottom: 10px;
+  padding-bottom: 8px;
 }
 
 /* ==================== HILFE-BANNER ==================== */
@@ -681,14 +682,54 @@ button.MuiFab-extended,
   background: var(--help-bg);
   border: 1px solid var(--accent-border);
   border-left: 4px solid var(--accent);
-  border-radius: 12px;
-  padding: 16px 48px 16px 20px;
-  margin: 12px 0 16px 0;
-  font-size: 13.5px;
-  line-height: 1.7;
+  border-radius: 10px;
+  margin: 8px 0 12px 0;
+  font-size: 12.5px;
+  line-height: 1.6;
   color: var(--text-secondary);
   animation: fadeIn 0.4s ease-out;
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  overflow: hidden;
+}
+
+/* Toggle-Header (immer sichtbar) */
+.cbpi-help-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+.cbpi-help-toggle:hover {
+  background: var(--bg-hover);
+}
+.cbpi-help-toggle-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.cbpi-help-toggle-arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+/* Content (einklappbar) */
+.cbpi-help-content {
+  padding: 0 14px 12px 14px;
+  max-height: 500px;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+  opacity: 1;
+}
+
+/* Eingeklappt */
+#cbpi-help-banner.collapsed .cbpi-help-content {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
 }
 
 #cbpi-help-banner b {
@@ -696,23 +737,9 @@ button.MuiFab-extended,
   font-weight: 600;
 }
 
+/* Alte Close-Button-Styles entfernen (nicht mehr nötig) */
 .cbpi-help-close {
-  position: absolute;
-  top: 8px;
-  right: 10px;
-  background: none;
-  border: none;
-  color: var(--help-close-color);
-  font-size: 22px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  line-height: 1;
-}
-
-.cbpi-help-close:hover {
-  color: var(--text);
-  background: var(--bg-hover);
+  display: none;
 }
 
 /* ==================== TOOLBAR-BUTTONS (Sprache, Hilfe, Theme) ==================== */
@@ -904,12 +931,12 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 .cockpit-status-banner {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--bg-surface);
   border: 1px solid var(--accent-border);
-  border-radius: 14px;
-  padding: 14px 20px;
-  margin-bottom: 16px;
+  border-radius: 10px;
+  padding: 10px 16px;
+  margin-bottom: 12px;
 }
 
 .cockpit-status-dot {
@@ -929,7 +956,7 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 }
 
 .cockpit-status-text {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
 }
@@ -941,8 +968,8 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 .cockpit-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 @media (max-width: 768px) {
@@ -954,8 +981,8 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 .cockpit-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 14px 16px;
   transition: box-shadow 0.2s ease;
 }
 
@@ -1315,8 +1342,8 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 .cockpit-steps-card {
   background: var(--bg-surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
+  border-radius: 10px;
+  padding: 14px 16px;
 }
 
 .cockpit-step-row {
@@ -1351,32 +1378,32 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 
 .cockpit-step-row-name {
   flex: 1;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text);
 }
 
 .cockpit-step-row-temp {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--accent);
   font-weight: 600;
-  min-width: 55px;
+  min-width: 45px;
   text-align: right;
 }
 
 .cockpit-step-row-time {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
-  min-width: 55px;
+  min-width: 45px;
   text-align: right;
 }
 
 .cockpit-step-row-status {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  min-width: 70px;
+  min-width: 60px;
   text-align: right;
 }
 
@@ -2006,4 +2033,288 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 .cbpi-ob-btn.secondary:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+/* ═══════════════════════════════════════════════════ */
+/* MOBILE / RESPONSIVE FIXES                          */
+/* ═══════════════════════════════════════════════════ */
+
+/* Globales Overflow-Verhindern */
+html, body, #root {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+#cbpi-cockpit {
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Container darf nie breiter als Viewport sein */
+.MuiContainer-root {
+  max-width: 100vw !important;
+  overflow-x: auto !important;
+  box-sizing: border-box !important;
+}
+
+/* MUI-Tabellen: Horizontal scrollbar statt Seiten-Overflow */
+.MuiPaper-root:has(.MuiTable-root) {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+.MuiTable-root {
+  min-width: 0 !important;
+}
+
+@media (max-width: 600px) {
+  /* ---- Toolbar / Header ---- */
+  .MuiToolbar-root {
+    padding: 0 8px !important;
+    min-height: 56px !important;
+    gap: 2px;
+  }
+  .cbpi-toolbar-btn {
+    font-size: 11px;
+    padding: 4px 8px;
+    margin: 0 2px;
+  }
+  .cbpi-toolbar-btn.round {
+    width: 28px;
+    height: 28px;
+    font-size: 13px;
+  }
+  #cbpi-lang-toggle {
+    font-size: 11px;
+    padding: 4px 8px;
+    margin: 0 2px;
+  }
+
+  /* ---- Seitentitel ---- */
+  .cbpi-page-title {
+    font-size: 20px !important;
+    margin: 8px 0 4px 0 !important;
+  }
+
+  /* ---- Hilfe-Banner ---- */
+  #cbpi-help-banner {
+    font-size: 12px;
+    padding: 8px 12px;
+    line-height: 1.5;
+  }
+
+  /* ---- Cockpit Container ---- */
+  #cbpi-cockpit {
+    padding: 4px 0;
+  }
+
+  /* ---- Status-Banner ---- */
+  .cockpit-status-banner {
+    padding: 10px 12px;
+    gap: 8px;
+    border-radius: 10px;
+    flex-wrap: wrap;
+  }
+  .cockpit-status-text {
+    font-size: 13px;
+    word-break: break-word;
+  }
+  .cockpit-recipe-name {
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* ---- Cockpit Cards ---- */
+  .cockpit-card {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  /* ---- Temperatur-Anzeige ---- */
+  .cockpit-temp-value {
+    font-size: 42px !important;
+  }
+  .cockpit-temp-delta {
+    font-size: 14px;
+  }
+
+  /* ---- Steuerungs-Buttons ---- */
+  .cockpit-controls {
+    gap: 6px;
+  }
+  .cockpit-ctrl-btn {
+    font-size: 12px;
+    padding: 8px 12px;
+    min-width: 70px;
+    border-radius: 8px;
+  }
+
+  /* ---- Aktoren ---- */
+  .cockpit-actor-item {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .cockpit-actor-toggle {
+    font-size: 12px;
+    padding: 6px 14px;
+  }
+
+  /* ---- Schritte-Liste ---- */
+  .cockpit-steps-card {
+    padding: 12px;
+    border-radius: 10px;
+  }
+  .cockpit-step-row {
+    gap: 6px;
+    padding: 8px 6px;
+    flex-wrap: wrap;
+  }
+  .cockpit-step-icon {
+    width: 20px;
+    font-size: 14px;
+  }
+  .cockpit-step-row-name {
+    font-size: 13px;
+    min-width: 0;
+    flex: 1 1 40%;
+    word-break: break-word;
+  }
+  .cockpit-step-row-temp {
+    font-size: 12px;
+    min-width: 40px;
+  }
+  .cockpit-step-row-time {
+    font-size: 12px;
+    min-width: 40px;
+  }
+  .cockpit-step-row-status {
+    font-size: 10px;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  /* ---- Card-Full (Chart etc.) ---- */
+  .cockpit-card-full {
+    padding: 12px;
+    border-radius: 10px;
+  }
+
+  /* ---- Kessel-Einstellungen ---- */
+  .cockpit-kettle-toggle {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-radius: 10px;
+  }
+  .cockpit-kettle-panel {
+    padding: 14px;
+  }
+
+  /* ---- Preset-Buttons ---- */
+  .cockpit-kettle-presets {
+    gap: 6px;
+  }
+  .cockpit-kettle-preset {
+    font-size: 11px;
+    padding: 4px 8px;
+  }
+
+  /* ---- Idle Hero ---- */
+  .cockpit-idle-hero {
+    padding: 20px 12px;
+  }
+  .cockpit-idle-hero h2 {
+    font-size: 18px;
+  }
+  .cockpit-idle-hero p {
+    font-size: 13px;
+  }
+
+  /* ---- Menü-Beschreibungen ---- */
+  .cbpi-menu-desc {
+    font-size: 10px !important;
+  }
+
+  /* ---- MUI Content-Area ---- */
+  main, [role="main"], .MuiContainer-root {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  /* ---- MUI-Tabellen auf Mobile ---- */
+  .MuiTableCell-root {
+    font-size: 11px !important;
+    padding: 6px 4px !important;
+  }
+  .MuiTableCell-head {
+    font-size: 10px !important;
+    padding: 4px !important;
+    white-space: nowrap !important;
+  }
+  .MuiPaper-root {
+    border-radius: 8px !important;
+  }
+  /* Tabellen-Container: horizontal scrollbar */
+  .MuiPaper-root:has(.MuiTable-root) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+  /* HOCH/RUNTER und Aktions-Buttons kompakter */
+  .MuiTableCell-root .MuiButton-root,
+  .MuiTableCell-root .MuiIconButton-root {
+    padding: 4px !important;
+    min-width: 0 !important;
+  }
+  .MuiTableCell-root .MuiButton-label,
+  .MuiTableCell-root .MuiButton-text {
+    font-size: 9px !important;
+    padding: 2px 4px !important;
+  }
+  /* FAB-Button auf Mobile kleiner */
+  .MuiFab-root {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  .MuiFab-extended,
+  button.MuiFab-extended,
+  .MuiFab-root.MuiFab-extended {
+    width: auto !important;
+    padding: 0 14px !important;
+    font-size: 11px !important;
+    height: 36px !important;
+  }
+
+  /* ---- Onboarding Overlay ---- */
+  .cbpi-ob-card {
+    width: calc(100vw - 32px) !important;
+    max-width: calc(100vw - 32px) !important;
+    padding: 20px 16px;
+    border-radius: 14px;
+    box-sizing: border-box;
+  }
+  .cbpi-ob-overlay {
+    padding: 16px;
+    box-sizing: border-box;
+  }
+  .cbpi-ob-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+  }
+  .cbpi-ob-title {
+    font-size: 18px;
+    margin-bottom: 10px;
+  }
+  .cbpi-ob-text {
+    font-size: 13px;
+    line-height: 1.6;
+    word-break: break-word;
+  }
+  .cbpi-ob-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cbpi-ob-btn {
+    font-size: 13px;
+    padding: 10px 16px;
+  }
 }

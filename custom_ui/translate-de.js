@@ -924,6 +924,14 @@
     if (existing && existing.getAttribute('data-path') === path) {
       var content = existing.querySelector('.cbpi-help-content');
       if (help && content) content.innerHTML = resolveHelp(help, currentLang);
+      // Toggle-Text updaten
+      var toggleText = existing.querySelector('.cbpi-help-toggle-text');
+      if (toggleText) {
+        var collapsed = existing.classList.contains('collapsed');
+        toggleText.textContent = collapsed
+          ? (currentLang === 'de' ? 'ℹ️ Info anzeigen' : 'ℹ️ Show info')
+          : (currentLang === 'de' ? 'ℹ️ Info ausblenden' : 'ℹ️ Hide info');
+      }
       return;
     }
 
@@ -932,28 +940,47 @@
     if (existing) existing.remove();
 
     if (!help) { _isOurDomChange = false; return; }
-    var dismissed = sessionStorage.getItem('cbpi_help_' + path);
-    if (dismissed) { _isOurDomChange = false; return; }
 
     var target = findContentTarget();
     if (!target) { _isOurDomChange = false; return; }
 
+    // Zustand aus localStorage laden (persistent über Sessions)
+    var isCollapsed = localStorage.getItem('cbpi_help_collapsed_' + path) === '1';
+
     var banner = document.createElement('div');
     banner.id = 'cbpi-help-banner';
     banner.setAttribute('data-path', path);
-    banner.innerHTML = '<div class="cbpi-help-content">' + resolveHelp(help, currentLang) + '</div>';
+    if (isCollapsed) banner.classList.add('collapsed');
 
-    var closeBtn = document.createElement('button');
-    closeBtn.className = 'cbpi-help-close';
-    closeBtn.innerHTML = '&times;';
-    closeBtn.title = currentLang === 'de' ? 'Hinweis ausblenden' : 'Dismiss';
-    closeBtn.onclick = function () {
-      banner.style.opacity = '0';
-      banner.style.transform = 'translateY(-10px)';
-      setTimeout(function () { _isOurDomChange = true; banner.remove(); _isOurDomChange = false; }, 300);
-      sessionStorage.setItem('cbpi_help_' + path, '1');
+    // Toggle-Header (immer sichtbar)
+    var toggle = document.createElement('div');
+    toggle.className = 'cbpi-help-toggle';
+    var toggleText = document.createElement('span');
+    toggleText.className = 'cbpi-help-toggle-text';
+    toggleText.textContent = isCollapsed
+      ? (currentLang === 'de' ? 'ℹ️ Info anzeigen' : 'ℹ️ Show info')
+      : (currentLang === 'de' ? 'ℹ️ Info ausblenden' : 'ℹ️ Hide info');
+    var toggleArrow = document.createElement('span');
+    toggleArrow.className = 'cbpi-help-toggle-arrow';
+    toggleArrow.textContent = isCollapsed ? '▶' : '▼';
+    toggle.appendChild(toggleText);
+    toggle.appendChild(toggleArrow);
+    toggle.onclick = function () {
+      var nowCollapsed = !banner.classList.contains('collapsed');
+      banner.classList.toggle('collapsed');
+      toggleArrow.textContent = nowCollapsed ? '▶' : '▼';
+      toggleText.textContent = nowCollapsed
+        ? (currentLang === 'de' ? 'ℹ️ Info anzeigen' : 'ℹ️ Show info')
+        : (currentLang === 'de' ? 'ℹ️ Info ausblenden' : 'ℹ️ Hide info');
+      localStorage.setItem('cbpi_help_collapsed_' + path, nowCollapsed ? '1' : '0');
     };
-    banner.appendChild(closeBtn);
+    banner.appendChild(toggle);
+
+    // Content (einklappbar)
+    var contentDiv = document.createElement('div');
+    contentDiv.className = 'cbpi-help-content';
+    contentDiv.innerHTML = resolveHelp(help, currentLang);
+    banner.appendChild(contentDiv);
 
     // Banner nach dem Seitentitel einfügen (falls vorhanden)
     var titleEl = target.querySelector('#cbpi-page-title');
