@@ -99,6 +99,153 @@
   --badge-border: rgba(0, 0, 0, 0.1);
 }
 
+/* ==================== BRAUMEISTER THEME (Hopfengrün/Anthrazit — CraftBeerPi-Style) ==================== */
+[data-theme="braumeister"] {
+  --bg-body: #141414;
+  --bg-surface: #1e1e1e;
+  --bg-elevated: #262626;
+  --bg-main: #141414;
+  --bg-hover: rgba(156, 204, 101, 0.06);
+  --accent: #9CCC65;
+  --accent-dark: #7CB342;
+  --accent-glow: rgba(156, 204, 101, 0.3);
+  --accent-subtle: rgba(156, 204, 101, 0.06);
+  --accent-border: rgba(156, 204, 101, 0.1);
+  --text: #e8e8e8;
+  --text-secondary: rgba(255, 255, 255, 0.55);
+  --text-muted: rgba(255, 255, 255, 0.3);
+  --text-inverse: #000000;
+  --text-on-accent: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(156, 204, 101, 0.4);
+  --danger: #ef5350;
+  --danger-dark: #c62828;
+  --warning: #FFA726;
+  --success: #9CCC65;
+  --header-bg: linear-gradient(135deg, #2a2a2a 0%, #141414 100%);
+  --card-bg: linear-gradient(145deg, #1e1e1e 0%, #1a1a1a 100%);
+  --section-bg: linear-gradient(135deg, #2a2a2a 0%, #141414 100%);
+  --help-bg: linear-gradient(135deg, rgba(22, 22, 22, 0.98) 0%, rgba(18, 18, 18, 0.98) 100%);
+  --ob-card-bg: linear-gradient(145deg, #1e1e1e 0%, #1a1a1a 100%);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --shadow-accent: 0 2px 12px rgba(156, 204, 101, 0.15);
+  --scrollbar-track: #1c1c1c;
+  --scrollbar-thumb: rgba(156, 204, 101, 0.15);
+  --toolbar-text: #e0e0e0;
+  --toolbar-btn-bg: rgba(255,255,255,0.08);
+  --toolbar-btn-border: rgba(255,255,255,0.12);
+  --ob-text: #999;
+  --ob-btn-sec-bg: rgba(255,255,255,0.05);
+  --ob-btn-sec-border: rgba(255,255,255,0.1);
+  --ob-btn-sec-text: #aaa;
+  --ob-dot-bg: rgba(255,255,255,0.12);
+  --help-close-color: rgba(255,255,255,0.35);
+  --badge-color: #aaa;
+  --badge-bg: rgba(255,255,255,0.04);
+  --badge-border: rgba(255,255,255,0.08);
+}
+
+/* Braumeister: Grün nur als Akzent auf Buttons/Links/aktive Elemente */
+[data-theme="braumeister"] .MuiPaper-root {
+  border: 1px solid rgba(156, 204, 101, 0.08) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 1px rgba(156, 204, 101, 0.05) !important;
+}
+[data-theme="braumeister"] .MuiPaper-root:hover {
+  border-color: rgba(156, 204, 101, 0.18) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 8px rgba(156, 204, 101, 0.08) !important;
+}
+[data-theme="braumeister"] header {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(156, 204, 101, 0.1) !important;
+}
+[data-theme="braumeister"] header *,
+[data-theme="braumeister"] .MuiAppBar-root *,
+[data-theme="braumeister"] .MuiToolbar-root *,
+[data-theme="braumeister"] .MuiToolbar-root .MuiTypography-root {
+  color: #ffffff !important;
+}
+[data-theme="braumeister"] .MuiButton-containedPrimary,
+[data-theme="braumeister"] .MuiFab-primary {
+  box-shadow: 0 2px 8px rgba(156, 204, 101, 0.25), 0 0 4px rgba(156, 204, 101, 0.1) !important;
+}
+[data-theme="braumeister"] .MuiButton-containedPrimary:hover,
+[data-theme="braumeister"] .MuiFab-primary:hover {
+  box-shadow: 0 0 16px rgba(156, 204, 101, 0.35), 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+[data-theme="braumeister"] .MuiButton-outlinedPrimary {
+  border-color: rgba(156, 204, 101, 0.4) !important;
+  color: #9CCC65 !important;
+}
+[data-theme="braumeister"] .MuiButton-outlinedPrimary:hover {
+  background: rgba(156, 204, 101, 0.08) !important;
+  box-shadow: 0 0 8px rgba(156, 204, 101, 0.12) !important;
+}
+[data-theme="braumeister"] .MuiTableCell-head {
+  color: #bbb !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+[data-theme="braumeister"] .MuiTableCell-root {
+  border-bottom-color: rgba(255, 255, 255, 0.04) !important;
+}
+[data-theme="braumeister"] .cbpi-toolbar-btn:hover {
+  background: rgba(156, 204, 101, 0.1) !important;
+  box-shadow: 0 0 6px rgba(156, 204, 101, 0.1) !important;
+}
+[data-theme="braumeister"] #cbpi-page-title {
+  color: #ffffff !important;
+  text-shadow: 0 0 20px rgba(156, 204, 101, 0.15);
+}
+[data-theme="braumeister"] .cbpi-section-header {
+  color: #ccc !important;
+  text-shadow: 0 0 12px rgba(156, 204, 101, 0.1);
+}
+[data-theme="braumeister"] .cbpi-help-toggle {
+  color: #9CCC65 !important;
+  text-shadow: 0 0 6px rgba(156, 204, 101, 0.2);
+}
+[data-theme="braumeister"] #cbpi-help-banner {
+  border: 1px solid rgba(156, 204, 101, 0.08) !important;
+  box-shadow: 0 0 6px rgba(156, 204, 101, 0.04) !important;
+}
+/* Braumeister Cockpit */
+[data-theme="braumeister"] .cockpit-card {
+  border: 1px solid rgba(156, 204, 101, 0.08) !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 1px rgba(156, 204, 101, 0.06) !important;
+}
+[data-theme="braumeister"] .cockpit-card:hover {
+  border-color: rgba(156, 204, 101, 0.18) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4), 0 0 10px rgba(156, 204, 101, 0.08) !important;
+}
+[data-theme="braumeister"] .cockpit-temp {
+  text-shadow: 0 0 15px rgba(156, 204, 101, 0.2);
+}
+[data-theme="braumeister"] .cockpit-progress-fill {
+  box-shadow: 0 0 6px rgba(156, 204, 101, 0.3), 0 0 2px rgba(156, 204, 101, 0.15);
+}
+/* Braumeister: Subtiler Glow auf aktive/fokussierte Elemente */
+[data-theme="braumeister"] .MuiDrawer-paper .MuiListItem-root:hover {
+  background: rgba(156, 204, 101, 0.06) !important;
+}
+[data-theme="braumeister"] .MuiDrawer-paper .MuiListItem-root:hover .MuiListItemText-primary {
+  color: #9CCC65 !important;
+  text-shadow: 0 0 8px rgba(156, 204, 101, 0.2);
+}
+[data-theme="braumeister"] .MuiInputBase-root:focus-within {
+  box-shadow: 0 0 0 1px rgba(156, 204, 101, 0.3), 0 0 8px rgba(156, 204, 101, 0.1) !important;
+}
+[data-theme="braumeister"] .cbpi-status-bar {
+  border-top: 1px solid rgba(156, 204, 101, 0.1) !important;
+  box-shadow: 0 -1px 6px rgba(0, 0, 0, 0.3) !important;
+}
+[data-theme="braumeister"] a {
+  color: #9CCC65 !important;
+  text-shadow: 0 0 6px rgba(156, 204, 101, 0.1);
+}
+[data-theme="braumeister"] a:hover {
+  text-shadow: 0 0 10px rgba(156, 204, 101, 0.25);
+}
+
 /* Light-Theme: Sicherstellen dass MUI-Texte dunkel sind */
 [data-theme="light"] .MuiTypography-root,
 [data-theme="light"] .MuiTypography-body1,
@@ -134,6 +281,20 @@ body {
 
 code, pre {
   font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+}
+
+/* Charts / SVG (Recharts, Analytics) */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-text,
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text,
+.recharts-tooltip-wrapper,
+.recharts-default-tooltip,
+svg text,
+.MuiToggleButton-root,
+.MuiToggleButtonGroup-root .MuiToggleButton-label {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
 }
 
 /* ==================== TOP BAR / HEADER ==================== */

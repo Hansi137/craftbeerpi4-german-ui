@@ -688,20 +688,20 @@
   // SEITENTITEL (permanente Überschrift pro Route)
   // ============================================================
   var pageTitles = {
-    '/dashboard':    { de: function() { return _cockpitMode ? '🍺 Brau-Cockpit' : '🏭 Anlagenbild'; }, en: function() { return _cockpitMode ? '🍺 Brew Cockpit' : '🏭 Dashboard'; } },
-    '/hardware':     { de: '🔧 Hardware',            en: '🔧 Hardware' },
-    '/settings':     { de: '⚙️ Einstellungen',       en: '⚙️ Settings' },
-    '/mashprofile':  { de: '📋 Brauplan',            en: '📋 Brew Plan' },
-    '/recipes':      { de: '📖 Rezeptbuch',          en: '📖 Recipe Book' },
-    '/plugins':      { de: '🧩 Erweiterungen',       en: '🧩 Plugins' },
-    '/system':       { de: '💻 System',              en: '💻 System' },
-    '/about':        { de: 'ℹ️ Über CraftBeerPi',    en: 'ℹ️ About CraftBeerPi' },
-    '/actor':        { de: '⚡ Aktoren',              en: '⚡ Actors' },
-    '/sensor':       { de: '🌡️ Sensoren',            en: '🌡️ Sensors' },
-    '/kettle':       { de: '🍺 Kessel',              en: '🍺 Kettles' },
-    '/analytics':    { de: '📊 Statistiken',          en: '📊 Analytics' },
-    '/fermenter':    { de: '🧪 Gärbehälter',         en: '🧪 Fermenter' },
-    '/recipe':       { de: '📝 Rezept bearbeiten',    en: '📝 Edit Recipe' }
+    '/dashboard':    { de: function() { return _cockpitMode ? 'Brau-Cockpit' : 'Anlagenbild'; }, en: function() { return _cockpitMode ? 'Brew Cockpit' : 'Dashboard'; } },
+    '/hardware':     { de: 'Hardware',               en: 'Hardware' },
+    '/settings':     { de: 'Einstellungen',           en: 'Settings' },
+    '/mashprofile':  { de: 'Brauplan',               en: 'Brew Plan' },
+    '/recipes':      { de: 'Rezeptbuch',             en: 'Recipe Book' },
+    '/plugins':      { de: 'Erweiterungen',           en: 'Plugins' },
+    '/system':       { de: 'System',                 en: 'System' },
+    '/about':        { de: 'Über CraftBeerPi',       en: 'About CraftBeerPi' },
+    '/actor':        { de: 'Aktoren',                en: 'Actors' },
+    '/sensor':       { de: 'Sensoren',               en: 'Sensors' },
+    '/kettle':       { de: 'Kessel',                 en: 'Kettles' },
+    '/analytics':    { de: 'Statistiken',             en: 'Analytics' },
+    '/fermenter':    { de: 'Gärbehälter',            en: 'Fermenter' },
+    '/recipe':       { de: 'Rezept bearbeiten',       en: 'Edit Recipe' }
   };
 
   // ============================================================
@@ -710,141 +710,141 @@
   var pageHelp = {
     '/dashboard': {
       de: function() { return _cockpitMode
-        ? '🍺 <b>Dein Brau-Cockpit</b> – Hier siehst du Temperatur, aktuelle Schritte und Aktoren auf einen Blick. Wenn ein Rezept geladen ist, kannst du hier direkt starten, stoppen und den Fortschritt verfolgen.'
-        : '🏭 <b>Anlagenbild</b> – Hier kannst du deine Brauanlage visuell gestalten. Ziehe Sensoren, Aktoren, Kessel und Verbindungen auf die Arbeitsfläche.'; },
+        ? '<b>Dein Brau-Cockpit</b> – Hier siehst du Temperatur, aktuelle Schritte und Aktoren auf einen Blick. Wenn ein Rezept geladen ist, kannst du hier direkt starten, stoppen und den Fortschritt verfolgen.'
+        : '<b>Anlagenbild</b> – Hier kannst du deine Brauanlage visuell gestalten. Ziehe Sensoren, Aktoren, Kessel und Verbindungen auf die Arbeitsfläche.'; },
       en: function() { return _cockpitMode
-        ? '🍺 <b>Your Brew Cockpit</b> – See temperature, current steps and actors at a glance. When a recipe is loaded, you can start, stop and track progress right here.'
-        : '🏭 <b>Dashboard</b> – Design your brewery layout visually. Drag sensors, actors, kettles and connections onto the canvas.'; }
+        ? '<b>Your Brew Cockpit</b> – See temperature, current steps and actors at a glance. When a recipe is loaded, you can start, stop and track progress right here.'
+        : '<b>Dashboard</b> – Design your brewery layout visually. Drag sensors, actors, kettles and connections onto the canvas.'; }
     },
     '/hardware': {
-      de: '🔧 <b>Hardware einrichten</b> – Hier konfigurierst du deine physischen Geräte in 3 Schritten:<br>' +
-        '&nbsp;&nbsp;1️⃣ <b>Sensor</b> → Temperatursensor hinzufügen (Typ: OneWire für DS18B20)<br>' +
-        '&nbsp;&nbsp;2️⃣ <b>Aktor</b> → Schaltausgänge anlegen (Typ: GPIOActor, z.B. GPIO 17 = Heizung, GPIO 27 = Rührwerk)<br>' +
-        '&nbsp;&nbsp;3️⃣ <b>Kessel</b> → Sensor + Heizung + Rührwerk zu einer Einheit verknüpfen',
-      en: '🔧 <b>Hardware Setup</b> – Configure your physical devices in 3 steps:<br>' +
-        '&nbsp;&nbsp;1️⃣ <b>Sensor</b> → Add temperature sensor (Type: OneWire for DS18B20)<br>' +
-        '&nbsp;&nbsp;2️⃣ <b>Actor</b> → Create switching outputs (Type: GPIOActor, e.g. GPIO 17 = Heater, GPIO 27 = Agitator)<br>' +
-        '&nbsp;&nbsp;3️⃣ <b>Kettle</b> → Link sensor + heater + agitator into one unit'
+      de: '<b>Hardware einrichten</b> – Hier konfigurierst du deine physischen Geräte in 3 Schritten:<br>' +
+        '&nbsp;&nbsp;1. <b>Sensor</b> → Temperatursensor hinzufügen (Typ: OneWire für DS18B20)<br>' +
+        '&nbsp;&nbsp;2. <b>Aktor</b> → Schaltausgänge anlegen (Typ: GPIOActor, z.B. GPIO 17 = Heizung, GPIO 27 = Rührwerk)<br>' +
+        '&nbsp;&nbsp;3. <b>Kessel</b> → Sensor + Heizung + Rührwerk zu einer Einheit verknüpfen',
+      en: '<b>Hardware Setup</b> – Configure your physical devices in 3 steps:<br>' +
+        '&nbsp;&nbsp;1. <b>Sensor</b> → Add temperature sensor (Type: OneWire for DS18B20)<br>' +
+        '&nbsp;&nbsp;2. <b>Actor</b> → Create switching outputs (Type: GPIOActor, e.g. GPIO 17 = Heater, GPIO 27 = Agitator)<br>' +
+        '&nbsp;&nbsp;3. <b>Kettle</b> → Link sensor + heater + agitator into one unit'
     },
     '/settings': {
-      de: '⚙️ <b>Einstellungen</b> – Hier konfigurierst du deine Brauanlage. Die wichtigsten Punkte:<br>' +
+      de: '<b>Einstellungen</b> – Hier konfigurierst du deine Brauanlage. Die wichtigsten Punkte:<br>' +
         '&nbsp;&nbsp;• <b>BREWERY_NAME</b> – Name deiner Brauerei<br>' +
         '&nbsp;&nbsp;• <b>AutoMode</b> – Brau-Schritte automatisch weiterschalten<br>' +
         '&nbsp;&nbsp;• <b>BoilKettle</b> – Welcher Kessel zum Kochen genutzt wird<br>' +
         '&nbsp;&nbsp;• <b>CSVLOGFILES</b> – Temperatur-Messwerte als CSV aufzeichnen',
-      en: '⚙️ <b>Settings</b> – Configure your brewery. Most important options:<br>' +
+      en: '<b>Settings</b> – Configure your brewery. Most important options:<br>' +
         '&nbsp;&nbsp;• <b>BREWERY_NAME</b> – Your brewery name<br>' +
         '&nbsp;&nbsp;• <b>AutoMode</b> – Auto-advance brew steps<br>' +
         '&nbsp;&nbsp;• <b>BoilKettle</b> – Which kettle to use for boiling<br>' +
         '&nbsp;&nbsp;• <b>CSVLOGFILES</b> – Log temperature readings to CSV'
     },
     '/mashprofile': {
-      de: '📋 <b>Brauplan</b> – Dein aktueller Brauvorgang.<br><br>' +
-        '🔄 <b>So kommst du hierher:</b> Im <b>Rezeptbuch</b> ein Rezept öffnen → dort auf <b>"Aktives Rezept"</b> klicken → das Rezept wird hierher geladen.<br><br>' +
+      de: '<b>Brauplan</b> – Dein aktueller Brauvorgang.<br><br>' +
+        '<b>So kommst du hierher:</b> Im <b>Rezeptbuch</b> ein Rezept öffnen → dort auf <b>"Aktives Rezept"</b> klicken → das Rezept wird hierher geladen.<br><br>' +
         '<b>Die Schritte deines Brautags:</b><br>' +
-        '&nbsp;&nbsp;1️⃣ <b>Einmaischen</b> – Wasser auf Starttemperatur bringen<br>' +
-        '&nbsp;&nbsp;2️⃣ <b>Maisch-Schritt</b> – Halten bei Rasttemperatur (z.B. 63°C, 72°C)<br>' +
-        '&nbsp;&nbsp;3️⃣ <b>Kochschritt</b> – Würze kochen (z.B. 60 Minuten)<br>' +
-        '&nbsp;&nbsp;4️⃣ <b>Abkühlschritt</b> – Abkühlen auf Anstelltemperatur<br><br>' +
-        '▶️ Wenn alles passt: <b>Start</b>-Button drücken und CraftBeerPi steuert automatisch!',
-      en: '📋 <b>Brew Plan</b> – Your active brew process.<br><br>' +
-        '🔄 <b>How to get here:</b> Open a recipe in the <b>Recipe Book</b> → click <b>"Active Recipe"</b> → the recipe is loaded here.<br><br>' +
+        '&nbsp;&nbsp;1. <b>Einmaischen</b> – Wasser auf Starttemperatur bringen<br>' +
+        '&nbsp;&nbsp;2. <b>Maisch-Schritt</b> – Halten bei Rasttemperatur (z.B. 63°C, 72°C)<br>' +
+        '&nbsp;&nbsp;3. <b>Kochschritt</b> – Würze kochen (z.B. 60 Minuten)<br>' +
+        '&nbsp;&nbsp;4. <b>Abkühlschritt</b> – Abkühlen auf Anstelltemperatur<br><br>' +
+        'Wenn alles passt: <b>Start</b>-Button drücken und CraftBeerPi steuert automatisch!',
+      en: '<b>Brew Plan</b> – Your active brew process.<br><br>' +
+        '<b>How to get here:</b> Open a recipe in the <b>Recipe Book</b> → click <b>"Active Recipe"</b> → the recipe is loaded here.<br><br>' +
         '<b>Your brew day steps:</b><br>' +
-        '&nbsp;&nbsp;1️⃣ <b>MashIn</b> – Heat water to start temperature<br>' +
-        '&nbsp;&nbsp;2️⃣ <b>MashStep</b> – Rest at mash temperature (e.g. 63°C, 72°C)<br>' +
-        '&nbsp;&nbsp;3️⃣ <b>BoilStep</b> – Boil wort (e.g. 60 minutes)<br>' +
-        '&nbsp;&nbsp;4️⃣ <b>CooldownStep</b> – Cool to pitching temperature<br><br>' +
-        '▶️ When ready: Press <b>Start</b> and CraftBeerPi takes over!'
+        '&nbsp;&nbsp;1. <b>MashIn</b> – Heat water to start temperature<br>' +
+        '&nbsp;&nbsp;2. <b>MashStep</b> – Rest at mash temperature (e.g. 63°C, 72°C)<br>' +
+        '&nbsp;&nbsp;3. <b>BoilStep</b> – Boil wort (e.g. 60 minutes)<br>' +
+        '&nbsp;&nbsp;4. <b>CooldownStep</b> – Cool to pitching temperature<br><br>' +
+        'When ready: Press <b>Start</b> and CraftBeerPi takes over!'
     },
     '/recipes': {
-      de: '📖 <b>Rezeptbuch</b> – Hier verwaltest du deine Bierrezepte.<br><br>' +
-        '<b>🍺 So erstellst du ein Rezept & startest das Brauen:</b><br>' +
-        '&nbsp;&nbsp;1️⃣ Klicke <b>+</b> um ein neues Rezept zu erstellen<br>' +
-        '&nbsp;&nbsp;2️⃣ Gib <b>Name</b>, <b>Autor</b> und <b>Beschreibung</b> ein<br>' +
-        '&nbsp;&nbsp;3️⃣ Füge <b>Brau-Schritte</b> hinzu (Einmaischen → Maisch-Schritt → Kochschritt → Abkühlen)<br>' +
-        '&nbsp;&nbsp;4️⃣ Klicke oben auf den Breadcrumb <b>"Aktives Rezept"</b> – das lädt das Rezept in den Brauplan<br>' +
-        '&nbsp;&nbsp;5️⃣ Wechsle zum <b>Brauplan</b> und drücke <b>Start</b>!<br><br>' +
-        '💡 Du kannst Rezepte auch <b>klonen</b> um Varianten zu erstellen.',
-      en: '📖 <b>Recipe Book</b> – Manage your beer recipes here.<br><br>' +
-        '<b>🍺 How to create a recipe & start brewing:</b><br>' +
-        '&nbsp;&nbsp;1️⃣ Click <b>+</b> to create a new recipe<br>' +
-        '&nbsp;&nbsp;2️⃣ Enter <b>name</b>, <b>author</b> and <b>description</b><br>' +
-        '&nbsp;&nbsp;3️⃣ Add <b>brew steps</b> (MashIn → MashStep → BoilStep → Cooldown)<br>' +
-        '&nbsp;&nbsp;4️⃣ Click the breadcrumb <b>"Active Recipe"</b> at the top – this loads the recipe into the Brew Plan<br>' +
-        '&nbsp;&nbsp;5️⃣ Switch to <b>Brew Plan</b> and press <b>Start</b>!<br><br>' +
-        '💡 You can also <b>clone</b> recipes to create variations.'
+      de: '<b>Rezeptbuch</b> – Hier verwaltest du deine Bierrezepte.<br><br>' +
+        '<b>So erstellst du ein Rezept & startest das Brauen:</b><br>' +
+        '&nbsp;&nbsp;1. Klicke <b>+</b> um ein neues Rezept zu erstellen<br>' +
+        '&nbsp;&nbsp;2. Gib <b>Name</b>, <b>Autor</b> und <b>Beschreibung</b> ein<br>' +
+        '&nbsp;&nbsp;3. Füge <b>Brau-Schritte</b> hinzu (Einmaischen → Maisch-Schritt → Kochschritt → Abkühlen)<br>' +
+        '&nbsp;&nbsp;4. Klicke oben auf den Breadcrumb <b>"Aktives Rezept"</b> – das lädt das Rezept in den Brauplan<br>' +
+        '&nbsp;&nbsp;5. Wechsle zum <b>Brauplan</b> und drücke <b>Start</b>!<br><br>' +
+        'Du kannst Rezepte auch <b>klonen</b> um Varianten zu erstellen.',
+      en: '<b>Recipe Book</b> – Manage your beer recipes here.<br><br>' +
+        '<b>How to create a recipe & start brewing:</b><br>' +
+        '&nbsp;&nbsp;1. Click <b>+</b> to create a new recipe<br>' +
+        '&nbsp;&nbsp;2. Enter <b>name</b>, <b>author</b> and <b>description</b><br>' +
+        '&nbsp;&nbsp;3. Add <b>brew steps</b> (MashIn → MashStep → BoilStep → Cooldown)<br>' +
+        '&nbsp;&nbsp;4. Click the breadcrumb <b>"Active Recipe"</b> at the top – this loads the recipe into the Brew Plan<br>' +
+        '&nbsp;&nbsp;5. Switch to <b>Brew Plan</b> and press <b>Start</b>!<br><br>' +
+        'You can also <b>clone</b> recipes to create variations.'
     },
     '/plugins': {
-      de: '🧩 <b>Erweiterungen</b> – Hier findest du zusätzliche Plugins:<br>' +
+      de: '<b>Erweiterungen</b> – Hier findest du zusätzliche Plugins:<br>' +
         '&nbsp;&nbsp;• Neue Sensor-Typen & Regler<br>' +
         '&nbsp;&nbsp;• Zusätzliche Brau-Schritte<br>' +
         '&nbsp;&nbsp;• Dashboard-Widgets<br><br>' +
-        '⚠️ Nach Installation muss CraftBeerPi neu gestartet werden.',
-      en: '🧩 <b>Plugins</b> – Find additional extensions:<br>' +
+        'Nach Installation muss CraftBeerPi neu gestartet werden.',
+      en: '<b>Plugins</b> – Find additional extensions:<br>' +
         '&nbsp;&nbsp;• New sensor types & controllers<br>' +
         '&nbsp;&nbsp;• Additional brew steps<br>' +
         '&nbsp;&nbsp;• Dashboard widgets<br><br>' +
-        '⚠️ CraftBeerPi restart required after installation.'
+        'CraftBeerPi restart required after installation.'
     },
     '/system': {
-      de: '💻 <b>System</b> – Systemverwaltung & Wartung:<br>' +
+      de: '<b>System</b> – Systemverwaltung & Wartung:<br>' +
         '&nbsp;&nbsp;• Sensor-Logs herunterladen & löschen<br>' +
         '&nbsp;&nbsp;• CraftBeerPi neu starten<br>' +
         '&nbsp;&nbsp;• System-Backup erstellen',
-      en: '💻 <b>System</b> – System management & maintenance:<br>' +
+      en: '<b>System</b> – System management & maintenance:<br>' +
         '&nbsp;&nbsp;• Download & delete sensor logs<br>' +
         '&nbsp;&nbsp;• Restart CraftBeerPi<br>' +
         '&nbsp;&nbsp;• Create system backup'
     },
     '/about': {
-      de: 'ℹ️ CraftBeerPi – Open-Source Brausteuerung, gegründet 2015 von Manuel Fritsch. Verwendet von über 7.000 Brauern weltweit.',
-      en: 'ℹ️ CraftBeerPi – Open source brew controller, founded in 2015 by Manuel Fritsch. Used by over 7,000 brewers worldwide.'
+      de: 'CraftBeerPi – Open-Source Brausteuerung, gegründet 2015 von Manuel Fritsch. Verwendet von über 7.000 Brauern weltweit.',
+      en: 'CraftBeerPi – Open source brew controller, founded in 2015 by Manuel Fritsch. Used by over 7,000 brewers worldwide.'
     },
     '/actor': {
-      de: '⚡ <b>Aktor anlegen</b> – Aktoren sind Schaltausgänge (Relais):<br>' +
+      de: '<b>Aktor anlegen</b> – Aktoren sind Schaltausgänge (Relais):<br>' +
         '&nbsp;&nbsp;• Typ: <b>GPIOActor</b> wählen<br>' +
         '&nbsp;&nbsp;• GPIO-Pin angeben (z.B. 17 für Heizung, 27 für Rührwerk)<br><br>' +
-        '⚠️ Bei LOW-Trigger-Relais (z.B. Songle): <b>Inverted = Yes</b> setzen!',
-      en: '⚡ <b>Create Actor</b> – Actors are switching outputs (relays):<br>' +
+        'Bei LOW-Trigger-Relais (z.B. Songle): <b>Inverted = Yes</b> setzen!',
+      en: '<b>Create Actor</b> – Actors are switching outputs (relays):<br>' +
         '&nbsp;&nbsp;• Select type: <b>GPIOActor</b><br>' +
         '&nbsp;&nbsp;• Set GPIO pin (e.g. 17 for heater, 27 for agitator)<br><br>' +
-        '⚠️ For LOW-trigger relays (e.g. Songle): set <b>Inverted = Yes</b>!'
+        'For LOW-trigger relays (e.g. Songle): set <b>Inverted = Yes</b>!'
     },
     '/sensor': {
-      de: '🌡️ <b>Sensor anlegen</b> – Temperatursensoren einrichten:<br>' +
+      de: '<b>Sensor anlegen</b> – Temperatursensoren einrichten:<br>' +
         '&nbsp;&nbsp;• Typ: <b>OneWire</b> für DS18B20-Sensoren<br>' +
         '&nbsp;&nbsp;• Der Sensor wird automatisch erkannt (GPIO 4)<br>' +
         '&nbsp;&nbsp;• Wähle die erkannte Sensor-ID aus der Liste',
-      en: '🌡️ <b>Create Sensor</b> – Set up temperature sensors:<br>' +
+      en: '<b>Create Sensor</b> – Set up temperature sensors:<br>' +
         '&nbsp;&nbsp;• Type: <b>OneWire</b> for DS18B20 sensors<br>' +
         '&nbsp;&nbsp;• Sensor is auto-detected (GPIO 4)<br>' +
         '&nbsp;&nbsp;• Select the detected sensor ID from the list'
     },
     '/kettle': {
-      de: '🍺 <b>Kessel anlegen</b> – Verknüpft deine Geräte:<br>' +
+      de: '<b>Kessel anlegen</b> – Verknüpft deine Geräte:<br>' +
         '&nbsp;&nbsp;• <b>Sensor</b> → Welcher Temperatursensor misst<br>' +
         '&nbsp;&nbsp;• <b>Heizung</b> → Welcher Aktor heizt<br>' +
         '&nbsp;&nbsp;• <b>Rührwerk</b> → Welcher Aktor rührt<br>' +
         '&nbsp;&nbsp;• <b>Logik</b> → Regelungsart (z.B. PIDBoil)<br><br>' +
-        '💡 Du brauchst mindestens einen Kessel um brauen zu können!',
-      en: '🍺 <b>Create Kettle</b> – Links your devices:<br>' +
+        'Du brauchst mindestens einen Kessel um brauen zu können!',
+      en: '<b>Create Kettle</b> – Links your devices:<br>' +
         '&nbsp;&nbsp;• <b>Sensor</b> → Which temperature sensor<br>' +
         '&nbsp;&nbsp;• <b>Heater</b> → Which actor heats<br>' +
         '&nbsp;&nbsp;• <b>Agitator</b> → Which actor stirs<br>' +
         '&nbsp;&nbsp;• <b>Logic</b> → Control type (e.g. PIDBoil)<br><br>' +
-        '💡 You need at least one kettle to start brewing!'
+        'You need at least one kettle to start brewing!'
     },
     '/recipe': {
-      de: '📝 <b>Rezept bearbeiten</b> – Hier baust du deinen Brauplan zusammen:<br><br>' +
-        '<b>Oben:</b> Name, Autor & Beschreibung ändern (klicke den ✏️ Bearbeiten-Button)<br>' +
+      de: '<b>Rezept bearbeiten</b> – Hier baust du deinen Brauplan zusammen:<br><br>' +
+        '<b>Oben:</b> Name, Autor & Beschreibung ändern (klicke den Bearbeiten-Button)<br>' +
         '<b>Unten:</b> Brau-Schritte hinzufügen mit dem <b>+</b> Button<br><br>' +
-        '🍺 <b>Rezept zum Brauen laden:</b><br>' +
+        '<b>Rezept zum Brauen laden:</b><br>' +
         '&nbsp;&nbsp;Klicke oben im Breadcrumb auf <b>"Aktives Rezept"</b> → das lädt alle Schritte ins Maischprofil.<br>' +
         '&nbsp;&nbsp;Dann wechsle zum <b>Maischprofil</b> im Seitenmenü und drücke <b>Start</b>!',
-      en: '📝 <b>Edit Recipe</b> – Build your brew plan here:<br><br>' +
-        '<b>Top:</b> Change name, author & description (click the ✏️ Edit button)<br>' +
+      en: '<b>Edit Recipe</b> – Build your brew plan here:<br><br>' +
+        '<b>Top:</b> Change name, author & description (click the Edit button)<br>' +
         '<b>Bottom:</b> Add brew steps with the <b>+</b> button<br><br>' +
-        '🍺 <b>Load recipe for brewing:</b><br>' +
+        '<b>Load recipe for brewing:</b><br>' +
         '&nbsp;&nbsp;Click <b>"Active Recipe"</b> in the breadcrumb above → this loads all steps into the Mash Profile.<br>' +
         '&nbsp;&nbsp;Then switch to <b>Mash Profile</b> in the sidebar and press <b>Start</b>!'
     }
@@ -929,8 +929,8 @@
       if (toggleText) {
         var collapsed = existing.classList.contains('collapsed');
         toggleText.textContent = collapsed
-          ? (currentLang === 'de' ? 'ℹ️ Info anzeigen' : 'ℹ️ Show info')
-          : (currentLang === 'de' ? 'ℹ️ Info ausblenden' : 'ℹ️ Hide info');
+          ? (currentLang === 'de' ? 'Info anzeigen' : 'Show info')
+          : (currentLang === 'de' ? 'Info ausblenden' : 'Hide info');
       }
       return;
     }
@@ -958,8 +958,8 @@
     var toggleText = document.createElement('span');
     toggleText.className = 'cbpi-help-toggle-text';
     toggleText.textContent = isCollapsed
-      ? (currentLang === 'de' ? 'ℹ️ Info anzeigen' : 'ℹ️ Show info')
-      : (currentLang === 'de' ? 'ℹ️ Info ausblenden' : 'ℹ️ Hide info');
+      ? (currentLang === 'de' ? 'Info anzeigen' : 'Show info')
+      : (currentLang === 'de' ? 'Info ausblenden' : 'Hide info');
     var toggleArrow = document.createElement('span');
     toggleArrow.className = 'cbpi-help-toggle-arrow';
     toggleArrow.textContent = isCollapsed ? '▶' : '▼';
@@ -970,8 +970,8 @@
       banner.classList.toggle('collapsed');
       toggleArrow.textContent = nowCollapsed ? '▶' : '▼';
       toggleText.textContent = nowCollapsed
-        ? (currentLang === 'de' ? 'ℹ️ Info anzeigen' : 'ℹ️ Show info')
-        : (currentLang === 'de' ? 'ℹ️ Info ausblenden' : 'ℹ️ Hide info');
+        ? (currentLang === 'de' ? 'Info anzeigen' : 'Show info')
+        : (currentLang === 'de' ? 'Info ausblenden' : 'Hide info');
       localStorage.setItem('cbpi_help_collapsed_' + path, nowCollapsed ? '1' : '0');
     };
     banner.appendChild(toggle);
@@ -1127,12 +1127,12 @@
 
     var btn = document.createElement('button');
     btn.id = 'cbpi-lang-toggle';
-    btn.innerHTML = currentLang === 'de' ? '<span class="cbpi-flag">🇬🇧</span> EN' : '<span class="cbpi-flag">🇩🇪</span> DE';
+    btn.innerHTML = currentLang === 'de' ? 'EN' : 'DE';
     btn.title = currentLang === 'de' ? 'Switch to English' : 'Auf Deutsch umschalten';
     btn.onclick = function () {
       currentLang = currentLang === 'de' ? 'en' : 'de';
       localStorage.setItem(LANG_KEY, currentLang);
-      btn.innerHTML = currentLang === 'de' ? '<span class="cbpi-flag">🇬🇧</span> EN' : '<span class="cbpi-flag">🇩🇪</span> DE';
+      btn.innerHTML = currentLang === 'de' ? 'EN' : 'DE';
       btn.title = currentLang === 'de' ? 'Switch to English' : 'Auf Deutsch umschalten';
       // Alle Hilfe-Banner resetten
       Object.keys(pageHelp).forEach(function (k) { sessionStorage.removeItem('cbpi_help_' + k); });
@@ -1203,18 +1203,18 @@
 
     var steps = {
       de: [
-        { icon: '👋', title: 'Willkommen bei CraftBeerPi!', text: 'Dieser kurze Assistent zeigt dir in 4 Schritten, wie du deine Brauanlage einrichtest und dein erstes Bier braust.' },
-        { icon: '🔧', title: 'Schritt 1: Hardware einrichten', text: 'Öffne <b>Hardware</b> im Seitenmenü:<br><br>① <b>Sensor anlegen</b> – Wähle „OneWire" als Typ. Dein DS18B20 wird automatisch erkannt.<br><br>② <b>Aktoren anlegen</b> – Wähle „GPIOActor". Erstelle einen für die <b>Heizung</b> (GPIO 17) und einen für das <b>Rührwerk</b> (GPIO 27). Setze <b>Inverted = Yes</b>!<br><br>③ <b>Kessel anlegen</b> – Verknüpfe den Sensor mit Heizung und Rührwerk.' },
-        { icon: '📖', title: 'Schritt 2: Rezept erstellen', text: 'Öffne das <b>Rezeptbuch</b>:<br><br>• Erstelle ein neues Rezept (+ Button)<br>• Gib Name und Autor ein<br>• Füge Brau-Schritte hinzu:<br>&nbsp;&nbsp;– <b>Einmaischen</b> (z.B. 52°C)<br>&nbsp;&nbsp;– <b>Maisch-Schritt</b> (z.B. 63°C für 45 Min)<br>&nbsp;&nbsp;– <b>Kochschritt</b> (z.B. 100°C für 60 Min)<br>&nbsp;&nbsp;– <b>Abkühlschritt</b> (z.B. 20°C)' },
-        { icon: '▶️', title: 'Schritt 3: Brauen!', text: 'Lade dein Rezept ins <b>Maischprofil</b> und drücke <b>Start</b>!<br><br>CraftBeerPi regelt automatisch:<br>• Temperatur hochheizen<br>• Rasten einhalten<br>• Rührwerk steuern<br>• Benachrichtigungen bei jedem Schritt<br><br>Auf dem <b>Dashboard</b> siehst du alles live.' },
-        { icon: '🍻', title: 'Fertig! Viel Spaß!', text: 'Deine Brauanlage ist bereit!<br><br>💡 <b>Tipps:</b><br>• Im <b>Dashboard</b> kannst du Widgets anordnen<br>• Unter <b>Einstellungen</b> kannst du CSV-Logging aktivieren<br>• Unter <b>System</b> findest du Logs und Neustart<br>• Klicke <b>?</b> oben rechts um diese Hilfe erneut anzuzeigen<br><br>Prost! 🍺' }
+        { icon: '', title: 'Willkommen bei CraftBeerPi!', text: 'Dieser kurze Assistent zeigt dir in 4 Schritten, wie du deine Brauanlage einrichtest und dein erstes Bier braust.' },
+        { icon: '', title: 'Schritt 1: Hardware einrichten', text: 'Öffne <b>Hardware</b> im Seitenmenü:<br><br>1. <b>Sensor anlegen</b> – Wähle „OneWire" als Typ. Dein DS18B20 wird automatisch erkannt.<br><br>2. <b>Aktoren anlegen</b> – Wähle „GPIOActor". Erstelle einen für die <b>Heizung</b> (GPIO 17) und einen für das <b>Rührwerk</b> (GPIO 27). Setze <b>Inverted = Yes</b>!<br><br>3. <b>Kessel anlegen</b> – Verknüpfe den Sensor mit Heizung und Rührwerk.' },
+        { icon: '', title: 'Schritt 2: Rezept erstellen', text: 'Öffne das <b>Rezeptbuch</b>:<br><br>• Erstelle ein neues Rezept (+ Button)<br>• Gib Name und Autor ein<br>• Füge Brau-Schritte hinzu:<br>&nbsp;&nbsp;– <b>Einmaischen</b> (z.B. 52°C)<br>&nbsp;&nbsp;– <b>Maisch-Schritt</b> (z.B. 63°C für 45 Min)<br>&nbsp;&nbsp;– <b>Kochschritt</b> (z.B. 100°C für 60 Min)<br>&nbsp;&nbsp;– <b>Abkühlschritt</b> (z.B. 20°C)' },
+        { icon: '', title: 'Schritt 3: Brauen!', text: 'Lade dein Rezept ins <b>Maischprofil</b> und drücke <b>Start</b>!<br><br>CraftBeerPi regelt automatisch:<br>• Temperatur hochheizen<br>• Rasten einhalten<br>• Rührwerk steuern<br>• Benachrichtigungen bei jedem Schritt<br><br>Auf dem <b>Dashboard</b> siehst du alles live.' },
+        { icon: '', title: 'Fertig! Viel Spass!', text: 'Deine Brauanlage ist bereit!<br><br><b>Tipps:</b><br>• Im <b>Dashboard</b> kannst du Widgets anordnen<br>• Unter <b>Einstellungen</b> kannst du CSV-Logging aktivieren<br>• Unter <b>System</b> findest du Logs und Neustart<br>• Klicke <b>?</b> oben rechts um diese Hilfe erneut anzuzeigen<br><br>Prost!' }
       ],
       en: [
-        { icon: '👋', title: 'Welcome to CraftBeerPi!', text: 'This quick guide shows you how to set up your brewery and brew your first beer in 4 steps.' },
-        { icon: '🔧', title: 'Step 1: Set up Hardware', text: 'Open <b>Hardware</b> in the sidebar:<br><br>① <b>Add Sensor</b> – Select "OneWire" type. Your DS18B20 will be auto-detected.<br><br>② <b>Add Actors</b> – Select "GPIOActor". Create one for <b>Heater</b> (GPIO 17) and one for <b>Agitator</b> (GPIO 27). Set <b>Inverted = Yes</b>!<br><br>③ <b>Add Kettle</b> – Link sensor with heater and agitator.' },
-        { icon: '📖', title: 'Step 2: Create a Recipe', text: 'Open the <b>Recipe Book</b>:<br><br>• Create a new recipe (+ button)<br>• Enter name and author<br>• Add brew steps:<br>&nbsp;&nbsp;– <b>MashIn</b> (e.g. 52°C)<br>&nbsp;&nbsp;– <b>MashStep</b> (e.g. 63°C for 45 min)<br>&nbsp;&nbsp;– <b>BoilStep</b> (e.g. 100°C for 60 min)<br>&nbsp;&nbsp;– <b>CooldownStep</b> (e.g. 20°C)' },
-        { icon: '▶️', title: 'Step 3: Start Brewing!', text: 'Load your recipe into the <b>Mash Profile</b> and press <b>Start</b>!<br><br>CraftBeerPi automatically controls:<br>• Heating to target temperature<br>• Holding rest temperatures<br>• Agitator control<br>• Notifications at each step<br><br>Watch everything live on the <b>Dashboard</b>.' },
-        { icon: '🍻', title: 'All set! Enjoy!', text: 'Your brewery is ready!<br><br>💡 <b>Tips:</b><br>• Arrange widgets on the <b>Dashboard</b><br>• Enable CSV logging in <b>Settings</b><br>• Find logs & restart in <b>System</b><br>• Click <b>?</b> in the top bar to show this guide again<br><br>Cheers! 🍺' }
+        { icon: '', title: 'Welcome to CraftBeerPi!', text: 'This quick guide shows you how to set up your brewery and brew your first beer in 4 steps.' },
+        { icon: '', title: 'Step 1: Set up Hardware', text: 'Open <b>Hardware</b> in the sidebar:<br><br>1. <b>Add Sensor</b> – Select "OneWire" type. Your DS18B20 will be auto-detected.<br><br>2. <b>Add Actors</b> – Select "GPIOActor". Create one for <b>Heater</b> (GPIO 17) and one for <b>Agitator</b> (GPIO 27). Set <b>Inverted = Yes</b>!<br><br>3. <b>Add Kettle</b> – Link sensor with heater and agitator.' },
+        { icon: '', title: 'Step 2: Create a Recipe', text: 'Open the <b>Recipe Book</b>:<br><br>• Create a new recipe (+ button)<br>• Enter name and author<br>• Add brew steps:<br>&nbsp;&nbsp;– <b>MashIn</b> (e.g. 52°C)<br>&nbsp;&nbsp;– <b>MashStep</b> (e.g. 63°C for 45 min)<br>&nbsp;&nbsp;– <b>BoilStep</b> (e.g. 100°C for 60 min)<br>&nbsp;&nbsp;– <b>CooldownStep</b> (e.g. 20°C)' },
+        { icon: '', title: 'Step 3: Start Brewing!', text: 'Load your recipe into the <b>Mash Profile</b> and press <b>Start</b>!<br><br>CraftBeerPi automatically controls:<br>• Heating to target temperature<br>• Holding rest temperatures<br>• Agitator control<br>• Notifications at each step<br><br>Watch everything live on the <b>Dashboard</b>.' },
+        { icon: '', title: 'All set! Enjoy!', text: 'Your brewery is ready!<br><br><b>Tips:</b><br>• Arrange widgets on the <b>Dashboard</b><br>• Enable CSV logging in <b>Settings</b><br>• Find logs & restart in <b>System</b><br>• Click <b>?</b> in the top bar to show this guide again<br><br>Cheers!' }
       ]
     };
 
@@ -1271,11 +1271,22 @@
   }
 
   // ============================================================
-  // THEME-SYSTEM (Dark / Light)
+  // THEME-SYSTEM (Dark / Light / Braumeister)
   // ============================================================
   var THEME_KEY = 'cbpi_theme';
+  var THEMES = ['dark', 'light', 'braumeister'];
+  var THEME_ICONS = { dark: '◐', light: '◑', braumeister: '◒' };
+  var THEME_TITLES_DE = { dark: 'Helles Design', light: 'Braumeister Design', braumeister: 'Dunkles Design' };
+  var THEME_TITLES_EN = { dark: 'Light theme', light: 'Braumeister theme', braumeister: 'Dark theme' };
   var currentTheme = localStorage.getItem(THEME_KEY) || 'dark';
+  if (THEMES.indexOf(currentTheme) === -1) currentTheme = 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
+
+  function getThemeIcon() { return THEME_ICONS[currentTheme] || '☀️'; }
+  function getThemeTitle() {
+    var titles = currentLang === 'de' ? THEME_TITLES_DE : THEME_TITLES_EN;
+    return titles[currentTheme] || '';
+  }
 
   function createThemeToggle() {
     if (document.getElementById('cbpi-theme-toggle')) return;
@@ -1285,18 +1296,15 @@
     var btn = document.createElement('button');
     btn.id = 'cbpi-theme-toggle';
     btn.className = 'cbpi-toolbar-btn round';
-    btn.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
-    btn.title = currentTheme === 'dark'
-      ? (currentLang === 'de' ? 'Helles Design' : 'Light theme')
-      : (currentLang === 'de' ? 'Dunkles Design' : 'Dark theme');
+    btn.innerHTML = getThemeIcon();
+    btn.title = getThemeTitle();
     btn.onclick = function () {
-      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      var idx = THEMES.indexOf(currentTheme);
+      currentTheme = THEMES[(idx + 1) % THEMES.length];
       localStorage.setItem(THEME_KEY, currentTheme);
       document.documentElement.setAttribute('data-theme', currentTheme);
-      btn.innerHTML = currentTheme === 'dark' ? '☀️' : '🌙';
-      btn.title = currentTheme === 'dark'
-        ? (currentLang === 'de' ? 'Helles Design' : 'Light theme')
-        : (currentLang === 'de' ? 'Dunkles Design' : 'Dark theme');
+      btn.innerHTML = getThemeIcon();
+      btn.title = getThemeTitle();
     };
 
     var helpBtn = document.getElementById('cbpi-help-btn');
@@ -1530,8 +1538,8 @@
     btn.id = 'cbpi-expert-toggle';
     btn.className = 'cbpi-toolbar-btn';
     btn.innerHTML = expertMode
-      ? (currentLang === 'de' ? '🧪 Experte' : '🧪 Expert')
-      : (currentLang === 'de' ? '🍺 Einfach' : '🍺 Simple');
+      ? (currentLang === 'de' ? '✎ Experte' : '✎ Expert')
+      : (currentLang === 'de' ? '✎ Einfach' : '✎ Simple');
     btn.title = expertMode
       ? (currentLang === 'de' ? 'Zum einfachen Modus wechseln' : 'Switch to simple mode')
       : (currentLang === 'de' ? 'Experten-Modus aktivieren' : 'Enable expert mode');
@@ -1539,8 +1547,8 @@
       expertMode = !expertMode;
       localStorage.setItem(EXPERT_KEY, expertMode ? '1' : '0');
       btn.innerHTML = expertMode
-        ? (currentLang === 'de' ? '🧪 Experte' : '🧪 Expert')
-        : (currentLang === 'de' ? '🍺 Einfach' : '🍺 Simple');
+        ? (currentLang === 'de' ? '✎ Experte' : '✎ Expert')
+        : (currentLang === 'de' ? '✎ Einfach' : '✎ Simple');
       btn.title = expertMode
         ? (currentLang === 'de' ? 'Zum einfachen Modus wechseln' : 'Switch to simple mode')
         : (currentLang === 'de' ? 'Experten-Modus aktivieren' : 'Enable expert mode');
