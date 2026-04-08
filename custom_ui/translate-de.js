@@ -688,7 +688,7 @@
   // SEITENTITEL (permanente Überschrift pro Route)
   // ============================================================
   var pageTitles = {
-    '/dashboard':    { de: function() { return _cockpitMode ? 'Brau-Cockpit' : 'Anlagenbild'; }, en: function() { return _cockpitMode ? 'Brew Cockpit' : 'Dashboard'; } },
+    '/':             { de: function() { return _cockpitMode ? 'Brau-Cockpit' : 'Anlagenbild'; }, en: function() { return _cockpitMode ? 'Brew Cockpit' : 'Dashboard'; } },
     '/hardware':     { de: 'Hardware',               en: 'Hardware' },
     '/settings':     { de: 'Einstellungen',           en: 'Settings' },
     '/mashprofile':  { de: 'Brauplan',               en: 'Brew Plan' },
@@ -708,7 +708,7 @@
   // SEITEN-HILFETEXT (kontextuell pro Route)
   // ============================================================
   var pageHelp = {
-    '/dashboard': {
+    '/': {
       de: function() { return _cockpitMode
         ? '<b>Dein Brau-Cockpit</b> – Hier siehst du Temperatur, aktuelle Schritte und Aktoren auf einen Blick. Wenn ein Rezept geladen ist, kannst du hier direkt starten, stoppen und den Fortschritt verfolgen.'
         : '<b>Anlagenbild</b> – Hier kannst du deine Brauanlage visuell gestalten. Ziehe Sensoren, Aktoren, Kessel und Verbindungen auf die Arbeitsfläche.'; },
@@ -881,8 +881,8 @@
     }
 
     var existing = document.getElementById('cbpi-page-title');
-    // Bei /dashboard immer neu rendern (Modus kann gewechselt haben)
-    if (existing && existing.getAttribute('data-path') === path && path !== '/dashboard') {
+    // Bei / immer neu rendern (Modus kann gewechselt haben)
+    if (existing && existing.getAttribute('data-path') === path && path !== '/') {
       if (titleObj && existing.textContent !== resolveTitle(titleObj, currentLang)) {
         existing.textContent = resolveTitle(titleObj, currentLang);
       }
@@ -1366,9 +1366,9 @@
       if (oldTitle) { _isOurDomChange = true; oldTitle.remove(); _isOurDomChange = false; }
       var oldBanner = document.getElementById('cbpi-help-banner');
       if (oldBanner) { _isOurDomChange = true; oldBanner.remove(); _isOurDomChange = false; }
-      if (window.location.hash !== '#/dashboard') {
+      if (window.location.hash !== '#/') {
         // Von anderer Seite: navigieren → hashchange → buildCockpit
-        window.location.hash = '#/dashboard';
+        window.location.hash = '#/';
         // Retry: React braucht Zeit zum Rendern des Containers
         var retries = 0;
         var retryBuild = setInterval(function () {
@@ -1470,7 +1470,7 @@
           _cockpitMode = false;
           stopCockpit();
           // Titel/Banner aktualisieren falls schon auf /dashboard
-          if (window.location.hash === '#/dashboard') {
+          if (window.location.hash === '#/') {
             var oldTitle = document.getElementById('cbpi-page-title');
             if (oldTitle) { _isOurDomChange = true; oldTitle.remove(); _isOurDomChange = false; }
             var oldBanner = document.getElementById('cbpi-help-banner');
@@ -1831,10 +1831,69 @@
     ctx.fillText('Schritt', W - pad.right - 24, legendY + 3);
   }
 
+  // ── Dashboard-Modus-Switcher (Anlagenbild → Cockpit umschalten) ──
+  function injectDashboardSwitcher() {
+    if (document.getElementById('cbpi-dashboard-switcher')) return;
+    var target = findContentTarget();
+    if (!target) return;
+
+    var de = currentLang === 'de';
+    var pref = localStorage.getItem('cbpi_start_page') || 'cockpit';
+
+    _isOurDomChange = true;
+    var sw = document.createElement('div');
+    sw.id = 'cbpi-dashboard-switcher';
+    sw.innerHTML =
+      '<div class="dashboard-switcher-inner">' +
+        '<button class="dashboard-switcher-btn" id="cbpi-switch-to-cockpit">' +
+          '◐ ' + (de ? 'Zum Brau-Cockpit wechseln' : 'Switch to Brew Cockpit') +
+        '</button>' +
+        '<div class="dashboard-switcher-pref">' +
+          '<label class="dashboard-switcher-label">' +
+            '<input type="checkbox" id="cbpi-startpage-toggle"' + (pref === 'dashboard' ? ' checked' : '') + '> ' +
+            (de ? 'Anlagenbild als Startseite verwenden' : 'Use Dashboard as start page') +
+          '</label>' +
+        '</div>' +
+      '</div>';
+    target.appendChild(sw);
+
+    // Event-Handler
+    document.getElementById('cbpi-switch-to-cockpit').addEventListener('click', function () {
+      _isOurDomChange = true;
+      _cockpitMode = true;
+      _cockpitRenderLock = 0;
+      var oldSw = document.getElementById('cbpi-dashboard-switcher');
+      if (oldSw) oldSw.remove();
+      var oldTitle = document.getElementById('cbpi-page-title');
+      if (oldTitle) oldTitle.remove();
+      var oldBanner = document.getElementById('cbpi-help-banner');
+      if (oldBanner) oldBanner.remove();
+      _isOurDomChange = false;
+      // Direkt Cockpit aufbauen – bleiben auf #/dashboard
+      addPageTitle();
+      addPageHeaders();
+      buildCockpit();
+    });
+    document.getElementById('cbpi-startpage-toggle').addEventListener('change', function () {
+      var val = this.checked ? 'dashboard' : 'cockpit';
+      localStorage.setItem('cbpi_start_page', val);
+    });
+    _isOurDomChange = false;
+  }
+
   function buildCockpit() {
     var hash = window.location.hash.replace('#', '');
-    // Cockpit nur auf /dashboard UND wenn Cockpit-Modus aktiv
-    if (hash !== '/dashboard' || !_cockpitMode) return;
+    // Auf /dashboard aber ohne Cockpit-Modus: Modus-Switcher einblenden
+    if (hash === '/' && !_cockpitMode) {
+      injectDashboardSwitcher();
+      return;
+    }
+    // Cockpit nur auf / UND wenn Cockpit-Modus aktiv
+    if (hash !== '/' || !_cockpitMode) return;
+
+    // Switcher entfernen falls vorhanden
+    var oldSw = document.getElementById('cbpi-dashboard-switcher');
+    if (oldSw) { _isOurDomChange = true; oldSw.remove(); _isOurDomChange = false; }
 
     // Nur starten, kein Doppel-Interval
     if (!_cockpitInterval) {
@@ -1868,8 +1927,8 @@
 
   function renderCockpit(force) {
     var hash = window.location.hash.replace('#', '');
-    // Cockpit nur auf /dashboard im Cockpit-Modus
-    if (hash !== '/dashboard' || !_cockpitMode) {
+    // Cockpit nur auf / im Cockpit-Modus
+    if (hash !== '/' || !_cockpitMode) {
       stopCockpit();
       return;
     }
@@ -2138,6 +2197,9 @@
     html += (de ? 'Brauen aktiv' : 'Brewing active') + ' — <span>' + stepName + '</span> (' + (de ? 'Schritt' : 'Step') + ' ' + (activeIdx + 1) + '/' + steps.length + ')</div>';
     html += '</div>';
 
+    // Multi-Kessel-Hinweis (direkt nach Banner)
+    html += renderMultiKettleHint(kettles);
+
     // Grid: Temperatur + Aktueller Schritt
     html += '<div class="cockpit-grid">';
 
@@ -2193,9 +2255,10 @@
     html += '<button class="cockpit-ctrl-btn reset" data-action="reset">🔄 ' + (de ? 'Reset' : 'Reset') + '</button>';
     html += '</div></div>';
 
-    // Aktoren (interaktive Schalter)
-    html += '<div class="cockpit-card">';
+    // Aktoren (interaktive Schalter) — 2-spaltig
+    html += '<div class="cockpit-card cockpit-card-full">';
     html += '<div class="cockpit-card-title">' + (de ? 'Aktoren' : 'Actors') + '</div>';
+    html += '<div class="cockpit-actors-grid">';
     actors.forEach(function (actor) {
       var isOn = actor.state === true || actor.state === 1;
       var hint = getActorHint(actor, activeStep, de);
@@ -2207,7 +2270,7 @@
       html += isOn ? (de ? 'EIN' : 'ON') : (de ? 'AUS' : 'OFF');
       html += '</button></div>';
     });
-    html += '</div>';
+    html += '</div></div>';
 
     html += '</div>'; // /cockpit-grid
 
@@ -2253,6 +2316,9 @@
     html += (de ? 'Bereit zum Brauen' : 'Ready to brew') + ' — <span>' + steps.length + ' ' + (de ? 'Schritte geladen' : 'steps loaded') + '</span></div>';
     html += '</div>';
 
+    // Multi-Kessel-Hinweis (direkt nach Banner)
+    html += renderMultiKettleHint(kettles);
+
     html += '<div class="cockpit-grid">';
 
     // Temperatur
@@ -2294,6 +2360,9 @@
     // Kessel-Einstellungen
     html += renderKettleSettings(kettles);
 
+    // Startseiten-Einstellung
+    html += renderStartPageSetting();
+
     return html;
   }
 
@@ -2310,6 +2379,9 @@
     }
 
     var html = '';
+
+    // Multi-Kessel-Hinweis (ganz oben)
+    html += renderMultiKettleHint(kettles);
 
     // Hero
     html += '<div class="cockpit-card">';
@@ -2355,6 +2427,35 @@
     // Kessel-Einstellungen (auch im Idle-Modus)
     html += renderKettleSettings(kettles);
 
+    // Startseiten-Einstellung
+    html += renderStartPageSetting();
+
+    return html;
+  }
+
+  // ── Startseiten-Einstellung ──
+  function renderStartPageSetting() {
+    var de = currentLang === 'de';
+    var pref = localStorage.getItem('cbpi_start_page') || 'cockpit';
+    var html = '<div class="cockpit-card cockpit-startpage-setting">';
+    html += '<div class="cockpit-card-title">' + (de ? 'Startseite' : 'Start Page') + '</div>';
+    html += '<p class="cockpit-startpage-desc">' + (de
+      ? 'Welche Ansicht soll beim Öffnen von CraftBeerPi angezeigt werden?'
+      : 'Which view should be shown when CraftBeerPi opens?') + '</p>';
+    html += '<div class="cockpit-startpage-options">';
+    html += '<label class="cockpit-startpage-opt' + (pref === 'cockpit' ? ' active' : '') + '">';
+    html += '<input type="radio" name="cbpi_start_page" value="cockpit"' + (pref === 'cockpit' ? ' checked' : '') + '>';
+    html += '<span class="cockpit-startpage-icon">◐</span>';
+    html += '<span class="cockpit-startpage-label">' + (de ? 'Brau-Cockpit' : 'Brew Cockpit') + '</span>';
+    html += '<span class="cockpit-startpage-info">' + (de ? 'Kompakte Brauansicht mit Schritten und Steuerung' : 'Compact brew view with steps and controls') + '</span>';
+    html += '</label>';
+    html += '<label class="cockpit-startpage-opt' + (pref === 'dashboard' ? ' active' : '') + '">';
+    html += '<input type="radio" name="cbpi_start_page" value="dashboard"' + (pref === 'dashboard' ? ' checked' : '') + '>';
+    html += '<span class="cockpit-startpage-icon">▦</span>';
+    html += '<span class="cockpit-startpage-label">' + (de ? 'Anlagenbild' : 'Dashboard') + '</span>';
+    html += '<span class="cockpit-startpage-info">' + (de ? 'Visuelles Dashboard mit frei platzierbaren Elementen' : 'Visual dashboard with freely positioned elements') + '</span>';
+    html += '</label>';
+    html += '</div></div>';
     return html;
   }
 
@@ -2588,10 +2689,25 @@
     return html;
   }
 
+  function renderMultiKettleHint(kettles) {
+    if (!kettles || kettles.length <= 1) return '';
+    var de = currentLang === 'de';
+    return '<div class="cockpit-multi-kettle-hint">' +
+      '<span class="cockpit-hint-icon">i</span> ' +
+      (de
+        ? 'Du hast <b>' + kettles.length + ' Kessel</b> konfiguriert. F\u00fcr komplexe Multi-Kessel-Anlagen bietet das <a href="#/" data-switch-dashboard="1">Anlagenbild</a> eine bessere \u00dcbersicht.'
+        : 'You have <b>' + kettles.length + ' kettles</b> configured. For complex multi-vessel setups, the <a href="#/" data-switch-dashboard="1">Dashboard</a> provides a better overview.') +
+      '</div>';
+  }
+
   function renderStepsList(steps, activeIdx) {
     var de = currentLang === 'de';
+    var VISIBLE_AROUND = 2; // Anzahl Schritte vor/nach dem aktiven die immer sichtbar sind
+    var totalSteps = steps.length;
+    var needsCollapse = totalSteps > 5;
+
     var html = '<div class="cockpit-steps-card">';
-    html += '<div class="cockpit-card-title">' + (de ? 'Alle Schritte' : 'All Steps') + '</div>';
+    html += '<div class="cockpit-card-title">' + (de ? 'Alle Schritte' : 'All Steps') + ' <span class="cockpit-steps-count">(' + totalSteps + ')</span></div>';
 
     steps.forEach(function (step, idx) {
       var isActive = idx === activeIdx;
@@ -2603,7 +2719,13 @@
       var temp = (step.props && step.props.Temp) ? parseFloat(step.props.Temp).toFixed(0) + '°C' : '';
       var timer = (step.props && step.props.Timer) ? step.props.Timer + ' min' : '';
 
-      html += '<div class="cockpit-step-row ' + rowClass + '">';
+      // Bei vielen Schritten: nur aktiven + Nachbarn zeigen, Rest verstecken
+      var isVisible = !needsCollapse || isActive || isDone ||
+        (activeIdx >= 0 && idx >= activeIdx - 1 && idx <= activeIdx + VISIBLE_AROUND) ||
+        (activeIdx < 0 && idx < 3); // Kein aktiver Schritt → erste 3 zeigen
+      var hiddenClass = isVisible ? '' : ' cockpit-step-collapsed';
+
+      html += '<div class="cockpit-step-row ' + rowClass + hiddenClass + '">';
       html += '<span class="cockpit-step-icon">' + icon + '</span>';
       html += '<span class="cockpit-step-row-name">' + (step.name || 'Schritt ' + (idx + 1)) + '</span>';
       html += '<span class="cockpit-step-row-temp">' + temp + '</span>';
@@ -2611,6 +2733,21 @@
       html += '<span class="cockpit-step-row-status ' + statusClass + '">' + statusText + '</span>';
       html += '</div>';
     });
+
+    if (needsCollapse) {
+      var hiddenCount = steps.filter(function(s, i) {
+        var isActive = i === activeIdx;
+        var isDone = s.status === 'D';
+        return !(isActive || isDone ||
+          (activeIdx >= 0 && i >= activeIdx - 1 && i <= activeIdx + VISIBLE_AROUND) ||
+          (activeIdx < 0 && i < 3));
+      }).length;
+      if (hiddenCount > 0) {
+        html += '<button class="cockpit-steps-expand" data-steps-expand="1">';
+        html += (de ? 'Alle ' + totalSteps + ' Schritte anzeigen' : 'Show all ' + totalSteps + ' steps');
+        html += '</button>';
+      }
+    }
 
     html += '</div>';
     return html;
@@ -2629,6 +2766,52 @@
   function cockpitClickHandler(e) {
     // Jeder Klick im Cockpit: kurzes Render-Lock gegen Flackern
     _cockpitRenderLock = Date.now() + 3500;
+
+    // Schrittliste aufklappen
+    var expandBtn = e.target.closest('[data-steps-expand]');
+    if (expandBtn) {
+      e.stopPropagation();
+      var card = expandBtn.closest('.cockpit-steps-card');
+      if (card) {
+        card.querySelectorAll('.cockpit-step-collapsed').forEach(function(el) {
+          el.classList.remove('cockpit-step-collapsed');
+        });
+        expandBtn.remove();
+      }
+      return;
+    }
+
+    // Multi-Kessel: Link zum Anlagenbild
+    var dashLink = e.target.closest('[data-switch-dashboard]');
+    if (dashLink) {
+      e.preventDefault();
+      e.stopPropagation();
+      _cockpitMode = false;
+      stopCockpit();
+      // Direkt Anlagenbild zeigen – bleiben auf #/dashboard
+      _isOurDomChange = true;
+      var oldTitle = document.getElementById('cbpi-page-title');
+      if (oldTitle) oldTitle.remove();
+      var oldBanner = document.getElementById('cbpi-help-banner');
+      if (oldBanner) oldBanner.remove();
+      _isOurDomChange = false;
+      addPageTitle();
+      addPageHeaders();
+      injectDashboardSwitcher();
+      return;
+    }
+
+    // Startseiten-Einstellung
+    var startRadio = e.target.closest('input[name="cbpi_start_page"]');
+    if (startRadio) {
+      var val = startRadio.value;
+      localStorage.setItem('cbpi_start_page', val);
+      // Aktive Klasse umschalten
+      var opts = document.querySelectorAll('.cockpit-startpage-opt');
+      opts.forEach(function (o) { o.classList.remove('active'); });
+      startRadio.closest('.cockpit-startpage-opt').classList.add('active');
+      return;
+    }
 
     // Brau-Steuerung (Start/Stop/Next/Reset)
     var ctrlBtn = e.target.closest('.cockpit-ctrl-btn[data-action]');
@@ -3107,7 +3290,8 @@
   }
 
   // Cockpit-Modus: true = Cockpit anzeigen, false = Anlagenbild (Dashboard-Editor)
-  var _cockpitMode = true;
+  var _startPagePref = localStorage.getItem('cbpi_start_page') || 'cockpit';
+  var _cockpitMode = (_startPagePref === 'cockpit');
 
   // ============================================================
   // BRAUWASSER-AUFBEREITUNGSRECHNER
@@ -3545,11 +3729,15 @@
   }
 
   function init() {
-    // Auto-Redirect: Dashboard als Startseite (Cockpit-Modus aktiv)
+    // Startseite: Präferenz aus localStorage lesen
     var hash = window.location.hash.replace('#', '');
     if (!hash || hash === '/' || hash === '') {
-      _cockpitMode = true;
-      window.location.hash = '#/dashboard';
+      var pref = localStorage.getItem('cbpi_start_page') || 'cockpit';
+      _cockpitMode = (pref === 'cockpit');
+      // Sicherstellen dass wir auf #/ sind (React's Dashboard-Route)
+      if (window.location.hash !== '#/') {
+        window.location.hash = '#/';
+      }
     }
     injectLateStyles();
     translatePage();
@@ -3570,7 +3758,7 @@
       lastHash = h;
       // Cockpit stoppen wenn weg von /dashboard oder Cockpit-Modus aus
       var path = h.replace('#', '');
-      if (path !== '/dashboard') {
+      if (path !== '/') {
         _cockpitMode = false;
         stopCockpit();
       }
