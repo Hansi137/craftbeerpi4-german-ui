@@ -1322,19 +1322,19 @@
   var expertMode = localStorage.getItem(EXPERT_KEY) === '1';
 
   // Routen im Anfänger-Modus (nur das Wesentliche)
-  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'hardware', 'settings', 'system'];
+  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'hardware', 'settings', 'system'];
   // Zusätzliche Routen im Experten-Modus
   var expertRoutes = ['actor', 'sensor', 'kettle', 'fermenter', 'analytics', 'plugins', 'about'];
 
   var navGroups = {
     de: [
-      { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes'] },
+      { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water'] },
       { label: 'Einrichtung', routes: ['hardware', 'settings'] },
       { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
       { label: 'System', routes: ['system', 'about'] }
     ],
     en: [
-      { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes'] },
+      { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water'] },
       { label: 'Setup', routes: ['hardware', 'settings'] },
       { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
       { label: 'System', routes: ['system', 'about'] }
@@ -1416,6 +1416,9 @@
     // Cockpit-Menüpunkt einfügen (vor dem Dashboard-Link)
     injectCockpitNavItem(drawer);
 
+    // Brauwasser-Rechner Menüpunkt (nach Rezeptbuch)
+    injectWaterNavItem(drawer);
+
     var items = drawer.querySelectorAll('.MuiListItem-root');
     items.forEach(function (item) {
       var link = item.querySelector('a');
@@ -1452,7 +1455,8 @@
           'plugins': 'plugins', 'erweiterungen': 'plugins',
           'settings': 'settings', 'einstellungen': 'settings',
           'system': 'system',
-          'about': 'about', 'über': 'about', 'über craftbeerpi': 'about'
+          'about': 'about', 'über': 'about', 'über craftbeerpi': 'about',
+          'brauwasser': 'water', 'water chemistry': 'water'
         };
         route = routeMap[label] || '';
       }
@@ -3104,6 +3108,441 @@
 
   // Cockpit-Modus: true = Cockpit anzeigen, false = Anlagenbild (Dashboard-Editor)
   var _cockpitMode = true;
+
+  // ============================================================
+  // BRAUWASSER-AUFBEREITUNGSRECHNER
+  // ============================================================
+  var WATER_KEY = 'cbpi_water_source';
+  var WATER_VOL_KEY = 'cbpi_water_volume';
+  var WATER_PROFILE_KEY = 'cbpi_water_profile';
+
+  // Salz-Beiträge pro Gramm pro Liter (mg/L)
+  var SALTS = {
+    gypsum:  { de: 'Braugips (CaSO\u2084\u00b72H\u2082O)',   en: 'Gypsum (CaSO\u2084\u00b72H\u2082O)',    Ca: 232.8, SO4: 558.0 },
+    cacl2:   { de: 'Calciumchlorid (CaCl\u2082\u00b72H\u2082O)', en: 'Calcium Chloride (CaCl\u2082\u00b72H\u2082O)', Ca: 272.6, Cl: 482.3 },
+    nacl:    { de: 'Kochsalz (NaCl)',               en: 'Table Salt (NaCl)',             Na: 393.4, Cl: 606.6 },
+    epsom:   { de: 'Bittersalz (MgSO\u2084\u00b77H\u2082O)',  en: 'Epsom Salt (MgSO\u2084\u00b77H\u2082O)',  Mg: 98.6,  SO4: 389.7 },
+    nahco3:  { de: 'Natron (NaHCO\u2083)',            en: 'Baking Soda (NaHCO\u2083)',       Na: 273.7, HCO3: 726.1 },
+    caco3:   { de: 'Brauerkalk (CaCO\u2083)',          en: 'Chalk (CaCO\u2083)',              Ca: 400.4, HCO3: 1219.0 }
+  };
+
+  var WATER_PROFILES = {
+    pilsner:   { de: 'Pilsner (sehr weich)',  en: 'Pilsner (very soft)',  Ca: 10,  Mg: 3,  Na: 3,   SO4: 10,  Cl: 10,  HCO3: 20 },
+    helles:    { de: 'Helles / Lager',        en: 'Helles / Lager',      Ca: 75,  Mg: 5,  Na: 5,   SO4: 60,  Cl: 35,  HCO3: 75 },
+    pale_ale:  { de: 'Pale Ale / Bitter',     en: 'Pale Ale / Bitter',   Ca: 75,  Mg: 5,  Na: 15,  SO4: 150, Cl: 50,  HCO3: 75 },
+    ipa:       { de: 'IPA (hopfenbetont)',     en: 'IPA (hop-forward)',   Ca: 100, Mg: 10, Na: 15,  SO4: 275, Cl: 75,  HCO3: 50 },
+    stout:     { de: 'Stout / Porter',        en: 'Stout / Porter',      Ca: 100, Mg: 15, Na: 50,  SO4: 50,  Cl: 75,  HCO3: 200 },
+    weizen:    { de: 'Weizenbier',            en: 'Wheat Beer',          Ca: 60,  Mg: 10, Na: 10,  SO4: 50,  Cl: 50,  HCO3: 150 },
+    amber:     { de: 'Amber / M\u00e4rzen',   en: 'Amber / M\u00e4rzen', Ca: 75,  Mg: 10, Na: 10,  SO4: 80,  Cl: 60,  HCO3: 120 },
+    dortmund:  { de: 'Dortmunder Export',     en: 'Dortmunder Export',   Ca: 225, Mg: 40, Na: 60,  SO4: 220, Cl: 60,  HCO3: 220 },
+    custom:    { de: 'Eigenes Profil',        en: 'Custom Profile',      Ca: 0,   Mg: 0,  Na: 0,   SO4: 0,   Cl: 0,   HCO3: 0 }
+  };
+
+  var ION_LABELS = ['Ca', 'Mg', 'Na', 'SO4', 'Cl', 'HCO3'];
+  var ION_DISPLAY = { Ca: 'Ca\u00b2\u207a', Mg: 'Mg\u00b2\u207a', Na: 'Na\u207a', SO4: 'SO\u2084\u00b2\u207b', Cl: 'Cl\u207b', HCO3: 'HCO\u2083\u207b' };
+
+  function loadWaterSource() {
+    try { return JSON.parse(localStorage.getItem(WATER_KEY)) || {}; } catch(e) { return {}; }
+  }
+
+  function saveWaterSource(vals) {
+    localStorage.setItem(WATER_KEY, JSON.stringify(vals));
+  }
+
+  function calcResidualAlkalinity(Ca, Mg, HCO3) {
+    // Kolbach: RA (°dH) = Alkalität - Ca-Härte/3.5 - Mg-Härte/7
+    var alk = HCO3 / 21.8;
+    var caH = Ca / 7.14;
+    var mgH = Mg / 4.33;
+    return alk - caH / 3.5 - mgH / 7;
+  }
+
+  function calcTotalHardness(Ca, Mg) {
+    return Ca / 7.14 + Mg / 4.33;
+  }
+
+  function calculateWaterAdditions(source, target, volumeL) {
+    var delta = {};
+    ION_LABELS.forEach(function(ion) {
+      delta[ion] = (target[ion] || 0) - (source[ion] || 0);
+    });
+
+    var additions = { gypsum: 0, cacl2: 0, nacl: 0, epsom: 0, nahco3: 0, caco3: 0, lactic: 0 };
+    var contrib = { Ca: 0, Mg: 0, Na: 0, SO4: 0, Cl: 0, HCO3: 0 };
+
+    // 1. SO4 erhöhen → Braugips
+    if (delta.SO4 > 0) {
+      var gPerL = delta.SO4 / SALTS.gypsum.SO4;
+      additions.gypsum = gPerL * volumeL;
+      contrib.Ca += gPerL * SALTS.gypsum.Ca;
+      contrib.SO4 += delta.SO4;
+    }
+
+    // 2. Mg erhöhen → Bittersalz
+    if (delta.Mg > 0) {
+      var gPerL = delta.Mg / SALTS.epsom.Mg;
+      additions.epsom = gPerL * volumeL;
+      contrib.Mg += delta.Mg;
+      contrib.SO4 += gPerL * SALTS.epsom.SO4;
+    }
+
+    // 3. Verbleibender Ca-Bedarf → CaCl2
+    var remainCa = delta.Ca - contrib.Ca;
+    if (remainCa > 0) {
+      var gPerL = remainCa / SALTS.cacl2.Ca;
+      additions.cacl2 = gPerL * volumeL;
+      contrib.Ca += remainCa;
+      contrib.Cl += gPerL * SALTS.cacl2.Cl;
+    }
+
+    // 4. Na erhöhen → NaCl
+    if (delta.Na > 0) {
+      var gPerL = delta.Na / SALTS.nacl.Na;
+      additions.nacl = gPerL * volumeL;
+      contrib.Na += delta.Na;
+      contrib.Cl += gPerL * SALTS.nacl.Cl;
+    }
+
+    // 5. HCO3 senken → Milchsäure (80%)
+    if (delta.HCO3 < 0) {
+      var excessHCO3 = Math.abs(delta.HCO3); // mg/L
+      var meqPerL = excessHCO3 / 61.02;
+      // 1 mL 80% Milchsäure neutralisiert ~8.73 mEq
+      var mlPerL = meqPerL / 8.73;
+      additions.lactic = mlPerL * volumeL;
+    }
+
+    // 6. HCO3 erhöhen → Natron
+    if (delta.HCO3 > 0) {
+      var gPerL = delta.HCO3 / SALTS.nahco3.HCO3;
+      additions.nahco3 = gPerL * volumeL;
+      contrib.Na += gPerL * SALTS.nahco3.Na;
+      contrib.HCO3 += delta.HCO3;
+    }
+
+    // Resultierendes Wasser berechnen
+    var result = {};
+    ION_LABELS.forEach(function(ion) {
+      result[ion] = Math.max(0, (source[ion] || 0) + (contrib[ion] || 0));
+    });
+
+    return { additions: additions, result: result, contrib: contrib };
+  }
+
+  function buildWaterCalculator() {
+    var existing = document.getElementById('cbpi-water-calc');
+    if (existing) existing.remove();
+
+    var saved = loadWaterSource();
+    var savedVol = parseFloat(localStorage.getItem(WATER_VOL_KEY)) || 20;
+    var savedProfile = localStorage.getItem(WATER_PROFILE_KEY) || 'helles';
+    var lang = currentLang;
+
+    // Overlay erstellen
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-water-calc';
+    overlay.className = 'water-calc-overlay';
+
+    var profileOptions = Object.keys(WATER_PROFILES).map(function(key) {
+      var p = WATER_PROFILES[key];
+      var sel = key === savedProfile ? ' selected' : '';
+      return '<option value="' + key + '"' + sel + '>' + p[lang] + '</option>';
+    }).join('');
+
+    var ionInputs = ION_LABELS.map(function(ion) {
+      var val = saved[ion] !== undefined ? saved[ion] : '';
+      return '<div class="water-ion-input">' +
+        '<label>' + ION_DISPLAY[ion] + '</label>' +
+        '<input type="number" id="water-src-' + ion + '" value="' + val + '" min="0" step="0.1" placeholder="0">' +
+        '<span class="water-unit">mg/L</span>' +
+      '</div>';
+    }).join('');
+
+    var targetIonInputs = ION_LABELS.map(function(ion) {
+      return '<div class="water-ion-input">' +
+        '<label>' + ION_DISPLAY[ion] + '</label>' +
+        '<input type="number" id="water-tgt-' + ion + '" value="" min="0" step="0.1" placeholder="0" disabled>' +
+        '<span class="water-unit">mg/L</span>' +
+      '</div>';
+    }).join('');
+
+    overlay.innerHTML =
+      '<div class="water-calc-container">' +
+        '<div class="water-calc-header">' +
+          '<h2>' + (lang === 'de' ? 'Brauwasser-Aufbereitung' : 'Brewing Water Calculator') + '</h2>' +
+          '<button class="water-close-btn" id="water-close">\u00d7</button>' +
+        '</div>' +
+        '<div class="water-calc-body">' +
+          // Zeile 1: Quellwasser + Zielprofil
+          '<div class="water-row">' +
+            '<div class="water-card">' +
+              '<h3>' + (lang === 'de' ? 'Dein Leitungswasser' : 'Your Tap Water') + '</h3>' +
+              '<p class="water-hint">' + (lang === 'de' ? 'Werte vom Wasserwerk oder eigener Messung' : 'Values from water utility or own measurement') + '</p>' +
+              '<div class="water-ion-grid">' + ionInputs + '</div>' +
+              '<div class="water-ion-input water-ph-input">' +
+                '<label>pH</label>' +
+                '<input type="number" id="water-src-ph" value="' + (saved.pH || '') + '" min="0" max="14" step="0.1" placeholder="7.0">' +
+              '</div>' +
+              '<div class="water-info-row" id="water-src-info"></div>' +
+              '<div class="water-actions">' +
+                '<button class="water-btn water-btn-primary" id="water-save">' + (lang === 'de' ? 'Speichern' : 'Save') + '</button>' +
+                '<button class="water-btn water-btn-secondary" id="water-reset">' + (lang === 'de' ? 'Zur\u00fccksetzen' : 'Reset') + '</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="water-card">' +
+              '<h3>' + (lang === 'de' ? 'Zielprofil' : 'Target Profile') + '</h3>' +
+              '<div class="water-profile-select">' +
+                '<select id="water-profile">' + profileOptions + '</select>' +
+              '</div>' +
+              '<div class="water-ion-grid water-target-grid" id="water-target-ions">' + targetIonInputs + '</div>' +
+              '<div class="water-info-row" id="water-tgt-info"></div>' +
+              '<div class="water-volume-row">' +
+                '<label>' + (lang === 'de' ? 'Wassermenge' : 'Water Volume') + '</label>' +
+                '<input type="number" id="water-volume" value="' + savedVol + '" min="1" max="500" step="0.5">' +
+                '<span class="water-unit">Liter</span>' +
+              '</div>' +
+              '<button class="water-btn water-btn-accent" id="water-calc-btn">' + (lang === 'de' ? 'Berechnen' : 'Calculate') + '</button>' +
+            '</div>' +
+          '</div>' +
+          // Zeile 2: Ergebnis
+          '<div class="water-card water-result-card" id="water-result" style="display:none;">' +
+            '<h3 id="water-result-title"></h3>' +
+            '<div class="water-result-content" id="water-result-content"></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Event-Handler
+    document.getElementById('water-close').onclick = function() {
+      overlay.remove();
+    };
+    overlay.onclick = function(e) {
+      if (e.target === overlay) overlay.remove();
+    };
+
+    document.getElementById('water-save').onclick = function() {
+      var vals = {};
+      ION_LABELS.forEach(function(ion) {
+        vals[ion] = parseFloat(document.getElementById('water-src-' + ion).value) || 0;
+      });
+      vals.pH = parseFloat(document.getElementById('water-src-ph').value) || 7.0;
+      saveWaterSource(vals);
+      var btn = document.getElementById('water-save');
+      btn.textContent = lang === 'de' ? 'Gespeichert!' : 'Saved!';
+      setTimeout(function() { btn.textContent = lang === 'de' ? 'Speichern' : 'Save'; }, 1500);
+    };
+
+    document.getElementById('water-reset').onclick = function() {
+      ION_LABELS.forEach(function(ion) {
+        document.getElementById('water-src-' + ion).value = '';
+      });
+      document.getElementById('water-src-ph').value = '';
+      localStorage.removeItem(WATER_KEY);
+      updateSourceInfo();
+    };
+
+    var profileSelect = document.getElementById('water-profile');
+    profileSelect.onchange = function() {
+      updateTargetIons();
+      localStorage.setItem(WATER_PROFILE_KEY, profileSelect.value);
+    };
+
+    document.getElementById('water-calc-btn').onclick = runWaterCalc;
+
+    // Quellwasser-Info (Gesamthärte, RA) aktualisieren
+    function updateSourceInfo() {
+      var ca = parseFloat(document.getElementById('water-src-Ca').value) || 0;
+      var mg = parseFloat(document.getElementById('water-src-Mg').value) || 0;
+      var hco3 = parseFloat(document.getElementById('water-src-HCO3').value) || 0;
+      var gh = calcTotalHardness(ca, mg);
+      var ra = calcResidualAlkalinity(ca, mg, hco3);
+      var el = document.getElementById('water-src-info');
+      el.innerHTML = (lang === 'de' ? 'Gesamth\u00e4rte' : 'Total Hardness') + ': <b>' + gh.toFixed(1) + ' \u00b0dH</b> &nbsp; ' +
+        (lang === 'de' ? 'Restalkalit\u00e4t' : 'Residual Alkalinity') + ': <b>' + ra.toFixed(1) + ' \u00b0dH</b>';
+    }
+
+    function updateTargetIons() {
+      var key = profileSelect.value;
+      var profile = WATER_PROFILES[key];
+      var isCustom = key === 'custom';
+      ION_LABELS.forEach(function(ion) {
+        var inp = document.getElementById('water-tgt-' + ion);
+        inp.value = profile[ion];
+        inp.disabled = !isCustom;
+      });
+      // Ziel-Info
+      var ca = profile.Ca, mg = profile.Mg, hco3 = profile.HCO3;
+      var so4 = profile.SO4, cl = profile.Cl;
+      var gh = calcTotalHardness(ca, mg);
+      var ra = calcResidualAlkalinity(ca, mg, hco3);
+      var ratio = cl > 0 ? (so4 / cl).toFixed(1) : '-';
+      var el = document.getElementById('water-tgt-info');
+      el.innerHTML = 'SO\u2084/Cl: <b>' + ratio + '</b> &nbsp; ' +
+        (lang === 'de' ? 'Restalkalit\u00e4t' : 'RA') + ': <b>' + ra.toFixed(1) + ' \u00b0dH</b>';
+    }
+
+    function runWaterCalc() {
+      var source = {};
+      ION_LABELS.forEach(function(ion) {
+        source[ion] = parseFloat(document.getElementById('water-src-' + ion).value) || 0;
+      });
+      source.pH = parseFloat(document.getElementById('water-src-ph').value) || 7.0;
+
+      var target = {};
+      var key = profileSelect.value;
+      if (key === 'custom') {
+        ION_LABELS.forEach(function(ion) {
+          target[ion] = parseFloat(document.getElementById('water-tgt-' + ion).value) || 0;
+        });
+      } else {
+        var p = WATER_PROFILES[key];
+        ION_LABELS.forEach(function(ion) { target[ion] = p[ion]; });
+      }
+
+      var vol = parseFloat(document.getElementById('water-volume').value) || 20;
+      localStorage.setItem(WATER_VOL_KEY, vol);
+
+      var calc = calculateWaterAdditions(source, target, vol);
+      var a = calc.additions;
+      var r = calc.result;
+
+      var resultDiv = document.getElementById('water-result');
+      resultDiv.style.display = '';
+      document.getElementById('water-result-title').textContent =
+        lang === 'de' ? 'Zugabe f\u00fcr ' + vol + ' Liter' : 'Additions for ' + vol + ' Liters';
+
+      // Salzliste (nur >0)
+      var saltRows = '';
+      var saltKeys = ['gypsum', 'cacl2', 'nacl', 'epsom', 'nahco3'];
+      saltKeys.forEach(function(sk) {
+        if (a[sk] > 0.01) {
+          saltRows += '<tr><td>' + SALTS[sk][lang] + '</td><td class="water-val">' + a[sk].toFixed(1) + ' g</td></tr>';
+        }
+      });
+      if (a.lactic > 0.01) {
+        saltRows += '<tr><td>' + (lang === 'de' ? 'Milchs\u00e4ure (80%)' : 'Lactic Acid (80%)') + '</td><td class="water-val">' + a.lactic.toFixed(1) + ' mL</td></tr>';
+      }
+      if (!saltRows) {
+        saltRows = '<tr><td colspan="2">' + (lang === 'de' ? 'Keine Aufbereitung n\u00f6tig' : 'No treatment needed') + '</td></tr>';
+      }
+
+      // Resultierendes Wasser
+      var resRow = ION_LABELS.map(function(ion) {
+        var orig = source[ion] || 0;
+        var final = r[ion];
+        var tgt = target[ion] || 0;
+        var diff = final - tgt;
+        var cls = Math.abs(diff) < 5 ? 'water-ok' : (diff > 0 ? 'water-over' : 'water-under');
+        return '<td class="' + cls + '">' + Math.round(final) + '</td>';
+      }).join('');
+
+      var tgtRow = ION_LABELS.map(function(ion) {
+        return '<td>' + (target[ion] || 0) + '</td>';
+      }).join('');
+
+      var srcRow = ION_LABELS.map(function(ion) {
+        return '<td>' + (source[ion] || 0) + '</td>';
+      }).join('');
+
+      var ionHeaders = ION_LABELS.map(function(ion) { return '<th>' + ION_DISPLAY[ion] + '</th>'; }).join('');
+
+      // Kennzahlen
+      var finalGH = calcTotalHardness(r.Ca, r.Mg);
+      var finalRA = calcResidualAlkalinity(r.Ca, r.Mg, r.HCO3);
+      var finalRatio = r.Cl > 0 ? (r.SO4 / r.Cl) : 0;
+
+      var ratioText = '';
+      if (finalRatio > 2) ratioText = lang === 'de' ? 'hopfenbetont/trocken' : 'hop-forward/dry';
+      else if (finalRatio > 0.8) ratioText = lang === 'de' ? 'ausgewogen' : 'balanced';
+      else ratioText = lang === 'de' ? 'malzbetont/vollmundig' : 'malt-forward/full';
+
+      document.getElementById('water-result-content').innerHTML =
+        '<table class="water-salt-table"><tbody>' + saltRows + '</tbody></table>' +
+        '<h4>' + (lang === 'de' ? 'Resultierendes Wasser' : 'Resulting Water') + '</h4>' +
+        '<table class="water-result-table">' +
+          '<thead><tr><th></th>' + ionHeaders + '</tr></thead>' +
+          '<tbody>' +
+            '<tr class="water-row-src"><td>' + (lang === 'de' ? 'Quelle' : 'Source') + '</td>' + srcRow + '</tr>' +
+            '<tr class="water-row-tgt"><td>' + (lang === 'de' ? 'Ziel' : 'Target') + '</td>' + tgtRow + '</tr>' +
+            '<tr class="water-row-res"><td><b>' + (lang === 'de' ? 'Ergebnis' : 'Result') + '</b></td>' + resRow + '</tr>' +
+          '</tbody>' +
+        '</table>' +
+        '<div class="water-metrics">' +
+          '<div class="water-metric"><span>' + (lang === 'de' ? 'Gesamth\u00e4rte' : 'Total Hardness') + '</span><b>' + finalGH.toFixed(1) + ' \u00b0dH</b></div>' +
+          '<div class="water-metric"><span>' + (lang === 'de' ? 'Restalkalit\u00e4t' : 'Residual Alk.') + '</span><b>' + finalRA.toFixed(1) + ' \u00b0dH</b></div>' +
+          '<div class="water-metric"><span>SO\u2084/Cl</span><b>' + finalRatio.toFixed(1) + '</b><small>' + ratioText + '</small></div>' +
+        '</div>';
+
+      // Scroll zum Ergebnis
+      resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Quellwasser-Inputs: Live-Update der Info
+    ION_LABELS.concat(['ph']).forEach(function(f) {
+      var el = document.getElementById('water-src-' + (f === 'ph' ? 'ph' : f));
+      if (el) el.addEventListener('input', updateSourceInfo);
+    });
+
+    // Initial
+    updateTargetIons();
+    updateSourceInfo();
+  }
+
+  // Brauwasser-Nav-Item in Sidebar injizieren
+  function injectWaterNavItem(drawer) {
+    if (drawer.querySelector('#cbpi-nav-water')) return;
+    var list = drawer.querySelector('.MuiList-root');
+    if (!list) return;
+    var firstItem = list.querySelector('.MuiListItem-root');
+    if (!firstItem) return;
+
+    _isOurDomChange = true;
+    var li = firstItem.cloneNode(true);
+    li.id = 'cbpi-nav-water';
+    li.style.cursor = 'pointer';
+    li.classList.remove('cbpi-nav-hidden');
+
+    li.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      buildWaterCalculator();
+    });
+
+    // Icon: Wassertropfen
+    var svg = li.querySelector('svg');
+    if (svg) {
+      svg.innerHTML = '<path d="M12 2c-5.33 4.55-8 8.48-8 11.8 0 4.98 3.8 8.2 8 8.2s8-3.22 8-8.2C20 10.48 17.33 6.55 12 2zm0 18c-3.35 0-6-2.57-6-6.2 0-2.34 1.95-5.44 6-9.14 4.05 3.7 6 6.79 6 9.14 0 3.63-2.65 6.2-6 6.2z"/>';
+    }
+
+    var textEl = li.querySelector('.MuiListItemText-primary');
+    if (textEl) textEl.textContent = currentLang === 'de' ? 'Brauwasser' : 'Water Chemistry';
+    var descEl = li.querySelector('.cbpi-menu-desc');
+    if (descEl) descEl.textContent = currentLang === 'de' ? 'Wasseraufbereitung berechnen' : 'Calculate water treatment';
+
+    // Nach dem Rezeptbuch-Item einfügen (in der Brauen-Gruppe)
+    var items = list.querySelectorAll('.MuiListItem-root');
+    var insertAfter = null;
+    var hardwareItem = null;
+    items.forEach(function(item) {
+      var t = item.querySelector('.MuiListItemText-primary');
+      if (t) {
+        var txt = t.textContent.trim().toLowerCase();
+        if (txt === 'rezeptbuch' || txt === 'recipe book' || txt === 'recipes') insertAfter = item;
+        if (txt === 'brauplan' || txt === 'brew plan' || txt === 'mash profile') { if (!insertAfter) insertAfter = item; }
+        if (txt === 'hardware') hardwareItem = item;
+      }
+    });
+    if (insertAfter && insertAfter.nextSibling) {
+      list.insertBefore(li, insertAfter.nextSibling);
+    } else if (hardwareItem) {
+      list.insertBefore(li, hardwareItem);
+    } else {
+      list.appendChild(li);
+    }
+    _isOurDomChange = false;
+  }
 
   function init() {
     // Auto-Redirect: Dashboard als Startseite (Cockpit-Modus aktiv)
