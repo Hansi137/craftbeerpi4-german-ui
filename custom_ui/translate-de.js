@@ -462,6 +462,8 @@
         }
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
+      // Eigene Overlays/Formulare überspringen
+      if (node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware') return;
       if (node.placeholder) {
         var pt = node.placeholder.trim();
         if (translations[pt]) node.placeholder = translations[pt][currentLang];
@@ -1150,11 +1152,17 @@
       var oldCockpit = document.getElementById('cbpi-cockpit');
       if (oldCockpit) oldCockpit.remove();
       stopCockpit();
-      // Expert-Toggle + Theme-Toggle Text updaten
+      // Expert-Toggle + Theme-Toggle + Home-Button + Settings-Button entfernen
       var expBtn = document.getElementById('cbpi-expert-toggle');
       if (expBtn) expBtn.remove();
       var thBtn = document.getElementById('cbpi-theme-toggle');
       if (thBtn) thBtn.remove();
+      var homeBtn = document.getElementById('cbpi-home-btn');
+      if (homeBtn) homeBtn.remove();
+      var settingsBtn = document.getElementById('cbpi-settings-btn');
+      if (settingsBtn) settingsBtn.remove();
+      var settingsPanel = document.getElementById('cbpi-settings-panel');
+      if (settingsPanel) settingsPanel.remove();
       _isOurDomChange = false;
       translatePage();
       createThemeToggle();
@@ -1288,10 +1296,74 @@
     return titles[currentTheme] || '';
   }
 
+
+
   function createThemeToggle() {
     if (document.getElementById('cbpi-theme-toggle')) return;
     var toolbar = document.querySelector('.MuiToolbar-root');
     if (!toolbar) return;
+
+    // Home-Button (vor dem Theme-Toggle)
+    if (!document.getElementById('cbpi-home-btn')) {
+      var homeBtn = document.createElement('button');
+      homeBtn.id = 'cbpi-home-btn';
+      homeBtn.className = 'cbpi-toolbar-btn round';
+      homeBtn.innerHTML = '⌂';
+      homeBtn.title = currentLang === 'de' ? 'Zur Startseite' : 'Go to home';
+      homeBtn.onclick = function () {
+        var pref = localStorage.getItem('cbpi_start_page') || 'cockpit';
+        if (pref === 'dashboard') {
+          _cockpitMode = false;
+          stopCockpit();
+        } else {
+          _cockpitMode = true;
+          _cockpitRenderLock = 0;
+        }
+        // Altes Cockpit/Titel aufräumen
+        _isOurDomChange = true;
+        var oldCock = document.getElementById('cbpi-cockpit');
+        if (oldCock) oldCock.remove();
+        var oldTitle = document.getElementById('cbpi-page-title');
+        if (oldTitle) oldTitle.remove();
+        var oldBanner = document.getElementById('cbpi-help-banner');
+        if (oldBanner) oldBanner.remove();
+        _isOurDomChange = false;
+        // Immer zu #/ navigieren (dort liegt beides)
+        if (window.location.hash === '#/') {
+          // Schon auf #/ → manuell rendern
+          addPageTitle();
+          addPageHeaders();
+          buildCockpit();
+        } else {
+          window.location.hash = '#/';
+        }
+      };
+      var helpBtn = document.getElementById('cbpi-help-btn');
+      if (helpBtn) {
+        toolbar.insertBefore(homeBtn, helpBtn);
+      } else {
+        toolbar.insertBefore(homeBtn, toolbar.lastChild);
+      }
+    }
+
+    // Settings-Button (Zahnrad) — öffnet Einstellungs-Panel
+    if (!document.getElementById('cbpi-settings-btn')) {
+      var settingsBtn = document.createElement('button');
+      settingsBtn.id = 'cbpi-settings-btn';
+      settingsBtn.className = 'cbpi-toolbar-btn round';
+      settingsBtn.innerHTML = '⚙';
+      settingsBtn.title = currentLang === 'de' ? 'Einstellungen' : 'Settings';
+      settingsBtn.onclick = function (ev) {
+        ev.stopPropagation();
+        toggleSettingsPanel();
+      };
+      var helpBtn2 = document.getElementById('cbpi-help-btn');
+      if (helpBtn2) {
+        toolbar.insertBefore(settingsBtn, helpBtn2);
+      } else {
+        toolbar.insertBefore(settingsBtn, toolbar.lastChild);
+      }
+    }
 
     var btn = document.createElement('button');
     btn.id = 'cbpi-theme-toggle';
@@ -1322,19 +1394,19 @@
   var expertMode = localStorage.getItem(EXPERT_KEY) === '1';
 
   // Routen im Anfänger-Modus (nur das Wesentliche)
-  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'hardware', 'settings', 'system'];
+  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'brewlog', 'water', 'hardware', 'settings', 'system'];
   // Zusätzliche Routen im Experten-Modus
   var expertRoutes = ['actor', 'sensor', 'kettle', 'fermenter', 'analytics', 'plugins', 'about'];
 
   var navGroups = {
     de: [
-      { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water'] },
+      { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'brewlog', 'water'] },
       { label: 'Einrichtung', routes: ['hardware', 'settings'] },
       { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
       { label: 'System', routes: ['system', 'about'] }
     ],
     en: [
-      { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water'] },
+      { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'brewlog', 'water'] },
       { label: 'Setup', routes: ['hardware', 'settings'] },
       { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
       { label: 'System', routes: ['system', 'about'] }
@@ -1419,6 +1491,12 @@
     // Brauwasser-Rechner Menüpunkt (nach Rezeptbuch)
     injectWaterNavItem(drawer);
 
+    // Brau-Logbuch Menüpunkt
+    injectBrewLogNavItem(drawer);
+
+    // Gärungs-Dashboard Menüpunkt
+    injectFermenterNavItem(drawer);
+
     var items = drawer.querySelectorAll('.MuiListItem-root');
     items.forEach(function (item) {
       var link = item.querySelector('a');
@@ -1444,6 +1522,7 @@
         var routeMap = {
           'dashboard': 'dashboard', 'anlagenbild': 'dashboard', 'übersicht': 'dashboard',
           'brau-cockpit': 'cockpit', 'brew cockpit': 'cockpit',
+          'brau-logbuch': 'brewlog', 'brew log': 'brewlog',
           'hardware': 'hardware',
           'mash profile': 'mashprofile', 'maischprofil': 'mashprofile',
           'recipe book': 'recipes', 'rezeptbuch': 'recipes',
@@ -1697,13 +1776,25 @@
     var plotW = W - pad.left - pad.right;
     var plotH = H - pad.top - pad.bottom;
 
+    // Zoom: nur den letzten Teil der Daten anzeigen
+    var visibleData = _tempHistory;
+    var visibleChanges = _tempStepChanges;
+    if (_tempChartZoom > 1) {
+      var startIdx = Math.max(0, _tempHistory.length - Math.floor(_tempHistory.length / _tempChartZoom));
+      visibleData = _tempHistory.slice(startIdx);
+      if (visibleData.length > 0) {
+        var zoomStart = visibleData[0].t;
+        visibleChanges = _tempStepChanges.filter(function(sc) { return sc.t >= zoomStart; });
+      }
+    }
+
     // Bereich berechnen
-    var tMin = _tempHistory[0].t;
-    var tMax = _tempHistory[_tempHistory.length - 1].t;
+    var tMin = visibleData[0].t;
+    var tMax = visibleData[visibleData.length - 1].t;
     var tRange = Math.max(tMax - tMin, 1000); // mind. 1s
 
     var temps = [];
-    _tempHistory.forEach(function (p) {
+    visibleData.forEach(function (p) {
       if (p.actual !== null) temps.push(p.actual);
       if (p.target !== null) temps.push(p.target);
     });
@@ -1754,7 +1845,7 @@
     ctx.setLineDash([4, 4]);
     ctx.strokeStyle = style.getPropertyValue('--warning').trim() || '#f39c12';
     ctx.lineWidth = 1.5;
-    _tempStepChanges.forEach(function (sc) {
+    visibleChanges.forEach(function (sc) {
       if (sc.t >= tMin && sc.t <= tMax) {
         var sx = tx(sc.t);
         ctx.beginPath(); ctx.moveTo(sx, pad.top); ctx.lineTo(sx, H - pad.bottom); ctx.stroke();
@@ -1774,7 +1865,7 @@
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     var started = false;
-    _tempHistory.forEach(function (p) {
+    visibleData.forEach(function (p) {
       if (p.target !== null) {
         var x = tx(p.t), y = ty(p.target);
         if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
@@ -1790,7 +1881,7 @@
     ctx.lineCap = 'round';
     ctx.beginPath();
     started = false;
-    _tempHistory.forEach(function (p) {
+    visibleData.forEach(function (p) {
       if (p.actual !== null) {
         var x = tx(p.t), y = ty(p.actual);
         if (!started) { ctx.moveTo(x, y); started = true; } else { ctx.lineTo(x, y); }
@@ -1799,7 +1890,7 @@
     ctx.stroke();
 
     // Aktueller Punkt (Kreis am Ende)
-    var last = _tempHistory[_tempHistory.length - 1];
+    var last = visibleData[visibleData.length - 1];
     if (last.actual !== null) {
       ctx.beginPath();
       ctx.arc(tx(last.t), ty(last.actual), 4, 0, 2 * Math.PI);
@@ -1831,69 +1922,20 @@
     ctx.fillText('Schritt', W - pad.right - 24, legendY + 3);
   }
 
-  // ── Dashboard-Modus-Switcher (Anlagenbild → Cockpit umschalten) ──
-  function injectDashboardSwitcher() {
-    if (document.getElementById('cbpi-dashboard-switcher')) return;
-    var target = findContentTarget();
-    if (!target) return;
 
-    var de = currentLang === 'de';
-    var pref = localStorage.getItem('cbpi_start_page') || 'cockpit';
-
-    _isOurDomChange = true;
-    var sw = document.createElement('div');
-    sw.id = 'cbpi-dashboard-switcher';
-    sw.innerHTML =
-      '<div class="dashboard-switcher-inner">' +
-        '<button class="dashboard-switcher-btn" id="cbpi-switch-to-cockpit">' +
-          '◐ ' + (de ? 'Zum Brau-Cockpit wechseln' : 'Switch to Brew Cockpit') +
-        '</button>' +
-        '<div class="dashboard-switcher-pref">' +
-          '<label class="dashboard-switcher-label">' +
-            '<input type="checkbox" id="cbpi-startpage-toggle"' + (pref === 'dashboard' ? ' checked' : '') + '> ' +
-            (de ? 'Anlagenbild als Startseite verwenden' : 'Use Dashboard as start page') +
-          '</label>' +
-        '</div>' +
-      '</div>';
-    target.appendChild(sw);
-
-    // Event-Handler
-    document.getElementById('cbpi-switch-to-cockpit').addEventListener('click', function () {
-      _isOurDomChange = true;
-      _cockpitMode = true;
-      _cockpitRenderLock = 0;
-      var oldSw = document.getElementById('cbpi-dashboard-switcher');
-      if (oldSw) oldSw.remove();
-      var oldTitle = document.getElementById('cbpi-page-title');
-      if (oldTitle) oldTitle.remove();
-      var oldBanner = document.getElementById('cbpi-help-banner');
-      if (oldBanner) oldBanner.remove();
-      _isOurDomChange = false;
-      // Direkt Cockpit aufbauen – bleiben auf #/dashboard
-      addPageTitle();
-      addPageHeaders();
-      buildCockpit();
-    });
-    document.getElementById('cbpi-startpage-toggle').addEventListener('change', function () {
-      var val = this.checked ? 'dashboard' : 'cockpit';
-      localStorage.setItem('cbpi_start_page', val);
-    });
-    _isOurDomChange = false;
-  }
 
   function buildCockpit() {
     var hash = window.location.hash.replace('#', '');
-    // Auf /dashboard aber ohne Cockpit-Modus: Modus-Switcher einblenden
+    // Dashboard-Seite markieren (für CSS: bleibt immer dunkel)
     if (hash === '/' && !_cockpitMode) {
-      injectDashboardSwitcher();
-      return;
+      document.body.setAttribute('data-cbpi-page', 'dashboard');
+    } else {
+      document.body.removeAttribute('data-cbpi-page');
     }
+    // Dashboard-Ansicht (kein Cockpit): nichts weiter tun
+    if (hash === '/' && !_cockpitMode) return;
     // Cockpit nur auf / UND wenn Cockpit-Modus aktiv
     if (hash !== '/' || !_cockpitMode) return;
-
-    // Switcher entfernen falls vorhanden
-    var oldSw = document.getElementById('cbpi-dashboard-switcher');
-    if (oldSw) { _isOurDomChange = true; oldSw.remove(); _isOurDomChange = false; }
 
     // Nur starten, kein Doppel-Interval
     if (!_cockpitInterval) {
@@ -2031,6 +2073,10 @@
         cockpit.innerHTML = html;
         cockpit.setAttribute('data-state', cockpitState);
         _isOurDomChange = false;
+        // Rezeptliste im Idle-State laden
+        if (!isBrewing && steps.length === 0) {
+          loadCockpitRecipes();
+        }
       } else {
         // Smart-Update: nur Werte im DOM aktualisieren, Buttons nicht anfassen
         smartUpdateCockpit(cockpit, steps, activeStep, activeIdx, sensorValueMap, actors, kettles, recipeName);
@@ -2043,6 +2089,26 @@
         var _tarTemp = (activeStep.props && activeStep.props.Temp) ? parseFloat(activeStep.props.Temp) : null;
         recordTempPoint(_curTemp, _tarTemp, activeStep.name || '');
         drawTempChart();
+        // Hopfen-Timer aktualisieren
+        updateHopTimers(activeStep);
+        // Schritt-Wechsel-Benachrichtigung
+        if (activeStep.id && cockpit._lastActiveStepId && cockpit._lastActiveStepId !== activeStep.id) {
+          var de = currentLang === 'de';
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('🍺 ' + (de ? 'Neuer Schritt' : 'New Step'), {
+              body: activeStep.name + (activeStep.props && activeStep.props.Temp ? ' (' + activeStep.props.Temp + '°C)' : ''),
+              icon: '/static/cbpi_icon.svg'
+            });
+          }
+        }
+        cockpit._lastActiveStepId = activeStep.id;
+        // Periodisch speichern (alle 30s)
+        if (!cockpit._lastTempSave || Date.now() - cockpit._lastTempSave > 30000) {
+          saveTempHistory();
+          cockpit._lastTempSave = Date.now();
+        }
+        // Auto-Logbuch-Check
+        checkAutoBrewLog(steps);
       } else {
         // Nicht brewing → History leeren
         if (_tempHistory.length > 0) clearTempHistory();
@@ -2188,13 +2254,36 @@
 
     var de = currentLang === 'de';
 
+    // Geschätzte Gesamtbrauzeit berechnen
+    var totalBrewMin = 0;
+    var elapsedBrewMin = 0;
+    steps.forEach(function(s, idx) {
+      var sMin = (s.props && s.props.Timer) ? parseInt(s.props.Timer) || 0 : 0;
+      totalBrewMin += sMin;
+      if (idx < activeIdx) elapsedBrewMin += sMin;
+      else if (idx === activeIdx && timerText) {
+        var tp = timerText.split('/');
+        if (tp.length === 2) elapsedBrewMin += Math.floor(parseTimerParts(tp[0].trim()) / 60);
+      }
+    });
+    var remainBrewMin = totalBrewMin - elapsedBrewMin;
+    var etaStr = '';
+    if (totalBrewMin > 0) {
+      var etaDate = new Date(Date.now() + remainBrewMin * 60000);
+      etaStr = ' · ~' + (remainBrewMin > 60 ? Math.floor(remainBrewMin / 60) + 'h ' + (remainBrewMin % 60) + 'min' : remainBrewMin + ' min') +
+               ' ' + (de ? 'verbleibend' : 'remaining') +
+               ' (≈' + etaDate.getHours() + ':' + (etaDate.getMinutes() < 10 ? '0' : '') + etaDate.getMinutes() + ')';
+    }
+
     var html = '';
     // Status-Banner
     html += '<div class="cockpit-status-banner">';
     html += '<div class="cockpit-status-dot brewing"></div>';
     html += '<div class="cockpit-status-text">';
     if (recipeName) html += '<span class="cockpit-recipe-name">📝 ' + recipeName + '</span> — ';
-    html += (de ? 'Brauen aktiv' : 'Brewing active') + ' — <span>' + stepName + '</span> (' + (de ? 'Schritt' : 'Step') + ' ' + (activeIdx + 1) + '/' + steps.length + ')</div>';
+    html += (de ? 'Brauen aktiv' : 'Brewing active') + ' — <span>' + stepName + '</span> (' + (de ? 'Schritt' : 'Step') + ' ' + (activeIdx + 1) + '/' + steps.length + ')';
+    if (etaStr) html += '<span class="cockpit-eta">' + etaStr + '</span>';
+    html += '</div>';
     html += '</div>';
 
     // Multi-Kessel-Hinweis (direkt nach Banner)
@@ -2253,6 +2342,7 @@
     html += '<button class="cockpit-ctrl-btn next' + (waitingForUser ? ' pulse' : '') + '" data-action="next">⏭ ' + (de ? 'Weiter' : 'Next') + '</button>';
     html += '<button class="cockpit-ctrl-btn stop" data-action="stop">⏹ ' + (de ? 'Stop' : 'Stop') + '</button>';
     html += '<button class="cockpit-ctrl-btn reset" data-action="reset">🔄 ' + (de ? 'Reset' : 'Reset') + '</button>';
+    html += '<button class="cockpit-ctrl-btn secondary" onclick="window.location.hash=\'#/recipes\'">📖 ' + (de ? 'Rezepte' : 'Recipes') + '</button>';
     html += '</div></div>';
 
     // Aktoren (interaktive Schalter) — 2-spaltig
@@ -2276,12 +2366,16 @@
 
     // Temperaturverlauf-Chart
     html += '<div class="cockpit-card cockpit-card-full cockpit-chart-card">';
-    html += '<div class="cockpit-card-title">📈 ' + (de ? 'Temperaturverlauf' : 'Temperature History') + '</div>';
+    html += '<div class="cockpit-card-title">📈 ' + (de ? 'Temperaturverlauf' : 'Temperature History') + renderChartControls() + '</div>';
     if (_tempHistory.length < 2) {
       html += '<div class="cockpit-chart-hint">' + (de ? 'Daten werden gesammelt…' : 'Collecting data…') + '</div>';
     }
     html += '<div class="cockpit-chart-wrap"><canvas id="cockpit-temp-chart"></canvas></div>';
     html += '</div>';
+
+    // Hopfen-Timer (nur bei BoilStep)
+    updateHopTimers(activeStep);
+    html += renderHopTimerPanel();
 
     // Alle Schritte
     html += renderStepsList(steps, activeIdx);
@@ -2301,45 +2395,158 @@
       firstSensorVal = getSensorValue(sensorMap, steps[0].props.Sensor);
     }
     if (firstSensorVal === null) {
-      // Fallback: ersten Wert aus der Value-Map nehmen
       for (var sid in sensorMap) {
         var v = sensorMap[sid];
         if (v !== undefined && v !== null) { firstSensorVal = parseFloat(v); break; }
       }
     }
 
+    // ── Schritte analysieren ──
+    var mashSteps = [];
+    var boilSteps = [];
+    var otherSteps = [];
+    var totalMinutes = 0;
+    var hopAdditions = [];
+
+    steps.forEach(function(s) {
+      var type = (s.type || '').toLowerCase();
+      var mins = (s.props && s.props.Timer) ? parseInt(s.props.Timer) || 0 : 0;
+      totalMinutes += mins;
+      var info = {
+        name: s.name || '',
+        temp: (s.props && s.props.Temp) ? parseFloat(s.props.Temp) : null,
+        timer: mins,
+        type: type
+      };
+
+      if (type.indexOf('mash') !== -1) {
+        mashSteps.push(info);
+      } else if (type.indexOf('boil') !== -1) {
+        boilSteps.push(info);
+        // Hopfengaben aus BoilStep-Props extrahieren
+        if (s.props) {
+          ['First_Wort', 'Hop_1', 'Hop_2', 'Hop_3', 'Hop_4', 'Hop_5', 'Hop_6'].forEach(function(key) {
+            if (s.props[key] && s.props[key] !== '0' && s.props[key] !== '') {
+              var label = key === 'First_Wort' ? (de ? 'Vorderw\u00fcrze' : 'First Wort') : s.props[key] + ' min';
+              hopAdditions.push(label);
+            }
+          });
+        }
+      } else {
+        otherSteps.push(info);
+      }
+    });
+
+    var totalHours = Math.floor(totalMinutes / 60);
+    var totalMins = totalMinutes % 60;
+    var timeStr = totalHours > 0 ? totalHours + 'h ' + totalMins + 'min' : totalMins + ' min';
+    var etaDate = new Date(Date.now() + totalMinutes * 60000);
+    var etaStr = etaDate.getHours() + ':' + (etaDate.getMinutes() < 10 ? '0' : '') + etaDate.getMinutes();
+
     var html = '';
     html += '<div class="cockpit-status-banner">';
     html += '<div class="cockpit-status-dot idle"></div>';
     html += '<div class="cockpit-status-text">';
-    if (recipeName) html += '<span class="cockpit-recipe-name">📝 ' + recipeName + '</span> — ';
-    html += (de ? 'Bereit zum Brauen' : 'Ready to brew') + ' — <span>' + steps.length + ' ' + (de ? 'Schritte geladen' : 'steps loaded') + '</span></div>';
+    if (recipeName) html += '<span class="cockpit-recipe-name">\ud83d\udcdd ' + recipeName + '</span> \u2014 ';
+    html += (de ? 'Bereit zum Brauen' : 'Ready to brew') + ' \u2014 <span>' + steps.length + ' ' + (de ? 'Schritte' : 'steps') + ' \u00b7 \u2248' + timeStr + '</span>';
+    html += '</div>';
+    html += '<button class="cockpit-recipe-change-btn" id="cockpit-recipe-change">\ud83d\udd04 ' + (de ? 'Rezept wechseln' : 'Change Recipe') + '</button>';
     html += '</div>';
 
-    // Multi-Kessel-Hinweis (direkt nach Banner)
+    // Rezept-Wechsler (initial eingeklappt)
+    html += '<div class="cockpit-recipe-changer collapsed" id="cockpit-recipe-changer">';
+    html += '<div class="cockpit-card-title">\ud83d\udcd6 ' + (de ? 'Anderes Rezept laden' : 'Load Different Recipe') + '</div>';
+    html += '<div class="cockpit-recipe-list" id="cockpit-recipe-change-list">';
+    html += '<div class="cockpit-recipe-loading">' + (de ? 'Rezepte werden geladen\u2026' : 'Loading recipes\u2026') + '</div>';
+    html += '</div></div>';
+
+    // Multi-Kessel-Hinweis
     html += renderMultiKettleHint(kettles);
 
     html += '<div class="cockpit-grid">';
 
-    // Temperatur
+    // Temperatur + Start
     html += '<div class="cockpit-card">';
-    html += '<div class="cockpit-card-title">' + (de ? 'Temperatur' : 'Temperature') + '</div>';
+    html += '<div class="cockpit-card-title">\ud83c\udf21\ufe0f ' + (de ? 'Temperatur' : 'Temperature') + '</div>';
     var readySensorId = (steps[0] && steps[0].props && steps[0].props.Sensor) ? steps[0].props.Sensor : '';
     html += '<div class="cockpit-temp-big" data-sensor-id="' + readySensorId + '">' + formatTemp(firstSensorVal) + '</div>';
     html += '<div class="cockpit-temp-target">' + (de ? 'Aktuell (Raumtemperatur)' : 'Current (room temp)') + '</div>';
-    html += '</div>';
-
-    // Start-Karte
-    html += '<div class="cockpit-card">';
-    html += '<div class="cockpit-card-title">' + (de ? 'Brauvorgang starten' : 'Start Brewing') + '</div>';
-    html += '<div class="cockpit-controls">';
-    html += '<button class="cockpit-ctrl-btn start" data-action="start">▶️ ' + (de ? 'Start' : 'Start') + '</button>';
-    html += '<button class="cockpit-ctrl-btn reset" data-action="reset">🔄 ' + (de ? 'Reset' : 'Reset') + '</button>';
+    html += '<div class="cockpit-controls" style="margin-top:12px">';
+    html += '<button class="cockpit-ctrl-btn start" data-action="start">\u25b6\ufe0f ' + (de ? 'Start' : 'Start') + '</button>';
+    html += '<button class="cockpit-ctrl-btn reset" data-action="reset">\ud83d\udd04 ' + (de ? 'Reset' : 'Reset') + '</button>';
     html += '</div></div>';
 
+    // Brau-\u00dcbersicht Karte
+    html += '<div class="cockpit-card">';
+    html += '<div class="cockpit-card-title">\ud83d\udccb ' + (de ? 'Brau-\u00dcbersicht' : 'Brew Overview') + '</div>';
+    html += '<div class="ready-overview">';
+
+    // Zeitsch\u00e4tzung
+    html += '<div class="ready-overview-row">';
+    html += '<span class="ready-overview-icon">\u23f1</span>';
+    html += '<span class="ready-overview-label">' + (de ? 'Gesch\u00e4tzte Dauer' : 'Estimated duration') + '</span>';
+    html += '<span class="ready-overview-value">' + timeStr + '</span>';
+    html += '</div>';
+    html += '<div class="ready-overview-row">';
+    html += '<span class="ready-overview-icon">\ud83c\udfc1</span>';
+    html += '<span class="ready-overview-label">' + (de ? 'Fertig ca.' : 'Done approx.') + '</span>';
+    html += '<span class="ready-overview-value">' + etaStr + ' ' + (de ? 'Uhr' : '') + '</span>';
     html += '</div>';
 
-    // Aktoren-Karte (auch im Ready-State schaltbar)
+    // Maisch-Info
+    if (mashSteps.length > 0) {
+      var temps = mashSteps.map(function(s) { return s.temp ? s.temp + '\u00b0' : ''; }).filter(Boolean).join(' \u2192 ');
+      html += '<div class="ready-overview-row">';
+      html += '<span class="ready-overview-icon">\ud83c\udf3e</span>';
+      html += '<span class="ready-overview-label">' + (de ? 'Maischen' : 'Mashing') + ' (' + mashSteps.length + ')</span>';
+      html += '<span class="ready-overview-value">' + temps + '</span>';
+      html += '</div>';
+    }
+    // Koch-Info
+    if (boilSteps.length > 0) {
+      var boilMin = boilSteps.reduce(function(a, s) { return a + s.timer; }, 0);
+      html += '<div class="ready-overview-row">';
+      html += '<span class="ready-overview-icon">\ud83d\udd25</span>';
+      html += '<span class="ready-overview-label">' + (de ? 'Kochen' : 'Boiling') + '</span>';
+      html += '<span class="ready-overview-value">' + boilMin + ' min</span>';
+      html += '</div>';
+    }
+    // Hopfengaben
+    if (hopAdditions.length > 0) {
+      html += '<div class="ready-overview-row">';
+      html += '<span class="ready-overview-icon">\ud83c\udf3f</span>';
+      html += '<span class="ready-overview-label">' + (de ? 'Hopfengaben' : 'Hop additions') + '</span>';
+      html += '<span class="ready-overview-value">' + hopAdditions.join(', ') + '</span>';
+      html += '</div>';
+    }
+    html += '</div></div>';
+
+    html += '</div>'; // /grid
+
+    // ── Visuelle Brau-Timeline ──
+    html += '<div class="cockpit-card cockpit-card-full">';
+    html += '<div class="cockpit-card-title">\ud83d\uddfa ' + (de ? 'Brau-Fahrplan' : 'Brew Timeline') + '</div>';
+    html += '<div class="ready-timeline">';
+    steps.forEach(function(s, idx) {
+      var type = (s.type || '').toLowerCase();
+      var iconType = '\u2b1c';
+      var colorClass = 'other';
+      if (type.indexOf('mash') !== -1) { iconType = '\ud83c\udf3e'; colorClass = 'mash'; }
+      else if (type.indexOf('boil') !== -1) { iconType = '\ud83d\udd25'; colorClass = 'boil'; }
+      else if (type.indexOf('cool') !== -1) { iconType = '\u2744\ufe0f'; colorClass = 'cool'; }
+      var temp = (s.props && s.props.Temp) ? parseFloat(s.props.Temp).toFixed(0) + '\u00b0C' : '';
+      var timer = (s.props && s.props.Timer) ? s.props.Timer + ' min' : '';
+      var widthPct = totalMinutes > 0 ? Math.max(8, Math.round(((s.props && s.props.Timer ? parseInt(s.props.Timer) : 5) / totalMinutes) * 100)) : Math.round(100 / steps.length);
+
+      html += '<div class="ready-timeline-step ' + colorClass + '" style="flex:' + widthPct + '">';
+      html += '<div class="ready-timeline-icon">' + iconType + '</div>';
+      html += '<div class="ready-timeline-name">' + (s.name || (de ? 'Schritt ' : 'Step ') + (idx + 1)) + '</div>';
+      html += '<div class="ready-timeline-detail">' + [temp, timer].filter(Boolean).join(' \u00b7 ') + '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+
+    // Aktoren-Karte
     html += '<div class="cockpit-card cockpit-card-full">';
     html += '<div class="cockpit-card-title">' + (de ? 'Aktoren' : 'Actors') + '</div>';
     html += '<div class="cockpit-actors-row">';
@@ -2359,9 +2566,6 @@
 
     // Kessel-Einstellungen
     html += renderKettleSettings(kettles);
-
-    // Startseiten-Einstellung
-    html += renderStartPageSetting();
 
     return html;
   }
@@ -2390,6 +2594,13 @@
     html += '<h2>' + (de ? 'Bereit für den nächsten Brautag!' : 'Ready for your next brew day!') + '</h2>';
     html += '<p>' + (de ? 'Lade ein Rezept aus dem Rezeptbuch, um loszulegen.' : 'Load a recipe from the recipe book to get started.') + '</p>';
     html += '<button class="cockpit-idle-btn" onclick="window.location.hash=\'#/recipes\'">📖 ' + (de ? 'Rezeptbuch öffnen' : 'Open Recipe Book') + '</button>';
+    html += '</div></div>';
+
+    // Rezept-Schnellauswahl direkt im Cockpit
+    html += '<div class="cockpit-card cockpit-card-full cockpit-recipe-quick">';
+    html += '<div class="cockpit-card-title">📋 ' + (de ? 'Rezept laden' : 'Load Recipe') + '</div>';
+    html += '<div class="cockpit-recipe-list" id="cockpit-recipe-list">';
+    html += '<div class="cockpit-recipe-loading">' + (de ? 'Rezepte werden geladen…' : 'Loading recipes…') + '</div>';
     html += '</div></div>';
 
     html += '<div class="cockpit-grid">';
@@ -2427,10 +2638,84 @@
     // Kessel-Einstellungen (auch im Idle-Modus)
     html += renderKettleSettings(kettles);
 
-    // Startseiten-Einstellung
-    html += renderStartPageSetting();
-
     return html;
+  }
+
+  // ── Rezept-Schnellauswahl im Cockpit ──
+  function loadCockpitRecipes() {
+    var listEl = document.getElementById('cockpit-recipe-list');
+    if (!listEl) return;
+    var de = currentLang === 'de';
+    fetch('/recipe/')
+      .then(function(r) { return r.json(); })
+      .then(function(recipes) {
+        if (!recipes || recipes.length === 0) {
+          listEl.innerHTML = '<div class="cockpit-recipe-empty">' + (de ? 'Keine Rezepte vorhanden. Erstelle eins im Rezeptbuch!' : 'No recipes found. Create one in the recipe book!') + '</div>';
+          return;
+        }
+        // Favoriten oben sortieren
+        var favs = {};
+        try { favs = JSON.parse(localStorage.getItem(RECIPE_FAVORITES_KEY)) || {}; } catch(e) {}
+        recipes.sort(function(a, b) {
+          var af = favs[a.file] ? 1 : 0;
+          var bf = favs[b.file] ? 1 : 0;
+          if (af !== bf) return bf - af;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        var html = '';
+        recipes.forEach(function(r) {
+          var isFav = favs[r.file];
+          html += '<div class="cockpit-recipe-item' + (isFav ? ' fav' : '') + '">';
+          html += '<div class="cockpit-recipe-item-info">';
+          html += '<span class="cockpit-recipe-item-name">' + (isFav ? '⭐ ' : '') + (r.name || r.file) + '</span>';
+          if (r.author) html += '<span class="cockpit-recipe-item-author">' + r.author + '</span>';
+          html += '</div>';
+          html += '<button class="cockpit-recipe-brew-btn" data-recipe-brew="' + r.file + '">' + (de ? '▶ Laden' : '▶ Load') + '</button>';
+          html += '</div>';
+        });
+        listEl.innerHTML = html;
+      })
+      .catch(function() {
+        listEl.innerHTML = '<div class="cockpit-recipe-empty">' + (de ? 'Fehler beim Laden der Rezepte' : 'Error loading recipes') + '</div>';
+      });
+  }
+
+  // ── Rezeptwechsler im Ready-Cockpit ──
+  function loadCockpitRecipeChanger() {
+    var listEl = document.getElementById('cockpit-recipe-change-list');
+    if (!listEl) return;
+    var de = currentLang === 'de';
+    fetch('/recipe/')
+      .then(function(r) { return r.json(); })
+      .then(function(recipes) {
+        if (!recipes || recipes.length === 0) {
+          listEl.innerHTML = '<div class="cockpit-recipe-empty">' + (de ? 'Keine Rezepte vorhanden.' : 'No recipes found.') + '</div>';
+          return;
+        }
+        var favs = {};
+        try { favs = JSON.parse(localStorage.getItem(RECIPE_FAVORITES_KEY)) || {}; } catch(e) {}
+        recipes.sort(function(a, b) {
+          var af = favs[a.file] ? 1 : 0;
+          var bf = favs[b.file] ? 1 : 0;
+          if (af !== bf) return bf - af;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        var html = '';
+        recipes.forEach(function(r) {
+          var isFav = favs[r.file];
+          html += '<div class="cockpit-recipe-item' + (isFav ? ' fav' : '') + '">';
+          html += '<div class="cockpit-recipe-item-info">';
+          html += '<span class="cockpit-recipe-item-name">' + (isFav ? '\u2b50 ' : '') + (r.name || r.file) + '</span>';
+          if (r.author) html += '<span class="cockpit-recipe-item-author">' + r.author + '</span>';
+          html += '</div>';
+          html += '<button class="cockpit-recipe-brew-btn" data-recipe-brew="' + r.file + '">\u25b6 ' + (de ? 'Laden' : 'Load') + '</button>';
+          html += '</div>';
+        });
+        listEl.innerHTML = html;
+      })
+      .catch(function() {
+        listEl.innerHTML = '<div class="cockpit-recipe-empty">' + (de ? 'Fehler beim Laden der Rezepte' : 'Error loading recipes') + '</div>';
+      });
   }
 
   // ── Startseiten-Einstellung ──
@@ -2457,6 +2742,129 @@
     html += '</label>';
     html += '</div></div>';
     return html;
+  }
+
+  // ── Settings-Panel (Toolbar-Zahnrad) ──
+  function toggleSettingsPanel() {
+    var existing = document.getElementById('cbpi-settings-panel');
+    if (existing) {
+      existing.remove();
+      var ov = document.getElementById('cbpi-settings-overlay');
+      if (ov) ov.remove();
+      return;
+    }
+    var de = currentLang === 'de';
+    var panel = document.createElement('div');
+    panel.id = 'cbpi-settings-panel';
+    panel.className = 'cbpi-settings-panel';
+
+    var html = '<div class="cbpi-settings-inner">';
+    html += '<div class="cbpi-settings-header">';
+    html += '<span>⚙ ' + (de ? 'Einstellungen' : 'Settings') + '</span>';
+    html += '<button class="cbpi-settings-close" id="cbpi-settings-close">&times;</button>';
+    html += '</div>';
+
+    // Startseite
+    var pref = localStorage.getItem('cbpi_start_page') || 'cockpit';
+    html += '<div class="cbpi-settings-section">';
+    html += '<div class="cbpi-settings-section-title">' + (de ? 'Startseite' : 'Start Page') + '</div>';
+    html += '<div class="cockpit-startpage-options">';
+    html += '<label class="cockpit-startpage-opt' + (pref === 'cockpit' ? ' active' : '') + '">';
+    html += '<input type="radio" name="cbpi_start_page_s" value="cockpit"' + (pref === 'cockpit' ? ' checked' : '') + '>';
+    html += '<span class="cockpit-startpage-icon">◐</span>';
+    html += '<span class="cockpit-startpage-label">' + (de ? 'Brau-Cockpit' : 'Brew Cockpit') + '</span>';
+    html += '</label>';
+    html += '<label class="cockpit-startpage-opt' + (pref === 'dashboard' ? ' active' : '') + '">';
+    html += '<input type="radio" name="cbpi_start_page_s" value="dashboard"' + (pref === 'dashboard' ? ' checked' : '') + '>';
+    html += '<span class="cockpit-startpage-icon">▦</span>';
+    html += '<span class="cockpit-startpage-label">' + (de ? 'Anlagenbild' : 'Dashboard') + '</span>';
+    html += '</label>';
+    html += '</div></div>';
+
+    // Cockpit-Intervall
+    var interval = parseInt(localStorage.getItem('cbpi_refresh_interval') || '3000');
+    html += '<div class="cbpi-settings-section">';
+    html += '<div class="cbpi-settings-section-title">' + (de ? 'Aktualisierungsintervall' : 'Refresh Interval') + '</div>';
+    html += '<div class="cbpi-settings-row">';
+    html += '<select id="cbpi-settings-interval" class="cbpi-settings-select">';
+    [1000, 2000, 3000, 5000, 10000].forEach(function(ms) {
+      var label = (ms / 1000) + (de ? ' Sekunden' : ' seconds');
+      html += '<option value="' + ms + '"' + (interval === ms ? ' selected' : '') + '>' + label + '</option>';
+    });
+    html += '</select>';
+    html += '<span class="cbpi-settings-hint">' + (de ? 'Wie oft Sensordaten aktualisiert werden' : 'How often sensor data refreshes') + '</span>';
+    html += '</div></div>';
+
+    // Benachrichtigungen
+    var notifEnabled = localStorage.getItem('cbpi_notifications') !== '0';
+    html += '<div class="cbpi-settings-section">';
+    html += '<div class="cbpi-settings-section-title">' + (de ? 'Benachrichtigungen' : 'Notifications') + '</div>';
+    html += '<div class="cbpi-settings-row">';
+    html += '<label class="cbpi-settings-toggle-label">';
+    html += '<input type="checkbox" id="cbpi-settings-notif"' + (notifEnabled ? ' checked' : '') + '>';
+    html += '<span>' + (de ? 'Browser-Benachrichtigungen bei Schrittwechsel' : 'Browser notifications on step change') + '</span>';
+    html += '</label></div></div>';
+
+    // Temperatur-Einheit
+    var unit = localStorage.getItem('cbpi_temp_unit') || 'C';
+    html += '<div class="cbpi-settings-section">';
+    html += '<div class="cbpi-settings-section-title">' + (de ? 'Temperatur-Einheit' : 'Temperature Unit') + '</div>';
+    html += '<div class="cbpi-settings-row">';
+    html += '<select id="cbpi-settings-unit" class="cbpi-settings-select">';
+    html += '<option value="C"' + (unit === 'C' ? ' selected' : '') + '>°C (Celsius)</option>';
+    html += '<option value="F"' + (unit === 'F' ? ' selected' : '') + '>°F (Fahrenheit)</option>';
+    html += '</select></div></div>';
+
+    html += '</div>'; // /inner
+
+    panel.innerHTML = html;
+
+    // Overlay: fängt Klicks außerhalb des Panels ab, ohne dass sie durchfallen
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-settings-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;';
+    overlay.onclick = function(ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      panel.remove();
+      overlay.remove();
+    };
+    document.body.appendChild(overlay);
+    document.body.appendChild(panel);
+
+    // Event-Handler
+    document.getElementById('cbpi-settings-close').onclick = function() {
+      panel.remove();
+      var ov = document.getElementById('cbpi-settings-overlay');
+      if (ov) ov.remove();
+    };
+
+    // Startseite Radio
+    panel.querySelectorAll('input[name="cbpi_start_page_s"]').forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        localStorage.setItem('cbpi_start_page', this.value);
+        panel.querySelectorAll('.cockpit-startpage-opt').forEach(function(o) { o.classList.remove('active'); });
+        this.closest('.cockpit-startpage-opt').classList.add('active');
+      });
+    });
+
+    // Intervall
+    document.getElementById('cbpi-settings-interval').onchange = function() {
+      var ms = parseInt(this.value);
+      localStorage.setItem('cbpi_refresh_interval', ms);
+      if (_cockpitTimer) { clearInterval(_cockpitTimer); _cockpitTimer = setInterval(function() { renderCockpit(false); }, ms); }
+    };
+
+    // Benachrichtigungen
+    document.getElementById('cbpi-settings-notif').onchange = function() {
+      localStorage.setItem('cbpi_notifications', this.checked ? '1' : '0');
+      if (this.checked) requestNotificationPermission();
+    };
+
+    // Temperatur-Einheit
+    document.getElementById('cbpi-settings-unit').onchange = function() {
+      localStorage.setItem('cbpi_temp_unit', this.value);
+    };
   }
 
   // ── Kessel-Schnelleinstellungen (Hysterese / Volumen) ──
@@ -2767,6 +3175,64 @@
     // Jeder Klick im Cockpit: kurzes Render-Lock gegen Flackern
     _cockpitRenderLock = Date.now() + 3500;
 
+    // Rezept wechseln – Toggle
+    var changeBtn = e.target.closest('#cockpit-recipe-change');
+    if (changeBtn) {
+      e.stopPropagation();
+      var changer = document.getElementById('cockpit-recipe-changer');
+      if (changer) {
+        var wasCollapsed = changer.classList.contains('collapsed');
+        changer.classList.toggle('collapsed');
+        if (wasCollapsed) {
+          // Rezeptliste laden
+          loadCockpitRecipeChanger();
+        }
+      }
+      _cockpitRenderLock = Date.now() + 8000; // Länger offen lassen
+      return;
+    }
+
+    // Rezept direkt aus dem Cockpit laden
+    var brewBtn = e.target.closest('[data-recipe-brew]');
+    if (brewBtn) {
+      e.stopPropagation();
+      var recipeId = brewBtn.getAttribute('data-recipe-brew');
+      var de = currentLang === 'de';
+      brewBtn.textContent = de ? '⏳ Wird geladen…' : '⏳ Loading…';
+      brewBtn.disabled = true;
+      fetch('/recipe/' + encodeURIComponent(recipeId) + '/brew', { method: 'POST' })
+        .then(function() {
+          _cockpitRenderLock = 0;
+          renderCockpit(true);
+        })
+        .catch(function(err) {
+          console.error('[CBPI Cockpit] Brew failed:', err);
+          brewBtn.textContent = de ? '❌ Fehler' : '❌ Error';
+          setTimeout(function() { _cockpitRenderLock = 0; renderCockpit(true); }, 2000);
+        });
+      return;
+    }
+
+    // Chart Zoom-Controls
+    var zoomBtn = e.target.closest('[data-chart-zoom]');
+    if (zoomBtn) {
+      e.stopPropagation();
+      var action = zoomBtn.getAttribute('data-chart-zoom');
+      if (action === 'in') _tempChartZoom = Math.min(8, _tempChartZoom * 2);
+      else if (action === 'out') _tempChartZoom = Math.max(1, _tempChartZoom / 2);
+      else _tempChartZoom = 1;
+      drawTempChart();
+      return;
+    }
+
+    // Chart CSV-Export
+    var exportBtn = e.target.closest('[data-chart-export]');
+    if (exportBtn) {
+      e.stopPropagation();
+      exportTempHistory();
+      return;
+    }
+
     // Schrittliste aufklappen
     var expandBtn = e.target.closest('[data-steps-expand]');
     if (expandBtn) {
@@ -2797,7 +3263,6 @@
       _isOurDomChange = false;
       addPageTitle();
       addPageHeaders();
-      injectDashboardSwitcher();
       return;
     }
 
@@ -3728,6 +4193,1955 @@
     _isOurDomChange = false;
   }
 
+  // ============================================================
+  // BRAU-LOGBUCH — Brauprotokolle/Notizen speichern und abrufen
+  // ============================================================
+  var BREWLOG_KEY = 'cbpi_brewlog';
+
+  function loadBrewLogs() {
+    try { return JSON.parse(localStorage.getItem(BREWLOG_KEY)) || []; } catch(e) { return []; }
+  }
+
+  function saveBrewLogs(logs) {
+    localStorage.setItem(BREWLOG_KEY, JSON.stringify(logs));
+  }
+
+  function addBrewLogEntry(entry) {
+    var logs = loadBrewLogs();
+    entry.id = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+    entry.created = new Date().toISOString();
+    logs.unshift(entry);
+    // Max 200 Einträge
+    if (logs.length > 200) logs = logs.slice(0, 200);
+    saveBrewLogs(logs);
+    return entry;
+  }
+
+  function deleteBrewLogEntry(id) {
+    var logs = loadBrewLogs();
+    logs = logs.filter(function(l) { return l.id !== id; });
+    saveBrewLogs(logs);
+  }
+
+  function updateBrewLogEntry(id, updates) {
+    var logs = loadBrewLogs();
+    for (var i = 0; i < logs.length; i++) {
+      if (logs[i].id === id) {
+        for (var k in updates) { logs[i][k] = updates[k]; }
+        logs[i].modified = new Date().toISOString();
+        break;
+      }
+    }
+    saveBrewLogs(logs);
+  }
+
+  function injectBrewLogNavItem(drawer) {
+    if (drawer.querySelector('#cbpi-nav-brewlog')) return;
+    var list = drawer.querySelector('.MuiList-root');
+    if (!list) return;
+    var firstItem = list.querySelector('.MuiListItem-root');
+    if (!firstItem) return;
+
+    _isOurDomChange = true;
+    var li = firstItem.cloneNode(true);
+    li.id = 'cbpi-nav-brewlog';
+    li.style.cursor = 'pointer';
+
+    li.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      showBrewLogOverlay();
+    });
+
+    var svg = li.querySelector('svg');
+    if (svg) {
+      svg.innerHTML = '<path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>';
+    }
+    var textEl = li.querySelector('.MuiListItemText-primary');
+    if (textEl) textEl.textContent = currentLang === 'de' ? 'Brau-Logbuch' : 'Brew Log';
+    var descEl = li.querySelector('.cbpi-menu-desc');
+    if (descEl) descEl.textContent = currentLang === 'de' ? 'Brauprotokolle & Notizen' : 'Brew protocols & notes';
+
+    // Nach Rezeptbuch einfügen
+    var items = list.querySelectorAll('.MuiListItem-root');
+    var insertAfter = null;
+    items.forEach(function(item) {
+      var t = item.querySelector('.MuiListItemText-primary');
+      if (t) {
+        var txt = t.textContent.trim().toLowerCase();
+        if (txt === 'brauwasser' || txt === 'water chemistry') insertAfter = item;
+        if (!insertAfter && (txt === 'rezeptbuch' || txt === 'recipe book')) insertAfter = item;
+      }
+    });
+    if (insertAfter && insertAfter.nextSibling) {
+      list.insertBefore(li, insertAfter.nextSibling);
+    } else {
+      list.appendChild(li);
+    }
+    _isOurDomChange = false;
+  }
+
+  function showBrewLogOverlay() {
+    var existing = document.getElementById('cbpi-brewlog-overlay');
+    if (existing) existing.remove();
+
+    var de = currentLang === 'de';
+    var logs = loadBrewLogs();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-brewlog-overlay';
+    overlay.className = 'brewlog-overlay';
+
+    function renderLogList(filter) {
+      var filtered = logs;
+      if (filter) {
+        var f = filter.toLowerCase();
+        filtered = logs.filter(function(l) {
+          return (l.recipe || '').toLowerCase().indexOf(f) !== -1 ||
+                 (l.notes || '').toLowerCase().indexOf(f) !== -1 ||
+                 (l.tags || []).join(' ').toLowerCase().indexOf(f) !== -1;
+        });
+      }
+      if (filtered.length === 0) {
+        return '<div class="brewlog-empty">' +
+          '<div class="brewlog-empty-icon">📝</div>' +
+          '<p>' + (de ? 'Noch keine Einträge. Starte dein erstes Brauprotokoll!' : 'No entries yet. Start your first brew log!') + '</p></div>';
+      }
+      return filtered.map(function(log) {
+        var date = new Date(log.created);
+        var dateStr = date.toLocaleDateString(de ? 'de-DE' : 'en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        var ratingStars = '';
+        for (var s = 1; s <= 5; s++) {
+          ratingStars += '<span class="brewlog-star' + (s <= (log.rating || 0) ? ' filled' : '') + '" data-log-id="' + log.id + '" data-rating="' + s + '">★</span>';
+        }
+        var tagsHtml = (log.tags || []).map(function(t) { return '<span class="brewlog-tag">' + t + '</span>'; }).join('');
+        return '<div class="brewlog-entry" data-log-entry="' + log.id + '">' +
+          '<div class="brewlog-entry-header">' +
+            '<div class="brewlog-entry-title">🍺 ' + (log.recipe || (de ? 'Unbenannt' : 'Untitled')) + '</div>' +
+            '<div class="brewlog-entry-date">' + dateStr + '</div>' +
+          '</div>' +
+          '<div class="brewlog-entry-meta">' +
+            '<span class="brewlog-rating">' + ratingStars + '</span>' +
+            (log.og ? '<span class="brewlog-meta-item">OG: ' + log.og + '</span>' : '') +
+            (log.fg ? '<span class="brewlog-meta-item">FG: ' + log.fg + '</span>' : '') +
+            (log.abv ? '<span class="brewlog-meta-item">ABV: ' + log.abv + '%</span>' : '') +
+            (log.ibu ? '<span class="brewlog-meta-item">IBU: ' + log.ibu + '</span>' : '') +
+          '</div>' +
+          (tagsHtml ? '<div class="brewlog-entry-tags">' + tagsHtml + '</div>' : '') +
+          '<div class="brewlog-entry-notes">' + (log.notes || (de ? 'Keine Notizen' : 'No notes')) + '</div>' +
+          '<div class="brewlog-entry-actions">' +
+            '<button class="brewlog-btn-sm" data-brewlog-edit="' + log.id + '">✏️ ' + (de ? 'Bearbeiten' : 'Edit') + '</button>' +
+            '<button class="brewlog-btn-sm danger" data-brewlog-delete="' + log.id + '">🗑️ ' + (de ? 'Löschen' : 'Delete') + '</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function renderOverlay() {
+      overlay.innerHTML =
+        '<div class="brewlog-container">' +
+          '<div class="brewlog-header">' +
+            '<h2>📖 ' + (de ? 'Brau-Logbuch' : 'Brew Log') + '</h2>' +
+            '<div class="brewlog-header-actions">' +
+              '<button class="brewlog-btn primary" id="brewlog-export">📤 ' + (de ? 'Export' : 'Export') + '</button>' +
+              '<button class="brewlog-btn primary" id="brewlog-import">📥 ' + (de ? 'Import' : 'Import') + '</button>' +
+              '<input type="file" id="brewlog-import-file" accept=".json" style="display:none">' +
+              '<button class="brewlog-close" id="brewlog-close">×</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="brewlog-toolbar">' +
+            '<input type="text" class="brewlog-search" id="brewlog-search" placeholder="' + (de ? 'Suche nach Rezept, Notizen, Tags...' : 'Search recipe, notes, tags...') + '">' +
+            '<button class="brewlog-btn primary" id="brewlog-new">+ ' + (de ? 'Neuer Eintrag' : 'New Entry') + '</button>' +
+          '</div>' +
+          '<div class="brewlog-list" id="brewlog-list">' + renderLogList() + '</div>' +
+        '</div>';
+    }
+
+    renderOverlay();
+    document.body.appendChild(overlay);
+
+    // Event Delegation
+    overlay.addEventListener('click', function(e) {
+      if (e.target.id === 'brewlog-close' || e.target === overlay) {
+        overlay.remove(); return;
+      }
+      if (e.target.id === 'brewlog-new' || e.target.closest('#brewlog-new')) {
+        showBrewLogEditor(null, function() { logs = loadBrewLogs(); document.getElementById('brewlog-list').innerHTML = renderLogList(); });
+        return;
+      }
+      if (e.target.id === 'brewlog-export') {
+        var blob = new Blob([JSON.stringify({app:'CraftBeerPi4',type:'brewlog',exported:new Date().toISOString(),logs:logs}, null, 2)], {type:'application/json'});
+        var a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = 'cbpi4_brewlog_' + new Date().toISOString().slice(0,10) + '.json';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        return;
+      }
+      if (e.target.id === 'brewlog-import') {
+        document.getElementById('brewlog-import-file').click(); return;
+      }
+      var editBtn = e.target.closest('[data-brewlog-edit]');
+      if (editBtn) {
+        var id = editBtn.getAttribute('data-brewlog-edit');
+        var log = logs.find(function(l) { return l.id === id; });
+        if (log) showBrewLogEditor(log, function() { logs = loadBrewLogs(); document.getElementById('brewlog-list').innerHTML = renderLogList(); });
+        return;
+      }
+      var delBtn = e.target.closest('[data-brewlog-delete]');
+      if (delBtn) {
+        var id = delBtn.getAttribute('data-brewlog-delete');
+        if (confirm(de ? 'Eintrag wirklich löschen?' : 'Really delete this entry?')) {
+          deleteBrewLogEntry(id);
+          logs = loadBrewLogs();
+          document.getElementById('brewlog-list').innerHTML = renderLogList();
+        }
+        return;
+      }
+      var star = e.target.closest('.brewlog-star');
+      if (star) {
+        var logId = star.getAttribute('data-log-id');
+        var rating = parseInt(star.getAttribute('data-rating'));
+        updateBrewLogEntry(logId, { rating: rating });
+        logs = loadBrewLogs();
+        document.getElementById('brewlog-list').innerHTML = renderLogList(document.getElementById('brewlog-search').value);
+        return;
+      }
+    });
+
+    overlay.addEventListener('input', function(e) {
+      if (e.target.id === 'brewlog-search') {
+        document.getElementById('brewlog-list').innerHTML = renderLogList(e.target.value);
+      }
+    });
+
+    overlay.addEventListener('change', function(e) {
+      if (e.target.id === 'brewlog-import-file') {
+        var file = e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            var data = JSON.parse(ev.target.result);
+            var imported = data.logs || [];
+            if (imported.length === 0) { alert(de ? 'Keine Einträge gefunden.' : 'No entries found.'); return; }
+            var existing = loadBrewLogs();
+            var existingIds = existing.map(function(l) { return l.id; });
+            var added = 0;
+            imported.forEach(function(l) {
+              if (existingIds.indexOf(l.id) === -1) { existing.unshift(l); added++; }
+            });
+            saveBrewLogs(existing);
+            logs = loadBrewLogs();
+            document.getElementById('brewlog-list').innerHTML = renderLogList();
+            alert((de ? 'Importiert: ' : 'Imported: ') + added + (de ? ' Einträge' : ' entries'));
+          } catch(err) { alert((de ? 'Import-Fehler: ' : 'Import error: ') + err.message); }
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+      }
+    });
+  }
+
+  function showBrewLogEditor(existingLog, onSave) {
+    var de = currentLang === 'de';
+    var isEdit = !!existingLog;
+    var log = existingLog || { recipe: '', notes: '', og: '', fg: '', abv: '', ibu: '', tags: [], rating: 0 };
+
+    var modal = document.createElement('div');
+    modal.className = 'brewlog-editor-overlay';
+    modal.innerHTML =
+      '<div class="brewlog-editor">' +
+        '<h3>' + (isEdit ? (de ? 'Eintrag bearbeiten' : 'Edit Entry') : (de ? 'Neuer Brau-Eintrag' : 'New Brew Entry')) + '</h3>' +
+        '<div class="brewlog-editor-grid">' +
+          '<div class="brewlog-field"><label>' + (de ? 'Rezeptname' : 'Recipe') + '</label>' +
+            '<input type="text" id="bl-recipe" value="' + (log.recipe || '') + '" placeholder="' + (de ? 'z.B. Märzen, IPA...' : 'e.g. Märzen, IPA...') + '"></div>' +
+          '<div class="brewlog-field"><label>OG</label><input type="text" id="bl-og" value="' + (log.og || '') + '" placeholder="1.050"></div>' +
+          '<div class="brewlog-field"><label>FG</label><input type="text" id="bl-fg" value="' + (log.fg || '') + '" placeholder="1.012"></div>' +
+          '<div class="brewlog-field"><label>ABV %</label><input type="text" id="bl-abv" value="' + (log.abv || '') + '" placeholder="5.0"></div>' +
+          '<div class="brewlog-field"><label>IBU</label><input type="text" id="bl-ibu" value="' + (log.ibu || '') + '" placeholder="35"></div>' +
+          '<div class="brewlog-field full"><label>' + (de ? 'Tags (kommasepariert)' : 'Tags (comma-separated)') + '</label>' +
+            '<input type="text" id="bl-tags" value="' + (log.tags || []).join(', ') + '" placeholder="' + (de ? 'z.B. Sommerbier, hopfig' : 'e.g. summer, hoppy') + '"></div>' +
+          '<div class="brewlog-field full"><label>' + (de ? 'Notizen / Protokoll' : 'Notes / Protocol') + '</label>' +
+            '<textarea id="bl-notes" rows="8" placeholder="' + (de ? 'Brauprotokoll, Beobachtungen, Temperaturverläufe...' : 'Brew protocol, observations, temperature curves...') + '">' + (log.notes || '') + '</textarea></div>' +
+        '</div>' +
+        '<div class="brewlog-editor-actions">' +
+          '<button class="brewlog-btn secondary" id="bl-cancel">' + (de ? 'Abbrechen' : 'Cancel') + '</button>' +
+          '<button class="brewlog-btn primary" id="bl-save">💾 ' + (de ? 'Speichern' : 'Save') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', function(e) {
+      if (e.target.id === 'bl-cancel' || e.target === modal) { modal.remove(); return; }
+      if (e.target.id === 'bl-save' || e.target.closest('#bl-save')) {
+        var entry = {
+          recipe: document.getElementById('bl-recipe').value.trim(),
+          og: document.getElementById('bl-og').value.trim(),
+          fg: document.getElementById('bl-fg').value.trim(),
+          abv: document.getElementById('bl-abv').value.trim(),
+          ibu: document.getElementById('bl-ibu').value.trim(),
+          tags: document.getElementById('bl-tags').value.split(',').map(function(t) { return t.trim(); }).filter(Boolean),
+          notes: document.getElementById('bl-notes').value.trim(),
+          rating: log.rating || 0
+        };
+        if (isEdit) {
+          updateBrewLogEntry(log.id, entry);
+        } else {
+          addBrewLogEntry(entry);
+        }
+        modal.remove();
+        if (onSave) onSave();
+      }
+    });
+  }
+
+  // Auto-Log: Eintrag vorschlagen wenn Brauvorgang beendet wird
+  function checkAutoBrewLog(steps) {
+    if (!steps || steps.length === 0) return;
+    var allDone = steps.every(function(s) { return s.status === 'D'; });
+    if (!allDone) return;
+    var lastLogCheck = localStorage.getItem('cbpi_last_brewlog_check');
+    var now = Date.now();
+    if (lastLogCheck && (now - parseInt(lastLogCheck)) < 3600000) return; // Max 1x pro Stunde
+    localStorage.setItem('cbpi_last_brewlog_check', now.toString());
+    var de = currentLang === 'de';
+    // Rezeptname aus Steps erraten
+    var recipeName = '';
+    if (steps[0] && steps[0].props && steps[0].props.Notification) {
+      recipeName = steps[0].props.Notification;
+    }
+    if (confirm(de
+      ? 'Brauvorgang abgeschlossen! Möchtest du einen Logbuch-Eintrag erstellen?'
+      : 'Brew process completed! Would you like to create a log entry?')) {
+      showBrewLogEditor({ recipe: recipeName, notes: '', tags: [], rating: 0 }, function() {});
+    }
+  }
+
+  // ============================================================
+  // HOPFEN-TIMER — Countdown-Timer für Hopfengaben während des Kochens
+  // ============================================================
+  var _hopTimers = [];       // [{id, label, totalSec, remainSec, fired}]
+  var _hopTimerInterval = null;
+  var _hopTimerAudio = null;
+
+  function initHopTimerAudio() {
+    if (_hopTimerAudio) return;
+    try {
+      var ac = new (window.AudioContext || window.webkitAudioContext)();
+      _hopTimerAudio = ac;
+    } catch(e) { /* no audio */ }
+  }
+
+  function playHopAlarm() {
+    if (!_hopTimerAudio) return;
+    try {
+      var ac = _hopTimerAudio;
+      // Drei aufsteigende Pieptöne
+      [0, 0.3, 0.6].forEach(function(delay, i) {
+        var osc = ac.createOscillator();
+        var gain = ac.createGain();
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.frequency.value = 800 + i * 200;
+        gain.gain.value = 0.3;
+        osc.start(ac.currentTime + delay);
+        osc.stop(ac.currentTime + delay + 0.2);
+      });
+    } catch(e) { /* silent */ }
+  }
+
+  function parseHopTimersFromStep(step) {
+    if (!step || !step.props) return [];
+    var timers = [];
+    var totalMin = parseInt(step.props.Timer) || 0;
+    if (totalMin <= 0) return [];
+
+    // Hop_1 bis Hop_6: "Minuten vor Ende"
+    for (var i = 1; i <= 6; i++) {
+      var key = 'Hop_' + i;
+      var minBefore = parseInt(step.props[key]);
+      if (minBefore > 0) {
+        timers.push({
+          id: 'hop_' + i,
+          label: (currentLang === 'de' ? 'Hopfen ' : 'Hop ') + i,
+          minBefore: minBefore,
+          totalSec: minBefore * 60,
+          remainSec: minBefore * 60,
+          fired: false
+        });
+      }
+    }
+    // First_Wort
+    if (step.props.First_Wort === 'Yes') {
+      timers.unshift({
+        id: 'first_wort',
+        label: currentLang === 'de' ? 'Vorderwürze' : 'First Wort',
+        minBefore: totalMin,
+        totalSec: 0,
+        remainSec: 0,
+        fired: false
+      });
+    }
+    // nach minBefore absteigend sortieren (größte zuerst = früheste Zugabe)
+    timers.sort(function(a, b) { return b.minBefore - a.minBefore; });
+    return timers;
+  }
+
+  function updateHopTimers(activeStep) {
+    if (!activeStep) { _hopTimers = []; return; }
+    var stepType = (activeStep.type || '').toLowerCase();
+    if (stepType.indexOf('boil') === -1) { _hopTimers = []; return; }
+
+    // Timer nur einmal parsen (beim Wechsel des Schritts)
+    if (_hopTimers.length === 0 || _hopTimers._stepId !== activeStep.id) {
+      _hopTimers = parseHopTimersFromStep(activeStep);
+      _hopTimers._stepId = activeStep.id;
+    }
+
+    // Verbleibende Zeit aus state_text berechnen
+    var stateText = activeStep.state_text || '';
+    var parts = stateText.split('/');
+    var elapsedSec = 0;
+    var totalSec = 0;
+    if (parts.length === 2) {
+      elapsedSec = parseTimerParts(parts[0].trim());
+      totalSec = parseTimerParts(parts[1].trim());
+    }
+    var remainingSec = Math.max(0, totalSec - elapsedSec);
+
+    _hopTimers.forEach(function(ht) {
+      // remainSec = wann die Hopfengabe fällig ist (Sekunden bis Alarm)
+      // Hopfengabe bei "minBefore Minuten vor Ende" → Alarm wenn remainingSec <= minBefore * 60
+      ht.remainSec = Math.max(0, remainingSec - ht.minBefore * 60);
+
+      // Alarm auslösen wenn es soweit ist
+      if (!ht.fired && remainingSec <= ht.minBefore * 60 && elapsedSec > 0) {
+        ht.fired = true;
+        initHopTimerAudio();
+        playHopAlarm();
+        // Browser-Notification (falls erlaubt)
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification('🌿 ' + ht.label, {
+            body: currentLang === 'de' ? 'Hopfengabe jetzt!' : 'Add hops now!',
+            icon: '/static/hops_icon.svg'
+          });
+        }
+      }
+    });
+  }
+
+  function renderHopTimerPanel() {
+    if (_hopTimers.length === 0) return '';
+    var de = currentLang === 'de';
+    var html = '<div class="cockpit-card cockpit-card-full cockpit-hop-timer">';
+    html += '<div class="cockpit-card-title">🌿 ' + (de ? 'Hopfen-Timer' : 'Hop Timer') + '</div>';
+    html += '<div class="hop-timer-grid">';
+    _hopTimers.forEach(function(ht) {
+      var mins = Math.floor(ht.remainSec / 60);
+      var secs = ht.remainSec % 60;
+      var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
+      var statusClass = ht.fired ? 'fired' : (ht.remainSec < 60 ? 'soon' : '');
+      html += '<div class="hop-timer-item ' + statusClass + '">';
+      html += '<div class="hop-timer-label">' + ht.label + '</div>';
+      html += '<div class="hop-timer-time">' + (ht.fired ? '✅ ' + (de ? 'Zugabe!' : 'Add!') : timeStr) + '</div>';
+      html += '<div class="hop-timer-info">' + ht.minBefore + ' min ' + (de ? 'vor Ende' : 'before end') + '</div>';
+      var pct = ht.totalSec > 0 ? Math.min(100, Math.round(((ht.totalSec - ht.remainSec) / ht.totalSec) * 100)) : (ht.fired ? 100 : 0);
+      html += '<div class="hop-timer-progress"><div class="hop-timer-fill" style="width:' + pct + '%"></div></div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+    return html;
+  }
+
+  // Notification-Berechtigung beim ersten Mal anfragen
+  function requestNotificationPermission() {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }
+
+  // ============================================================
+  // REZEPT-BIBLIOTHEK — Erweiterte Rezeptverwaltung
+  // ============================================================
+  var RECIPE_FAVORITES_KEY = 'cbpi_recipe_favorites';
+  var RECIPE_TAGS_KEY = 'cbpi_recipe_tags';
+  var RECIPE_NOTES_KEY = 'cbpi_recipe_notes';
+
+  function loadRecipeMeta(key) {
+    try { return JSON.parse(localStorage.getItem(key)) || {}; } catch(e) { return {}; }
+  }
+  function saveRecipeMeta(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+
+  function toggleRecipeFavorite(recipeId) {
+    var favs = loadRecipeMeta(RECIPE_FAVORITES_KEY);
+    if (favs[recipeId]) { delete favs[recipeId]; } else { favs[recipeId] = true; }
+    saveRecipeMeta(RECIPE_FAVORITES_KEY, favs);
+    return !!favs[recipeId];
+  }
+
+  function setRecipeTags(recipeId, tags) {
+    var meta = loadRecipeMeta(RECIPE_TAGS_KEY);
+    meta[recipeId] = tags;
+    saveRecipeMeta(RECIPE_TAGS_KEY, meta);
+  }
+
+  function setRecipeNotes(recipeId, notes) {
+    var meta = loadRecipeMeta(RECIPE_NOTES_KEY);
+    meta[recipeId] = notes;
+    saveRecipeMeta(RECIPE_NOTES_KEY, meta);
+  }
+
+  function enhanceRecipePage() {
+    var hash = window.location.hash.replace('#', '');
+    // Auf anderen Seiten: Rezept-Enhancements entfernen
+    if (hash !== '/recipes') {
+      var staleSearch = document.querySelector('.recipe-lib-search');
+      if (staleSearch) staleSearch.remove();
+      var staleMarker = document.getElementById('cbpi-recipe-enhance');
+      if (staleMarker) staleMarker.remove();
+      return;
+    }
+    if (document.getElementById('cbpi-recipe-enhance')) return;
+
+    var target = findContentTarget();
+    if (!target) return;
+
+    var de = currentLang === 'de';
+    var favs = loadRecipeMeta(RECIPE_FAVORITES_KEY);
+    var tags = loadRecipeMeta(RECIPE_TAGS_KEY);
+
+    // Suchleiste und Filter hinzufügen
+    var toolbar = document.getElementById('cbpi-recipe-tools');
+    if (!toolbar) return;
+
+    // Marker setzen
+    var marker = document.createElement('div');
+    marker.id = 'cbpi-recipe-enhance';
+    marker.style.display = 'none';
+    target.appendChild(marker);
+
+    // Suchfeld
+    var searchDiv = document.createElement('div');
+    searchDiv.className = 'recipe-lib-search';
+    searchDiv.innerHTML =
+      '<input type="text" id="recipe-lib-filter" class="recipe-lib-input" placeholder="' +
+      (de ? '🔍 Rezepte durchsuchen...' : '🔍 Search recipes...') + '">' +
+      '<div class="recipe-lib-filter-btns">' +
+        '<button class="recipe-lib-filter-btn active" data-recipe-filter="all">' + (de ? 'Alle' : 'All') + '</button>' +
+        '<button class="recipe-lib-filter-btn" data-recipe-filter="favorites">⭐ ' + (de ? 'Favoriten' : 'Favorites') + '</button>' +
+      '</div>';
+    toolbar.after(searchDiv);
+
+    // Event: Suche
+    document.getElementById('recipe-lib-filter').addEventListener('input', function() {
+      filterRecipeCards(this.value, null);
+    });
+
+    // Event: Filter-Buttons
+    searchDiv.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-recipe-filter]');
+      if (!btn) return;
+      searchDiv.querySelectorAll('.recipe-lib-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var filter = btn.getAttribute('data-recipe-filter');
+      filterRecipeCards(document.getElementById('recipe-lib-filter').value, filter === 'favorites' ? 'favorites' : null);
+    });
+
+    // Favorit-Icons zu bestehenden Rezeptkarten hinzufügen
+    addFavoriteStarsToRecipes();
+
+    // Rezept-Details nachladen und Karten anreichern
+    enrichRecipeCards();
+  }
+
+  function enrichRecipeCards() {
+    var cards = document.querySelectorAll('.MuiCard-root, .MuiPaper-root');
+    cards.forEach(function(card) {
+      if (card.querySelector('.recipe-card-detail')) return;
+      var link = card.querySelector('a[href*="/recipe/"]');
+      if (!link) return;
+      var m = link.getAttribute('href').match(/recipe\/(.+)/);
+      if (!m) return;
+      var recipeId = m[1];
+
+      // Detail-Container vorbereiten
+      var detailDiv = document.createElement('div');
+      detailDiv.className = 'recipe-card-detail';
+      detailDiv.innerHTML = '<span class="recipe-card-loading">\u2026</span>';
+      // Vor dem Fav-Star einf\u00fcgen oder ans Ende
+      var starBtn = card.querySelector('.recipe-fav-star');
+      if (starBtn) {
+        card.insertBefore(detailDiv, starBtn);
+      } else {
+        card.appendChild(detailDiv);
+      }
+
+      // Details laden
+      fetch('/recipe/' + encodeURIComponent(recipeId))
+        .then(function(r) { return r.json(); })
+        .then(function(detail) {
+          var de = currentLang === 'de';
+          var steps = (detail && detail.steps) ? detail.steps : [];
+          if (steps.length === 0) {
+            detailDiv.innerHTML = '<span class="recipe-card-empty">' + (de ? 'Keine Schritte' : 'No steps') + '</span>';
+            return;
+          }
+
+          var mashCount = 0, boilCount = 0, totalMin = 0;
+          var temps = [];
+          var hops = 0;
+          steps.forEach(function(s) {
+            var type = (s.type || s.name || '').toLowerCase();
+            var mins = (s.props && s.props.Timer) ? parseInt(s.props.Timer) || 0 : 0;
+            totalMin += mins;
+            if (s.props && s.props.Temp) temps.push(parseFloat(s.props.Temp));
+            if (type.indexOf('mash') !== -1) mashCount++;
+            else if (type.indexOf('boil') !== -1) {
+              boilCount++;
+              if (s.props) {
+                for (var i = 1; i <= 6; i++) {
+                  if (s.props['Hop_' + i] && s.props['Hop_' + i] !== '0' && s.props['Hop_' + i] !== '') hops++;
+                }
+                if (s.props.First_Wort && s.props.First_Wort !== '0' && s.props.First_Wort !== '') hops++;
+              }
+            }
+          });
+
+          var html = '<div class="recipe-card-badges">';
+          html += '<span class="recipe-badge">' + steps.length + ' ' + (de ? 'Schritte' : 'steps') + '</span>';
+          if (totalMin > 0) {
+            var h = Math.floor(totalMin / 60);
+            var mins = totalMin % 60;
+            html += '<span class="recipe-badge time">\u23f1 ' + (h > 0 ? h + 'h ' : '') + mins + 'min</span>';
+          }
+          if (mashCount > 0) html += '<span class="recipe-badge mash">\ud83c\udf3e ' + mashCount + 'x</span>';
+          if (boilCount > 0) html += '<span class="recipe-badge boil">\ud83d\udd25 ' + boilCount + 'x</span>';
+          if (hops > 0) html += '<span class="recipe-badge hop">\ud83c\udf3f ' + hops + 'x</span>';
+          html += '</div>';
+
+          if (temps.length > 0) {
+            html += '<div class="recipe-card-temps">' + temps.map(function(t) { return t.toFixed(0) + '\u00b0'; }).join(' \u2192 ') + '</div>';
+          }
+
+          detailDiv.innerHTML = html;
+        })
+        .catch(function() {
+          detailDiv.innerHTML = '';
+        });
+    });
+  }
+
+  function addFavoriteStarsToRecipes() {
+    var favs = loadRecipeMeta(RECIPE_FAVORITES_KEY);
+    // MUI-Cards oder Liste finden
+    var cards = document.querySelectorAll('.MuiCard-root, .MuiPaper-root');
+    cards.forEach(function(card) {
+      if (card.querySelector('.recipe-fav-star')) return;
+      // Rezept-ID aus dem Link oder Button ermitteln
+      var link = card.querySelector('a[href*="/recipe/"]');
+      var recipeId = '';
+      if (link) {
+        var m = link.getAttribute('href').match(/recipe\/(.+)/);
+        if (m) recipeId = m[1];
+      }
+      if (!recipeId) return;
+
+      var star = document.createElement('button');
+      star.className = 'recipe-fav-star' + (favs[recipeId] ? ' active' : '');
+      star.setAttribute('data-recipe-id', recipeId);
+      star.innerHTML = favs[recipeId] ? '⭐' : '☆';
+      star.title = currentLang === 'de' ? 'Favorit' : 'Favorite';
+      star.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var isFav = toggleRecipeFavorite(recipeId);
+        star.innerHTML = isFav ? '⭐' : '☆';
+        star.classList.toggle('active', isFav);
+      });
+      card.style.position = 'relative';
+      card.appendChild(star);
+    });
+  }
+
+  function filterRecipeCards(searchText, mode) {
+    var favs = loadRecipeMeta(RECIPE_FAVORITES_KEY);
+    var search = (searchText || '').toLowerCase();
+    var cards = document.querySelectorAll('.MuiCard-root, .MuiPaper-root');
+    cards.forEach(function(card) {
+      var star = card.querySelector('.recipe-fav-star');
+      if (!star) return; // Kein Rezept-Card
+      var recipeId = star.getAttribute('data-recipe-id');
+      var text = card.textContent.toLowerCase();
+      var matchSearch = !search || text.indexOf(search) !== -1;
+      var matchMode = !mode || (mode === 'favorites' && favs[recipeId]);
+      card.style.display = (matchSearch && matchMode) ? '' : 'none';
+    });
+  }
+
+  // ============================================================
+  // TEMPERATUR-GRAPH — Erweitert (Zoom, Export, Persistenz)
+  // ============================================================
+  var TEMP_PERSIST_KEY = 'cbpi_temp_history';
+  var _tempChartZoom = 1;   // 1 = voll, 2 = letzte Hälfte, etc.
+
+  function saveTempHistory() {
+    // Nur die letzten 300 Punkte speichern (Performance)
+    var toSave = _tempHistory.slice(-300);
+    try { localStorage.setItem(TEMP_PERSIST_KEY, JSON.stringify({ data: toSave, changes: _tempStepChanges })); } catch(e) { /* quota */ }
+  }
+
+  function loadTempHistory() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(TEMP_PERSIST_KEY));
+      if (saved && saved.data && saved.data.length > 0) {
+        _tempHistory = saved.data;
+        _tempStepChanges = saved.changes || [];
+        if (_tempHistory.length > 0) {
+          _lastStepName = _tempHistory[_tempHistory.length - 1].step || '';
+        }
+        return true;
+      }
+    } catch(e) { /* ignore */ }
+    return false;
+  }
+
+  function exportTempHistory() {
+    if (_tempHistory.length === 0) return;
+    var de = currentLang === 'de';
+    // CSV Export
+    var csv = 'Zeitstempel;Ist (°C);Soll (°C);Schritt\n';
+    _tempHistory.forEach(function(p) {
+      var d = new Date(p.t);
+      csv += d.toLocaleTimeString() + ';' + (p.actual !== null ? p.actual.toFixed(1) : '') + ';' + (p.target !== null ? p.target.toFixed(1) : '') + ';' + (p.step || '') + '\n';
+    });
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'cbpi4_temperatur_' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  // Zoom-Controls für den Chart rendern
+  function renderChartControls() {
+    var de = currentLang === 'de';
+    return '<div class="cockpit-chart-controls">' +
+      '<button class="chart-ctrl-btn" data-chart-zoom="out" title="' + (de ? 'Herauszoomen' : 'Zoom out') + '">−</button>' +
+      '<button class="chart-ctrl-btn" data-chart-zoom="reset" title="' + (de ? 'Ganzer Verlauf' : 'Full range') + '">⊙</button>' +
+      '<button class="chart-ctrl-btn" data-chart-zoom="in" title="' + (de ? 'Hineinzoomen' : 'Zoom in') + '">+</button>' +
+      '<button class="chart-ctrl-btn" data-chart-export="csv" title="' + (de ? 'CSV exportieren' : 'Export CSV') + '">📊</button>' +
+      '</div>';
+  }
+
+  // ============================================================
+  // GÄRUNGS-DASHBOARD — Fermenter-Steuerung & Monitoring
+  // ============================================================
+
+  var _fermenterRefreshInterval = null;
+
+  function injectFermenterNavItem(drawer) {
+    if (drawer.querySelector('#cbpi-nav-fermenter')) return;
+    var list = drawer.querySelector('.MuiList-root');
+    if (!list) return;
+    var firstItem = list.querySelector('.MuiListItem-root');
+    if (!firstItem) return;
+
+    _isOurDomChange = true;
+    var li = firstItem.cloneNode(true);
+    li.id = 'cbpi-nav-fermenter';
+    li.style.cursor = 'pointer';
+
+    li.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      showFermenterDashboard();
+    });
+
+    var svg = li.querySelector('svg');
+    if (svg) {
+      // Fermenter/Tank SVG Icon
+      svg.innerHTML = '<path d="M5 2v4h1v2.17C3.84 9.41 2.56 11.2 2.1 13.39c-.24 1.14-.1 2.32.39 3.36.49 1.04 1.3 1.87 2.31 2.39V22h14.4v-2.86c1.01-.52 1.82-1.35 2.31-2.39.49-1.04.63-2.22.39-3.36-.46-2.19-1.74-3.98-3.9-5.22V6h1V2H5zm12 4H7V4h10v2zm-1 2v2.02c-.24.1-.47.22-.69.35-.66.38-1.22.87-1.68 1.46A5.97 5.97 0 0 0 12 15c0 1.42.5 2.73 1.33 3.76H10.67A5.97 5.97 0 0 0 12 15c0-1.23-.38-2.38-1.03-3.34-.46-.59-1.02-1.08-1.68-1.46A4.3 4.3 0 0 0 8.6 9.85V8h6.8z"/>';
+    }
+    var textEl = li.querySelector('.MuiListItemText-primary');
+    if (textEl) textEl.textContent = currentLang === 'de' ? 'Gärung' : 'Fermentation';
+    var descEl = li.querySelector('.cbpi-menu-desc');
+    if (descEl) descEl.textContent = currentLang === 'de' ? 'Gärbehälter steuern & überwachen' : 'Control & monitor fermenters';
+
+    // Nach Brau-Logbuch einfügen
+    var items = list.querySelectorAll('.MuiListItem-root');
+    var insertAfter = null;
+    items.forEach(function(item) {
+      var t = item.querySelector('.MuiListItemText-primary');
+      if (t) {
+        var txt = t.textContent.trim().toLowerCase();
+        if (txt === 'brau-logbuch' || txt === 'brew log') insertAfter = item;
+      }
+    });
+    if (insertAfter && insertAfter.nextSibling) {
+      list.insertBefore(li, insertAfter.nextSibling);
+    } else {
+      list.appendChild(li);
+    }
+    _isOurDomChange = false;
+  }
+
+  function showFermenterDashboard() {
+    var existing = document.getElementById('cbpi-fermenter-overlay');
+    if (existing) existing.remove();
+    if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
+
+    var de = currentLang === 'de';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-fermenter-overlay';
+    overlay.className = 'fermenter-overlay';
+
+    overlay.innerHTML =
+      '<div class="fermenter-modal">' +
+        '<div class="fermenter-header">' +
+          '<h2>🍶 ' + (de ? 'Gärungs-Dashboard' : 'Fermentation Dashboard') + '</h2>' +
+          '<button class="fermenter-close" id="fermenter-close">✕</button>' +
+        '</div>' +
+        '<div class="fermenter-body" id="fermenter-body">' +
+          '<div class="fermenter-loading">' + (de ? 'Gärbehälter werden geladen…' : 'Loading fermenters…') + '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    document.getElementById('fermenter-close').addEventListener('click', function() {
+      if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
+      overlay.remove();
+    });
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) {
+        if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
+        overlay.remove();
+      }
+    });
+
+    // Event Delegation für alle Fermenter-Aktionen
+    document.getElementById('fermenter-body').addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-ferm-action]');
+      if (btn) {
+        e.stopPropagation();
+        var fermId = btn.getAttribute('data-ferm-id');
+        var action = btn.getAttribute('data-ferm-action');
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+
+        var url = '/fermenter/' + encodeURIComponent(fermId) + '/' + action;
+        var opts = { method: 'POST' };
+
+        // Zieltemperatur setzen braucht JSON-Body
+        if (action === 'target_temp') {
+          var input = document.getElementById('ferm-target-' + fermId);
+          var temp = input ? parseFloat(input.value) : 0;
+          opts.headers = { 'Content-Type': 'application/json' };
+          opts.body = JSON.stringify({ temp: temp });
+        }
+
+        fetch(url, opts)
+          .then(function() { setTimeout(loadFermenterData, 500); })
+          .catch(function(err) { console.error('[Fermenter] Action failed:', err); })
+          .finally(function() { btn.disabled = false; btn.style.opacity = '1'; });
+        return;
+      }
+
+      // Rezept laden
+      var brewBtn = e.target.closest('[data-ferm-brew]');
+      if (brewBtn) {
+        e.stopPropagation();
+        var recipeId = brewBtn.getAttribute('data-ferm-recipe');
+        var fermId2 = brewBtn.getAttribute('data-ferm-brew');
+        var recipeName = brewBtn.getAttribute('data-ferm-recipe-name') || '';
+        brewBtn.disabled = true;
+        brewBtn.textContent = de ? '⏳ Wird geladen…' : '⏳ Loading…';
+        fetch('/fermenterrecipe/' + encodeURIComponent(recipeId) + '/' + encodeURIComponent(fermId2) + '/' + encodeURIComponent(recipeName) + '/brew', { method: 'POST' })
+          .then(function() { setTimeout(loadFermenterData, 500); })
+          .catch(function(err) { console.error('[Fermenter] Brew failed:', err); });
+        return;
+      }
+
+      // Rezeptliste aufklappen
+      var recipeToggle = e.target.closest('[data-ferm-recipe-toggle]');
+      if (recipeToggle) {
+        var panel = document.getElementById('ferm-recipes-' + recipeToggle.getAttribute('data-ferm-recipe-toggle'));
+        if (panel) {
+          panel.classList.toggle('collapsed');
+          if (!panel.classList.contains('collapsed')) {
+            loadFermenterRecipes(recipeToggle.getAttribute('data-ferm-recipe-toggle'));
+          }
+        }
+        return;
+      }
+
+      // Fermenter erstellen Button (im Empty-State)
+      if (e.target.closest('#fermenter-create-btn')) {
+        if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
+        showCreateFermenterForm();
+        return;
+      }
+    });
+
+    loadFermenterData();
+    _fermenterRefreshInterval = setInterval(loadFermenterData, 5000);
+  }
+
+  function loadFermenterData() {
+    var body = document.getElementById('fermenter-body');
+    if (!body) { if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; } return; }
+    var de = currentLang === 'de';
+
+    fetch('/fermenter/').then(function(r) { return r.json(); }).then(function(fermData) {
+      var fermenters = fermData.data || [];
+      var steptypes = fermData.steptypes || [];
+      var types = fermData.types || [];
+
+      if (fermenters.length === 0) {
+        body.innerHTML = renderEmptyFermenter(de, types);
+        return;
+      }
+
+      // Alle Sensor-IDs aus den Fermentern sammeln
+      var sensorIds = [];
+      fermenters.forEach(function(f) {
+        if (f.sensor) sensorIds.push(f.sensor);
+        if (f.pressure_sensor) sensorIds.push(f.pressure_sensor);
+      });
+
+      // Sensorwerte über die zentrale Funktion holen
+      fetchSensorValues(sensorIds).then(function(sensorValueMap) {
+        // Sensor-Metadaten aus /sensor/ holen (für Namen)
+        fetch('/sensor/').then(function(r) { return r.json(); }).then(function(sensorData) {
+          var sensorList = sensorData.data || [];
+          var sensorMap = {};
+          sensorList.forEach(function(s) {
+            sensorMap[s.id] = { name: s.name, value: sensorValueMap[s.id] };
+          });
+          // Auch Sensoren ergänzen die nur Werte haben aber nicht in der Liste
+          Object.keys(sensorValueMap).forEach(function(sid) {
+            if (!sensorMap[sid]) sensorMap[sid] = { name: '', value: sensorValueMap[sid] };
+          });
+
+          var html = '';
+          fermenters.forEach(function(f) {
+            html += renderFermenterCard(f, sensorMap, steptypes, de);
+          });
+          body.innerHTML = html;
+
+          // Graphen initialisieren (nach kurzer Verzögerung für DOM-Rendering)
+          setTimeout(function() {
+            fermenters.forEach(function(f) {
+              if (f.sensor) {
+                drawFermenterGraph('ferm-graph-' + f.id, f.sensor, f.target_temp, de);
+              }
+            });
+          }, 50);
+        });
+      });
+    }).catch(function(err) {
+      console.error('[Fermenter] Load failed:', err);
+      body.innerHTML = '<div class="fermenter-error">' + (de ? 'Fehler beim Laden der Gärdaten' : 'Error loading fermentation data') + '</div>';
+    });
+  }
+
+  function renderEmptyFermenter(de, types) {
+    return '<div class="fermenter-empty">' +
+      '<div class="fermenter-empty-icon">🍶</div>' +
+      '<h3>' + (de ? 'Noch keine Gärbehälter eingerichtet' : 'No fermenters configured yet') + '</h3>' +
+      '<p>' + (de
+        ? 'Erstelle deinen ersten Gärbehälter hier oder auf der Hardware-Seite.'
+        : 'Create your first fermenter here or on the Hardware page.'
+      ) + '</p>' +
+      '<button class="fermenter-setup-btn" id="fermenter-create-btn">➕ ' +
+        (de ? 'Gärbehälter erstellen' : 'Create Fermenter') +
+      '</button>' +
+    '</div>';
+  }
+
+  function showCreateFermenterForm() {
+    var body = document.getElementById('fermenter-body');
+    if (!body) return;
+    var de = currentLang === 'de';
+
+    // Hardware-Daten laden für die Dropdowns
+    Promise.all([
+      fetch('/sensor/').then(function(r) { return r.json(); }),
+      fetch('/actor/').then(function(r) { return r.json(); }),
+      fetch('/fermenter/').then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var sensors = (results[0].data || results[0] || []);
+      var actors = (results[1].data || results[1] || []);
+      var fermTypes = results[2].types || {};
+
+      var sensorOpts = '<option value="">— ' + (de ? 'Kein Sensor' : 'No sensor') + ' —</option>';
+      sensors.forEach(function(s) {
+        sensorOpts += '<option value="' + s.id + '">' + s.name + '</option>';
+      });
+
+      var actorOpts = '<option value="">— ' + (de ? 'Keiner' : 'None') + ' —</option>';
+      actors.forEach(function(a) {
+        actorOpts += '<option value="' + a.id + '">' + a.name + '</option>';
+      });
+
+      var typeOpts = '';
+      var typeNames = Object.keys(fermTypes);
+      typeNames.forEach(function(t) {
+        typeOpts += '<option value="' + t + '">' + t + '</option>';
+      });
+
+      var html =
+        '<div class="fermenter-create-form">' +
+          '<h3>➕ ' + (de ? 'Neuen Gärbehälter erstellen' : 'Create New Fermenter') + '</h3>' +
+          '<div class="fermenter-form-grid">' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Name' : 'Name') + ' *</label>' +
+              '<div id="ferm-name-slot"></div>' +
+            '</div>' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Logik-Typ' : 'Logic Type') + ' *</label>' +
+              '<select id="ferm-new-type" class="fermenter-input">' + typeOpts + '</select>' +
+            '</div>' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Temperatursensor' : 'Temperature Sensor') + ' *</label>' +
+              '<select id="ferm-new-sensor" class="fermenter-input">' + sensorOpts + '</select>' +
+            '</div>' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Drucksensor' : 'Pressure Sensor') + '</label>' +
+              '<select id="ferm-new-pressure" class="fermenter-input">' + sensorOpts + '</select>' +
+            '</div>' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Heizung' : 'Heater') + '</label>' +
+              '<select id="ferm-new-heater" class="fermenter-input">' + actorOpts + '</select>' +
+            '</div>' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Kühlung' : 'Cooler') + '</label>' +
+              '<select id="ferm-new-cooler" class="fermenter-input">' + actorOpts + '</select>' +
+            '</div>' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Ventil (Spunding)' : 'Valve (Spunding)') + '</label>' +
+              '<select id="ferm-new-valve" class="fermenter-input">' + actorOpts + '</select>' +
+            '</div>' +
+            '<div class="fermenter-form-field">' +
+              '<label>' + (de ? 'Zieltemperatur (°C)' : 'Target Temp (°C)') + '</label>' +
+              '<input type="number" id="ferm-new-target" class="fermenter-input" value="18" step="0.5" min="0" max="40">' +
+            '</div>' +
+          '</div>' +
+          '<div class="fermenter-form-actions">' +
+            '<button class="fermenter-ctrl-btn" id="ferm-create-cancel">' + (de ? 'Abbrechen' : 'Cancel') + '</button>' +
+            '<button class="fermenter-ctrl-btn start" id="ferm-create-submit">✅ ' + (de ? 'Erstellen' : 'Create') + '</button>' +
+          '</div>' +
+        '</div>';
+
+      _isOurDomChange = true;
+      body.innerHTML = html;
+
+      // Name-Input programmatisch erstellen (vermeidet innerHTML-/backdrop-filter-Bugs)
+      var nameSlot = document.getElementById('ferm-name-slot');
+      if (nameSlot) {
+        var nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.id = 'ferm-new-name';
+        nameInput.className = 'fermenter-input';
+        nameInput.placeholder = de ? 'z.B. Gärfass 1' : 'e.g. Fermenter 1';
+        nameInput.autocomplete = 'off';
+        nameInput.setAttribute('tabindex', '1');
+        nameSlot.appendChild(nameInput);
+      }
+      _isOurDomChange = false;
+
+      // Input-Felder vor Event-Interference schützen
+      var formInputs = body.querySelectorAll('input, select');
+      formInputs.forEach(function(inp) {
+        ['keydown','keyup','keypress','input','mousedown','focus'].forEach(function(evt) {
+          inp.addEventListener(evt, function(e) { e.stopPropagation(); }, true); // Capture-Phase
+          inp.addEventListener(evt, function(e) { e.stopPropagation(); });       // Bubble-Phase
+        });
+      });
+
+      // Auto-Focus auf Name-Feld
+      setTimeout(function() {
+        var ni = document.getElementById('ferm-new-name');
+        if (ni) ni.focus();
+      }, 100);
+
+      document.getElementById('ferm-create-cancel').addEventListener('click', function() {
+        loadFermenterData();
+      });
+      document.getElementById('ferm-create-submit').addEventListener('click', function() {
+        submitCreateFermenter();
+      });
+    });
+  }
+
+  function submitCreateFermenter() {
+    var de = currentLang === 'de';
+    var name = (document.getElementById('ferm-new-name').value || '').trim();
+    var type = document.getElementById('ferm-new-type').value;
+    var sensor = document.getElementById('ferm-new-sensor').value;
+
+    if (!name) { alert(de ? 'Bitte einen Namen eingeben!' : 'Please enter a name!'); return; }
+    if (!type) { alert(de ? 'Bitte einen Logik-Typ wählen!' : 'Please select a logic type!'); return; }
+    if (!sensor) { alert(de ? 'Bitte einen Temperatursensor wählen!' : 'Please select a temperature sensor!'); return; }
+
+    var btn = document.getElementById('ferm-create-submit');
+    if (btn) { btn.disabled = true; btn.textContent = de ? '⏳ Wird erstellt…' : '⏳ Creating…'; }
+
+    var payload = {
+      name: name,
+      type: type,
+      sensor: sensor,
+      pressure_sensor: document.getElementById('ferm-new-pressure').value || '',
+      heater: document.getElementById('ferm-new-heater').value || '',
+      cooler: document.getElementById('ferm-new-cooler').value || '',
+      valve: document.getElementById('ferm-new-valve').value || '',
+      target_temp: parseFloat(document.getElementById('ferm-new-target').value) || 18,
+      target_pressure: 0,
+      brewname: '',
+      props: {}
+    };
+
+    fetch('/fermenter/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function() {
+      setTimeout(loadFermenterData, 500);
+    })
+    .catch(function(err) {
+      console.error('[Fermenter] Create failed:', err);
+      alert(de ? 'Fehler beim Erstellen: ' + err.message : 'Error creating: ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = de ? '✅ Erstellen' : '✅ Create'; }
+    });
+  }
+
+  // ============================================================
+  // GÄRUNGS-GRAPH — Temperaturverlauf über Canvas zeichnen
+  // ============================================================
+  function drawFermenterGraph(canvasId, sensorId, targetTemp, de) {
+    var canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width = canvas.parentElement.offsetWidth || 800;
+    var H = canvas.height = 200;
+
+    // Lade Log-Daten
+    fetch('/log/' + encodeURIComponent(sensorId))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var times = data.time || [];
+        var values = data[sensorId] || [];
+        if (times.length === 0) {
+          ctx.fillStyle = 'var(--text-secondary, #888)';
+          ctx.font = '14px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(de ? 'Noch keine Messdaten vorhanden' : 'No data yet', W / 2, H / 2);
+          return;
+        }
+
+        // Daten auf maximal 500 Punkte ausdünnen (für Performance)
+        var step = Math.max(1, Math.floor(times.length / 500));
+        var t = [], v = [];
+        for (var i = 0; i < times.length; i += step) {
+          t.push(times[i]);
+          v.push(parseFloat(values[i]));
+        }
+
+        var minV = Math.min.apply(null, v);
+        var maxV = Math.max.apply(null, v);
+        if (targetTemp) {
+          minV = Math.min(minV, targetTemp - 1);
+          maxV = Math.max(maxV, targetTemp + 1);
+        }
+        var range = maxV - minV || 1;
+        // 10% Rand oben/unten
+        minV -= range * 0.1;
+        maxV += range * 0.1;
+        range = maxV - minV;
+
+        var padL = 50, padR = 15, padT = 25, padB = 35;
+        var gW = W - padL - padR;
+        var gH = H - padT - padB;
+
+        // Hintergrund
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, 0, W, H);
+
+        // Gitternetzlinien
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        var gridSteps = 5;
+        for (var g = 0; g <= gridSteps; g++) {
+          var gy = padT + (gH / gridSteps) * g;
+          ctx.beginPath();
+          ctx.moveTo(padL, gy);
+          ctx.lineTo(W - padR, gy);
+          ctx.stroke();
+          // Y-Achse Werte
+          var gVal = maxV - (range / gridSteps) * g;
+          ctx.fillStyle = '#888';
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(gVal.toFixed(1) + '°', padL - 6, gy + 4);
+        }
+
+        // Zieltemperatur-Linie
+        if (targetTemp && targetTemp >= minV && targetTemp <= maxV) {
+          var tY = padT + gH - ((targetTemp - minV) / range) * gH;
+          ctx.strokeStyle = '#4caf50';
+          ctx.lineWidth = 1.5;
+          ctx.setLineDash([6, 4]);
+          ctx.beginPath();
+          ctx.moveTo(padL, tY);
+          ctx.lineTo(W - padR, tY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#4caf50';
+          ctx.font = '10px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText((de ? 'Ziel' : 'Target') + ' ' + targetTemp + '°C', padL + 4, tY - 5);
+        }
+
+        // Gradient-Füllung unter der Kurve
+        var gradient = ctx.createLinearGradient(0, padT, 0, H - padB);
+        gradient.addColorStop(0, 'rgba(255,152,0,0.3)');
+        gradient.addColorStop(1, 'rgba(255,152,0,0.02)');
+
+        // Temperaturkurve zeichnen
+        ctx.beginPath();
+        for (var p = 0; p < v.length; p++) {
+          var px = padL + (p / (v.length - 1)) * gW;
+          var py = padT + gH - ((v[p] - minV) / range) * gH;
+          if (p === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        // Füllung
+        ctx.lineTo(padL + gW, padT + gH);
+        ctx.lineTo(padL, padT + gH);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Linie nochmal drüber
+        ctx.beginPath();
+        for (var p2 = 0; p2 < v.length; p2++) {
+          var px2 = padL + (p2 / (v.length - 1)) * gW;
+          var py2 = padT + gH - ((v[p2] - minV) / range) * gH;
+          if (p2 === 0) ctx.moveTo(px2, py2);
+          else ctx.lineTo(px2, py2);
+        }
+        ctx.strokeStyle = '#ff9800';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // X-Achse Zeitlabels (5 Stück)
+        ctx.fillStyle = '#888';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'center';
+        var labelCount = Math.min(6, t.length);
+        for (var lbl = 0; lbl < labelCount; lbl++) {
+          var li = Math.floor((lbl / (labelCount - 1)) * (t.length - 1));
+          var lx = padL + (li / (t.length - 1)) * gW;
+          var ts = t[li] || '';
+          // Zeige nur HH:MM
+          var tsParts = ts.split(' ');
+          var timeStr = tsParts[1] ? tsParts[1].substring(0, 5) : ts;
+          // Datum anzeigen wenn mehr als 24h
+          if (lbl === 0 || lbl === labelCount - 1) {
+            var datePart = tsParts[0] ? tsParts[0].substring(5) : '';
+            if (datePart) timeStr = datePart + '\n' + timeStr;
+          }
+          ctx.fillText(timeStr, lx, H - padB + 14);
+        }
+
+        // Titel
+        ctx.fillStyle = '#ccc';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(de ? 'Temperaturverlauf' : 'Temperature History', padL, 15);
+
+        // Aktueller Wert
+        if (v.length > 0) {
+          var lastV = v[v.length - 1];
+          ctx.fillStyle = '#ff9800';
+          ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(lastV.toFixed(1) + '°C', W - padR, 15);
+        }
+      })
+      .catch(function(err) {
+        console.error('[Fermenter Graph] Load failed:', err);
+        ctx.fillStyle = '#888';
+        ctx.font = '13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(de ? 'Graph konnte nicht geladen werden' : 'Failed to load graph', W / 2, H / 2);
+      });
+  }
+
+  function renderFermenterCard(f, sensorMap, steptypes, de) {
+    var sensorVal = null;
+    var sensorName = '';
+    if (f.sensor && sensorMap[f.sensor]) {
+      var s = sensorMap[f.sensor];
+      sensorVal = s.value !== undefined ? parseFloat(s.value) : null;
+      sensorName = s.name || '';
+    }
+    var pressureVal = null;
+    if (f.pressure_sensor && sensorMap[f.pressure_sensor]) {
+      pressureVal = parseFloat(sensorMap[f.pressure_sensor].value);
+    }
+
+    var steps = f.steps || [];
+    var activeStep = null;
+    var activeIdx = -1;
+    steps.forEach(function(s, i) { if (s.status === 'A') { activeStep = s; activeIdx = i; } });
+
+    var isRunning = activeStep !== null;
+    var stateClass = isRunning ? 'active' : (steps.length > 0 ? 'ready' : 'idle');
+
+    var html = '<div class="fermenter-card ' + stateClass + '">';
+
+    // Header
+    html += '<div class="fermenter-card-header">';
+    html += '<div class="fermenter-card-title">';
+    html += '<span class="fermenter-status-dot ' + stateClass + '"></span>';
+    html += '<h3>' + (f.name || 'Fermenter') + '</h3>';
+    if (f.brewname) html += '<span class="fermenter-brewname">' + f.brewname + '</span>';
+    html += '</div>';
+    html += '<div class="fermenter-card-type">' + (f.type || '—') + '</div>';
+    html += '</div>';
+
+    // Hauptbereich: Temperatur + Steuerung
+    html += '<div class="fermenter-grid">';
+
+    // Temperatur-Karte
+    html += '<div class="fermenter-temp-section">';
+    html += '<div class="fermenter-temp-big">' + formatTemp(sensorVal) + '</div>';
+    if (sensorName) html += '<div class="fermenter-temp-label">' + sensorName + '</div>';
+    if (f.target_temp && f.target_temp > 0) {
+      html += '<div class="fermenter-temp-target">' + (de ? 'Ziel' : 'Target') + ': <b>' + f.target_temp.toFixed(1) + '°C</b></div>';
+      if (sensorVal !== null) {
+        var delta = sensorVal - f.target_temp;
+        var deltaClass = Math.abs(delta) < 0.5 ? 'ok' : (delta > 0 ? 'warm' : 'cold');
+        html += '<div class="fermenter-temp-delta ' + deltaClass + '">Δ ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + '°C</div>';
+      }
+    }
+    if (pressureVal !== null) {
+      html += '<div class="fermenter-pressure">🔵 ' + pressureVal.toFixed(2) + ' bar';
+      if (f.target_pressure && f.target_pressure > 0) {
+        html += ' <span class="fermenter-pressure-target">(' + (de ? 'Ziel' : 'Target') + ': ' + f.target_pressure.toFixed(2) + ')</span>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // Aktiver Schritt
+    html += '<div class="fermenter-step-section">';
+    if (activeStep) {
+      html += '<div class="fermenter-step-active">';
+      html += '<div class="fermenter-step-label">' + (de ? 'Aktueller Schritt' : 'Current Step') + '</div>';
+      html += '<div class="fermenter-step-name">' + (activeStep.name || 'Step') + '</div>';
+      if (activeStep.props && activeStep.props.Temp) {
+        html += '<div class="fermenter-step-detail">' + (de ? 'Ziel' : 'Target') + ': ' + activeStep.props.Temp + '°C</div>';
+      }
+      if (activeStep.state_text) {
+        html += '<div class="fermenter-step-timer">⏱ ' + activeStep.state_text + '</div>';
+      }
+      if (activeIdx < steps.length - 1) {
+        var nextStep = steps[activeIdx + 1];
+        html += '<div class="fermenter-step-next">→ ' + (de ? 'Nächster' : 'Next') + ': ' + (nextStep.name || 'Step') + '</div>';
+      }
+      html += '</div>';
+    } else if (steps.length > 0) {
+      html += '<div class="fermenter-step-ready">';
+      html += '<div class="fermenter-step-label">' + (de ? 'Gärplan' : 'Fermentation Plan') + '</div>';
+      html += '<div class="fermenter-step-count">' + steps.length + ' ' + (de ? 'Schritte bereit' : 'steps ready') + '</div>';
+      html += '</div>';
+    } else {
+      html += '<div class="fermenter-step-empty">';
+      html += '<div class="fermenter-step-label">' + (de ? 'Kein Gärplan' : 'No plan') + '</div>';
+      html += '<p>' + (de ? 'Lade ein Gärrezept' : 'Load a fermentation recipe') + '</p>';
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '</div>'; // /fermenter-grid
+
+    // Temperaturverlauf-Graph
+    if (f.sensor) {
+      html += '<div class="fermenter-graph-section">';
+      html += '<canvas id="ferm-graph-' + f.id + '" class="fermenter-graph-canvas"></canvas>';
+      html += '</div>';
+    }
+
+    // Steuerungs-Buttons
+    html += '<div class="fermenter-controls">';
+    if (isRunning) {
+      html += '<button class="fermenter-ctrl-btn next" data-ferm-action="nextstep" data-ferm-id="' + f.id + '">⏭ ' + (de ? 'Weiter' : 'Next') + '</button>';
+      html += '<button class="fermenter-ctrl-btn stop" data-ferm-action="stopstep" data-ferm-id="' + f.id + '">⏹ ' + (de ? 'Stop' : 'Stop') + '</button>';
+    } else if (steps.length > 0) {
+      html += '<button class="fermenter-ctrl-btn start" data-ferm-action="startstep" data-ferm-id="' + f.id + '">▶ ' + (de ? 'Start' : 'Start') + '</button>';
+      html += '<button class="fermenter-ctrl-btn reset" data-ferm-action="reset" data-ferm-id="' + f.id + '">🔄 ' + (de ? 'Reset' : 'Reset') + '</button>';
+    }
+    // Zieltemperatur setzen
+    html += '<div class="fermenter-target-input">';
+    html += '<input type="number" step="0.5" min="0" max="40" id="ferm-target-' + f.id + '" class="fermenter-temp-input" value="' + (f.target_temp || 18) + '" placeholder="°C">';
+    html += '<button class="fermenter-ctrl-btn target" data-ferm-action="target_temp" data-ferm-id="' + f.id + '">🎯 ' + (de ? 'Ziel setzen' : 'Set Target') + '</button>';
+    html += '</div>';
+    // Rezept laden
+    html += '<button class="fermenter-ctrl-btn recipe" data-ferm-recipe-toggle="' + f.id + '">📖 ' + (de ? 'Gärrezept laden' : 'Load Recipe') + '</button>';
+    html += '</div>';
+
+    // Rezeptauswahl (eingeklappt)
+    html += '<div class="fermenter-recipe-panel collapsed" id="ferm-recipes-' + f.id + '">';
+    html += '<div class="fermenter-recipe-list" id="ferm-recipe-list-' + f.id + '">';
+    html += '<div class="fermenter-loading">' + (de ? 'Rezepte werden geladen…' : 'Loading recipes…') + '</div>';
+    html += '</div></div>';
+
+    // Schrittliste
+    if (steps.length > 0) {
+      html += '<div class="fermenter-steps-list">';
+      html += '<div class="fermenter-steps-title">' + (de ? 'Gärschritte' : 'Fermentation Steps') + '</div>';
+      steps.forEach(function(s, i) {
+        var statusIcon = s.status === 'D' ? '✅' : (s.status === 'A' ? '🔄' : '⬜');
+        var statusClass = s.status === 'D' ? 'done' : (s.status === 'A' ? 'active' : 'pending');
+        html += '<div class="fermenter-step-row ' + statusClass + '">';
+        html += '<span class="fermenter-step-idx">' + statusIcon + '</span>';
+        html += '<span class="fermenter-step-row-name">' + (s.name || (de ? 'Schritt ' : 'Step ') + (i + 1)) + '</span>';
+        if (s.props && s.props.Temp) html += '<span class="fermenter-step-row-temp">' + s.props.Temp + '°C</span>';
+        if (s.props && (s.props.TimerD || s.props.TimerH || s.props.TimerM)) {
+          var parts = [];
+          if (s.props.TimerD && parseInt(s.props.TimerD) > 0) parts.push(s.props.TimerD + 'd');
+          if (s.props.TimerH && parseInt(s.props.TimerH) > 0) parts.push(s.props.TimerH + 'h');
+          if (s.props.TimerM && parseInt(s.props.TimerM) > 0) parts.push(s.props.TimerM + 'm');
+          if (parts.length) html += '<span class="fermenter-step-row-time">' + parts.join(' ') + '</span>';
+        }
+        if (s.state_text) html += '<span class="fermenter-step-row-state">' + s.state_text + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    html += '</div>'; // /fermenter-card
+    return html;
+  }
+
+  function loadFermenterRecipes(fermId) {
+    var listEl = document.getElementById('ferm-recipe-list-' + fermId);
+    if (!listEl) return;
+    var de = currentLang === 'de';
+    fetch('/fermenterrecipe/')
+      .then(function(r) { return r.json(); })
+      .then(function(recipes) {
+        if (!recipes || recipes.length === 0) {
+          listEl.innerHTML = '<div class="fermenter-recipe-empty">' + (de ? 'Keine Gärrezepte vorhanden. Erstelle eins über die Einstellungen!' : 'No fermentation recipes found.') + '</div>';
+          return;
+        }
+        var html = '';
+        recipes.forEach(function(r) {
+          html += '<div class="fermenter-recipe-item">';
+          html += '<span class="fermenter-recipe-name">' + (r.name || r.file || '?') + '</span>';
+          html += '<button class="fermenter-recipe-brew-btn" data-ferm-brew="' + fermId + '" data-ferm-recipe="' + (r.file || r.name || '') + '" data-ferm-recipe-name="' + (r.name || '') + '">▶ ' + (de ? 'Laden' : 'Load') + '</button>';
+          html += '</div>';
+        });
+        listEl.innerHTML = html;
+      })
+      .catch(function() {
+        listEl.innerHTML = '<div class="fermenter-recipe-empty">' + (de ? 'Fehler' : 'Error') + '</div>';
+      });
+  }
+
+  // ============================================================
+  // HARDWARE-SEITE — Fermenter-Sektion injizieren
+  // ============================================================
+  function enhanceHardwarePage() {
+    var hash = window.location.hash.replace('#', '');
+    if (hash !== '/hardware') return;
+    if (document.getElementById('cbpi-fermenter-hardware')) return;
+
+    // Hardware-Seite besteht aus MuiPaper-root Karten für Kessel/Sensor/Aktor
+    var papers = document.querySelectorAll('.MuiPaper-root');
+    if (papers.length < 3) return;
+
+    // Das letzte Paper (Aktor) → Grid item → Grid container
+    var lastPaper = papers[papers.length - 1];
+    var gridItem = lastPaper.parentNode;
+    var gridContainer = gridItem ? gridItem.parentNode : null;
+    if (!gridContainer) return;
+
+    var de = currentLang === 'de';
+    _isOurDomChange = true;
+
+    // Grid-Item wie die anderen Sektionen erstellen
+    var gridItemDiv = document.createElement('div');
+    gridItemDiv.className = 'MuiGrid-root MuiGrid-item MuiGrid-grid-sm-12';
+    gridItemDiv.id = 'cbpi-fermenter-hardware';
+    gridItemDiv.style.padding = '12px';
+
+    var paper = document.createElement('div');
+    paper.className = 'MuiPaper-root MuiPaper-elevation1 MuiPaper-rounded';
+    paper.style.padding = '10px';
+
+    paper.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:0 16px">' +
+        '<div><span class="MuiTypography-root MuiTypography-h6" style="color:#00FF00">' + (de ? 'Gärbehälter' : 'Fermenter') + '</span></div>' +
+        '<div><button class="MuiButtonBase-root MuiIconButton-root" id="fermenter-hw-add-hdr" style="display:flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px" title="' + (de ? 'Hinzufügen' : 'Add') + '">' +
+          '<span style="font-size:1.5rem;line-height:1">+</span>' +
+          '<span style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'HINZUFÜGEN' : 'ADD') + '</span>' +
+        '</button></div>' +
+      '</div>' +
+      '<div class="fermenter-hw-content" id="fermenter-hw-content">' +
+        '<div style="padding:20px;text-align:center;color:var(--text-secondary)">' + (de ? 'Laden…' : 'Loading…') + '</div>' +
+      '</div>';
+
+    gridItemDiv.appendChild(paper);
+    gridContainer.appendChild(gridItemDiv);
+    _isOurDomChange = false;
+
+    loadFermenterHardwareList();
+  }
+
+  function loadFermenterHardwareList() {
+    var content = document.getElementById('fermenter-hw-content');
+    if (!content) return;
+    var de = currentLang === 'de';
+
+    Promise.all([
+      fetch('/fermenter/').then(function(r) { return r.json(); }),
+      fetch('/sensor/').then(function(r) { return r.json(); }),
+      fetch('/actor/').then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var fermData = results[0];
+      var sensors = results[1].data || [];
+      var actors = results[2].data || [];
+      var fermenters = fermData.data || [];
+      var types = fermData.types || {};
+
+      _isOurDomChange = true;
+
+      var html = '';
+
+      if (fermenters.length > 0) {
+        html += '<div class="MuiTableContainer-root" style="width:100%;overflow-x:auto">';
+        html += '<table class="MuiTable-root" style="width:100%;border-collapse:collapse">';
+        html += '<thead class="MuiTableHead-root"><tr class="MuiTableRow-root MuiTableRow-head">';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Name' : 'Name') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Logik' : 'Logic') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Sensor' : 'Sensor') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Heizung' : 'Heater') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Kühlung' : 'Cooler') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Zieltemp.' : 'Target') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>';
+        html += '</tr></thead><tbody class="MuiTableBody-root">';
+
+        var sensorNames = {};
+        sensors.forEach(function(s) { sensorNames[s.id] = s.name; });
+        var actorNames = {};
+        actors.forEach(function(a) { actorNames[a.id] = a.name; });
+
+        fermenters.forEach(function(f) {
+          html += '<tr class="MuiTableRow-root">';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (f.name || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (f.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.sensor] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.heater] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.cooler] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (f.target_temp ? f.target_temp + '°C' : '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-delete="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '</button>';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-view="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Anzeigen' : 'View') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
+          html += '<span style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'ANZEIGEN' : 'VIEW') + '</span>';
+          html += '</button>';
+          html += '</td>';
+          html += '</tr>';
+        });
+
+        html += '</tbody></table></div>';
+      } else {
+        html += '<div style="padding:24px;text-align:center;color:var(--text-secondary)">' + (de ? 'Noch keine Gärbehälter angelegt' : 'No fermenters yet') + '</div>';
+      }
+
+      content.innerHTML = html;
+      _isOurDomChange = false;
+
+      // Event Handler für den Header-Button
+      var addBtn = document.getElementById('fermenter-hw-add-hdr');
+      if (addBtn) {
+        addBtn.onclick = function() {
+          showHardwareFermenterForm(sensors, actors, types);
+        };
+      }
+
+      // Löschen-Handler
+      content.querySelectorAll('[data-ferm-delete]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var id = btn.getAttribute('data-ferm-delete');
+          if (confirm(de ? 'Gärbehälter wirklich löschen?' : 'Really delete this fermenter?')) {
+            btn.disabled = true;
+            fetch('/fermenter/' + encodeURIComponent(id), { method: 'DELETE' })
+              .then(function() { setTimeout(loadFermenterHardwareList, 500); })
+              .catch(function(err) { console.error('[Fermenter] Delete failed:', err); btn.disabled = false; });
+          }
+        });
+      });
+
+      // Anzeigen-Handler — zeigt Fermenter-Details in einem Dialog
+      content.querySelectorAll('[data-ferm-view]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var id = btn.getAttribute('data-ferm-view');
+          var f = fermenters.find(function(x) { return x.id === id; });
+          if (!f) return;
+          showFermenterDetails(f, sensorNames, actorNames, types, de);
+        });
+      });
+    }).catch(function(err) {
+      console.error('[Fermenter HW] Load failed:', err);
+      content.innerHTML = '<div class="fermenter-error">' + (de ? 'Fehler beim Laden' : 'Load error') + '</div>';
+    });
+  }
+
+  function showFermenterDetails(f, sensorNames, actorNames, types, de) {
+    // Detail-Dialog als Overlay (wie bei den anderen Hardware-Elementen)
+    var existing = document.getElementById('cbpi-fermenter-detail');
+    if (existing) existing.remove();
+
+    var typeInfo = types[f.type] || {};
+    var props = f.props || {};
+    var typeProps = typeInfo.properties || [];
+
+    _isOurDomChange = true;
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-fermenter-detail';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;padding:20px';
+
+    var html = '<div style="background:var(--bg-surface,#1e1e1e);border:1px solid var(--border-color,#333);border-radius:16px;width:100%;max-width:600px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);color:var(--text-primary,#eee);position:relative;transform:translateZ(0)">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border-color,#333)">';
+    html += '<h2 style="margin:0;font-size:1.3rem;color:#00FF00">' + (f.name || 'Fermenter') + '</h2>';
+    html += '<button id="ferm-detail-close" style="background:none;border:1px solid var(--border-color,#333);color:var(--text-secondary,#888);font-size:1.3rem;cursor:pointer;border-radius:8px;width:36px;height:36px;display:flex;align-items:center;justify-content:center">✕</button>';
+    html += '</div>';
+
+    html += '<div style="padding:20px 24px">';
+
+    // Basisdaten
+    var rows = [
+      [de ? 'Logik-Typ' : 'Logic Type', f.type || '—'],
+      [de ? 'Temperatursensor' : 'Temp Sensor', sensorNames[f.sensor] || '—'],
+      [de ? 'Drucksensor' : 'Pressure Sensor', sensorNames[f.pressure_sensor] || '—'],
+      [de ? 'Heizung' : 'Heater', actorNames[f.heater] || '—'],
+      [de ? 'Kühlung' : 'Cooler', actorNames[f.cooler] || '—'],
+      [de ? 'Ventil' : 'Valve', actorNames[f.valve] || '—'],
+      [de ? 'Zieltemperatur' : 'Target Temp', f.target_temp ? f.target_temp + '°C' : '—'],
+      [de ? 'Zieldruck' : 'Target Pressure', f.target_pressure ? f.target_pressure + ' bar' : '—'],
+      [de ? 'Sudname' : 'Brew Name', f.brewname || '—'],
+      ['Status', f.state ? (de ? 'Aktiv' : 'Active') : (de ? 'Inaktiv' : 'Inactive')],
+      [de ? 'Schritte' : 'Steps', (f.steps || []).length + '']
+    ];
+
+    html += '<table style="width:100%;border-collapse:collapse">';
+    rows.forEach(function(r) {
+      html += '<tr style="border-bottom:1px solid var(--border-color,#333)">';
+      html += '<td style="padding:10px 12px;color:var(--text-secondary,#888);font-size:0.85rem;width:40%">' + r[0] + '</td>';
+      html += '<td style="padding:10px 12px;font-size:0.9rem">' + r[1] + '</td>';
+      html += '</tr>';
+    });
+    html += '</table>';
+
+    // Logik-Properties (wenn vorhanden)
+    if (typeProps.length > 0) {
+      html += '<h3 style="margin:20px 0 10px;font-size:1rem;color:var(--text-secondary,#888)">' + (de ? 'Logik-Einstellungen' : 'Logic Settings') + '</h3>';
+      html += '<table style="width:100%;border-collapse:collapse">';
+      typeProps.forEach(function(tp) {
+        var val = props[tp.label] !== undefined ? props[tp.label] : (tp.default_value || '—');
+        html += '<tr style="border-bottom:1px solid var(--border-color,#333)">';
+        html += '<td style="padding:8px 12px;color:var(--text-secondary,#888);font-size:0.85rem;width:40%">' + tp.label + '</td>';
+        html += '<td style="padding:8px 12px;font-size:0.9rem">' + val + '</td>';
+        html += '</tr>';
+      });
+      html += '</table>';
+    }
+
+    html += '</div></div>';
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    _isOurDomChange = false;
+
+    document.getElementById('ferm-detail-close').addEventListener('click', function() {
+      overlay.remove();
+    });
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.remove();
+    });
+  }
+
+  function showHardwareFermenterForm(sensors, actors, types) {
+    var content = document.getElementById('fermenter-hw-content');
+    if (!content) return;
+    var de = currentLang === 'de';
+
+    var sensorOpts = '<option value="">— ' + (de ? 'Kein Sensor' : 'No sensor') + ' —</option>';
+    sensors.forEach(function(s) { sensorOpts += '<option value="' + s.id + '">' + s.name + '</option>'; });
+
+    var actorOpts = '<option value="">— ' + (de ? 'Keiner' : 'None') + ' —</option>';
+    actors.forEach(function(a) { actorOpts += '<option value="' + a.id + '">' + a.name + '</option>'; });
+
+    var typeOpts = '';
+    Object.keys(types).forEach(function(t) { typeOpts += '<option value="' + t + '">' + t + '</option>'; });
+
+    _isOurDomChange = true;
+    content.innerHTML =
+      '<div class="fermenter-hw-form">' +
+        '<div class="fermenter-form-grid">' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Name' : 'Name') + ' *</label>' +
+            '<input type="text" id="ferm-hw-name" class="fermenter-input" placeholder="' + (de ? 'z.B. Gärfass 1' : 'e.g. Fermenter 1') + '">' +
+          '</div>' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Logik-Typ' : 'Logic Type') + ' *</label>' +
+            '<select id="ferm-hw-type" class="fermenter-input">' + typeOpts + '</select>' +
+          '</div>' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Temperatursensor' : 'Temp Sensor') + ' *</label>' +
+            '<select id="ferm-hw-sensor" class="fermenter-input">' + sensorOpts + '</select>' +
+          '</div>' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Drucksensor' : 'Pressure Sensor') + '</label>' +
+            '<select id="ferm-hw-pressure" class="fermenter-input">' + sensorOpts + '</select>' +
+          '</div>' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Heizung' : 'Heater') + '</label>' +
+            '<select id="ferm-hw-heater" class="fermenter-input">' + actorOpts + '</select>' +
+          '</div>' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Kühlung' : 'Cooler') + '</label>' +
+            '<select id="ferm-hw-cooler" class="fermenter-input">' + actorOpts + '</select>' +
+          '</div>' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Ventil (Spunding)' : 'Valve (Spunding)') + '</label>' +
+            '<select id="ferm-hw-valve" class="fermenter-input">' + actorOpts + '</select>' +
+          '</div>' +
+          '<div class="fermenter-form-field">' +
+            '<label>' + (de ? 'Zieltemperatur (°C)' : 'Target Temp (°C)') + '</label>' +
+            '<input type="number" id="ferm-hw-target" class="fermenter-input" value="18" step="0.5" min="0" max="40">' +
+          '</div>' +
+        '</div>' +
+        '<div class="fermenter-form-actions">' +
+          '<button class="fermenter-ctrl-btn" id="ferm-hw-cancel">' + (de ? 'Abbrechen' : 'Cancel') + '</button>' +
+          '<button class="fermenter-ctrl-btn start" id="ferm-hw-submit">✅ ' + (de ? 'Erstellen' : 'Create') + '</button>' +
+        '</div>' +
+      '</div>';
+    _isOurDomChange = false;
+
+    // Input-Felder vor Event-Interference schützen
+    var hwFormInputs = content.querySelectorAll('input, select');
+    hwFormInputs.forEach(function(inp) {
+      inp.addEventListener('keydown', function(e) { e.stopPropagation(); });
+      inp.addEventListener('keyup', function(e) { e.stopPropagation(); });
+      inp.addEventListener('keypress', function(e) { e.stopPropagation(); });
+      inp.addEventListener('input', function(e) { e.stopPropagation(); });
+      inp.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      inp.addEventListener('focus', function(e) { e.stopPropagation(); });
+    });
+
+    document.getElementById('ferm-hw-cancel').addEventListener('click', function() {
+      loadFermenterHardwareList();
+    });
+    document.getElementById('ferm-hw-submit').addEventListener('click', function() {
+      submitHardwareFermenter(sensors, actors, types);
+    });
+  }
+
+  function submitHardwareFermenter(sensors, actors, types) {
+    var de = currentLang === 'de';
+    var name = (document.getElementById('ferm-hw-name').value || '').trim();
+    var type = document.getElementById('ferm-hw-type').value;
+    var sensor = document.getElementById('ferm-hw-sensor').value;
+
+    if (!name) { alert(de ? 'Bitte einen Namen eingeben!' : 'Please enter a name!'); return; }
+    if (!type) { alert(de ? 'Bitte einen Logik-Typ wählen!' : 'Please select a logic type!'); return; }
+    if (!sensor) { alert(de ? 'Bitte einen Sensor wählen!' : 'Please select a sensor!'); return; }
+
+    var btn = document.getElementById('ferm-hw-submit');
+    if (btn) { btn.disabled = true; btn.textContent = de ? '⏳ Wird erstellt…' : '⏳ Creating…'; }
+
+    var payload = {
+      name: name,
+      type: type,
+      sensor: sensor,
+      pressure_sensor: document.getElementById('ferm-hw-pressure').value || '',
+      heater: document.getElementById('ferm-hw-heater').value || '',
+      cooler: document.getElementById('ferm-hw-cooler').value || '',
+      valve: document.getElementById('ferm-hw-valve').value || '',
+      target_temp: parseFloat(document.getElementById('ferm-hw-target').value) || 18,
+      target_pressure: 0,
+      brewname: '',
+      props: {}
+    };
+
+    fetch('/fermenter/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function() {
+      setTimeout(loadFermenterHardwareList, 500);
+    })
+    .catch(function(err) {
+      console.error('[Fermenter] Create failed:', err);
+      alert(de ? 'Fehler: ' + err.message : 'Error: ' + err.message);
+      if (btn) { btn.disabled = false; btn.textContent = de ? '✅ Erstellen' : '✅ Create'; }
+    });
+  }
+
+  // ============================================================
+  // PLUGIN-MANAGEMENT — Erweiterte Plugin-Ansicht
+  // ============================================================
+  function enhancePluginPage() {
+    var hash = window.location.hash.replace('#', '');
+    if (hash !== '/plugins') return;
+    if (document.getElementById('cbpi-plugin-enhance')) return;
+
+    var target = findContentTarget();
+    if (!target) return;
+
+    var de = currentLang === 'de';
+
+    var marker = document.createElement('div');
+    marker.id = 'cbpi-plugin-enhance';
+    marker.style.display = 'none';
+    target.appendChild(marker);
+
+    // Plugin-Info-Panel
+    var panel = document.createElement('div');
+    panel.className = 'plugin-info-panel';
+    panel.innerHTML =
+      '<div class="plugin-info-header">' +
+        '<h3>🧩 ' + (de ? 'Plugin-Übersicht' : 'Plugin Overview') + '</h3>' +
+      '</div>' +
+      '<div class="plugin-info-body">' +
+        '<div class="plugin-section">' +
+          '<h4>' + (de ? 'Installierte Erweiterungen' : 'Installed Extensions') + '</h4>' +
+          '<div id="plugin-installed-list" class="plugin-list">' +
+            '<div class="plugin-loading">' + (de ? 'Lade...' : 'Loading...') + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="plugin-section">' +
+          '<h4>💡 ' + (de ? 'Empfohlene Plugins' : 'Recommended Plugins') + '</h4>' +
+          '<div class="plugin-recommended">' +
+            renderPluginRecommendations(de) +
+          '</div>' +
+        '</div>' +
+        '<div class="plugin-section">' +
+          '<h4>📦 ' + (de ? 'Plugin installieren (pip)' : 'Install Plugin (pip)') + '</h4>' +
+          '<div class="plugin-install-form">' +
+            '<input type="text" id="plugin-pip-name" class="plugin-input" placeholder="' + (de ? 'z.B. cbpi4-PIDBoil' : 'e.g. cbpi4-PIDBoil') + '">' +
+            '<button class="plugin-install-btn" id="plugin-install-btn">📥 ' + (de ? 'Installieren' : 'Install') + '</button>' +
+          '</div>' +
+          '<div class="plugin-install-note">' +
+            (de ? '⚠️ Nach Installation muss CraftBeerPi neu gestartet werden (System → Neustart).' : '⚠️ CraftBeerPi restart required after installation (System → Restart).') +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // Nach den Help-Bannern einfügen
+    var helpBanner = document.getElementById('cbpi-help-banner');
+    var pageTitle = document.getElementById('cbpi-page-title');
+    var refNode = helpBanner || pageTitle;
+    if (refNode && refNode.nextSibling) {
+      target.insertBefore(panel, refNode.nextSibling);
+    } else {
+      target.insertBefore(panel, target.firstChild);
+    }
+
+    // Installierte Plugins laden
+    loadInstalledPlugins();
+
+    // Install-Button
+    document.getElementById('plugin-install-btn').addEventListener('click', function() {
+      var name = document.getElementById('plugin-pip-name').value.trim();
+      if (!name) return;
+      if (!confirm(de ? 'Plugin "' + name + '" installieren?' : 'Install plugin "' + name + '"?')) return;
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = '⏳ ...';
+      fetch('/system/plugins/install', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ package_name: name })
+      })
+        .then(function(r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
+        .then(function() {
+          alert(de ? 'Plugin installiert! Bitte CraftBeerPi neu starten.' : 'Plugin installed! Please restart CraftBeerPi.');
+          btn.disabled = false;
+          btn.textContent = '📥 ' + (de ? 'Installieren' : 'Install');
+        })
+        .catch(function(err) {
+          alert((de ? 'Installation fehlgeschlagen: ' : 'Installation failed: ') + err.message);
+          btn.disabled = false;
+          btn.textContent = '📥 ' + (de ? 'Installieren' : 'Install');
+        });
+    });
+  }
+
+  function loadInstalledPlugins() {
+    var de = currentLang === 'de';
+    var listEl = document.getElementById('plugin-installed-list');
+    if (!listEl) return;
+
+    fetch('/plugin/')
+      .then(function(r) { return r.json(); })
+      .then(function(plugins) {
+        if (!plugins || plugins.length === 0) {
+          listEl.innerHTML = '<div class="plugin-empty">' + (de ? 'Keine Plugins installiert' : 'No plugins installed') + '</div>';
+          return;
+        }
+        var localPlugins = plugins.filter(function(p) { return p.Name || p.name; });
+        listEl.innerHTML = localPlugins.map(function(p) {
+          var name = p.Name || p.name || 'Unknown';
+          var version = p.Version || p.version || '';
+          var desc = p.Description || p.description || '';
+          return '<div class="plugin-item">' +
+            '<div class="plugin-item-name">' + name + (version ? ' <span class="plugin-version">v' + version + '</span>' : '') + '</div>' +
+            (desc ? '<div class="plugin-item-desc">' + desc + '</div>' : '') +
+          '</div>';
+        }).join('');
+      })
+      .catch(function() {
+        listEl.innerHTML = '<div class="plugin-error">' + (de ? 'Fehler beim Laden' : 'Error loading') + '</div>';
+      });
+  }
+
+  function renderPluginRecommendations(de) {
+    var plugins = [
+      { name: 'cbpi4-PIDBoil', desc: de ? 'PID-Regler mit Kocherkennung' : 'PID controller with boil detection' },
+      { name: 'cbpi4-BM_PID_SmartBoilWithPump', desc: de ? 'Braumeister PID + Pumpensteuerung' : 'Braumeister PID + pump control' },
+      { name: 'cbpi4-pt100x', desc: de ? 'PT100/PT1000 Sensor-Support' : 'PT100/PT1000 sensor support' },
+      { name: 'cbpi4-buzzer', desc: de ? 'Buzzer/Pieper für Benachrichtigungen' : 'Buzzer for notifications' },
+      { name: 'cbpi4-iSpindle', desc: de ? 'iSpindle Gärungsmonitor' : 'iSpindle fermentation monitor' },
+      { name: 'cbpi4-Flowmeter', desc: de ? 'Durchflussmesser-Plugin' : 'Flowmeter plugin' }
+    ];
+    return plugins.map(function(p) {
+      return '<div class="plugin-rec-item">' +
+        '<div class="plugin-rec-name">📦 ' + p.name + '</div>' +
+        '<div class="plugin-rec-desc">' + p.desc + '</div>' +
+      '</div>';
+    }).join('');
+  }
+
   function init() {
     // Startseite: Präferenz aus localStorage lesen
     var hash = window.location.hash.replace('#', '');
@@ -3739,6 +6153,10 @@
         window.location.hash = '#/';
       }
     }
+    // Temperatur-Historie laden (wenn vom letzten Brauvorgang vorhanden)
+    loadTempHistory();
+    // Notification-Berechtigung anfragen
+    requestNotificationPermission();
     injectLateStyles();
     translatePage();
     createLanguageToggle();
@@ -3749,6 +6167,8 @@
     createStatusBar();
     buildCockpit();
     addRecipeTools();
+    enhanceRecipePage();
+    enhancePluginPage();
     checkOnboarding();
   }
 
@@ -3766,6 +6186,9 @@
         translatePage();
         buildCockpit();
         addRecipeTools();
+        enhanceRecipePage();
+        enhancePluginPage();
+        enhanceHardwarePage();
       }, 300);
     }
   }
@@ -3778,6 +6201,8 @@
       var m = mutations[i];
       // Eigene Elemente ignorieren
       if (m.target && m.target.id && /^cbpi-/.test(m.target.id)) continue;
+      // Mutations innerhalb eigener Overlays/Sektionen ignorieren
+      if (m.target && m.target.closest && (m.target.closest('#cbpi-fermenter-overlay') || m.target.closest('#cbpi-fermenter-hardware'))) continue;
       if (m.addedNodes.length > 0) { dominated = true; break; }
     }
     if (!dominated) return;
@@ -3791,6 +6216,9 @@
       applyExpertMode();
       buildCockpit();
       addRecipeTools();
+      enhanceRecipePage();
+      enhancePluginPage();
+      enhanceHardwarePage();
     }, 250);
   });
 
