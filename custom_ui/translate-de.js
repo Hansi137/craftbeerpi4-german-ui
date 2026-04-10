@@ -463,7 +463,7 @@
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       // Eigene Overlays/Formulare überspringen
-      if (node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware' || node.id === 'cbpi-fermenter-config-form') return;
+      if (node.id === 'cbpi-fermenter-page' || node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware' || node.id === 'cbpi-fermenter-config-form' || node.id === 'cbpi-help-page') return;
       if (node.placeholder) {
         var pt = node.placeholder.trim();
         if (translations[pt]) node.placeholder = translations[pt][currentLang];
@@ -703,7 +703,8 @@
     '/kettle':       { de: 'Kessel',                 en: 'Kettles' },
     '/analytics':    { de: 'Statistiken',             en: 'Analytics' },
     '/fermenter':    { de: 'Gärbehälter',            en: 'Fermenter' },
-    '/recipe':       { de: 'Rezept bearbeiten',       en: 'Edit Recipe' }
+    '/recipe':       { de: 'Rezept bearbeiten',       en: 'Edit Recipe' },
+    '/help':         { de: 'Hilfe & Dokumentation',   en: 'Help & Documentation' }
   };
 
   // ============================================================
@@ -1496,6 +1497,9 @@
 
     // Gärungs-Dashboard Menüpunkt
     injectFermenterNavItem(drawer);
+
+    // Hilfe-Seite Menüpunkt
+    injectHelpNavItem(drawer);
 
     var items = drawer.querySelectorAll('.MuiListItem-root');
     items.forEach(function (item) {
@@ -4976,6 +4980,8 @@
   // ============================================================
 
   var _fermenterRefreshInterval = null;
+  var _fermenterLastGraphDraw = 0;
+  var _fermenterGraphInterval = 60000; // Graph nur alle 60s neu zeichnen
 
   function injectFermenterNavItem(drawer) {
     if (drawer.querySelector('#cbpi-nav-fermenter')) return;
@@ -4992,7 +4998,7 @@
     li.addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      showFermenterDashboard();
+      window.location.hash = '#/fermenter';
     });
 
     var svg = li.querySelector('svg');
@@ -5023,113 +5029,384 @@
     _isOurDomChange = false;
   }
 
-  function showFermenterDashboard() {
-    var existing = document.getElementById('cbpi-fermenter-overlay');
-    if (existing) existing.remove();
-    if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
+  function injectHelpNavItem(drawer) {
+    if (drawer.querySelector('#cbpi-nav-help')) return;
+    var list = drawer.querySelector('.MuiList-root');
+    if (!list) return;
+    var firstItem = list.querySelector('.MuiListItem-root');
+    if (!firstItem) return;
+
+    _isOurDomChange = true;
+    var li = firstItem.cloneNode(true);
+    li.id = 'cbpi-nav-help';
+    li.style.cursor = 'pointer';
+
+    li.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.hash = '#/help';
+    });
+
+    var svg = li.querySelector('svg');
+    if (svg) {
+      svg.innerHTML = '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>';
+    }
+    var textEl = li.querySelector('.MuiListItemText-primary');
+    if (textEl) textEl.textContent = currentLang === 'de' ? 'Hilfe' : 'Help';
+    var descEl = li.querySelector('.cbpi-menu-desc');
+    if (descEl) descEl.textContent = currentLang === 'de' ? 'Dokumentation & Nachschlagewerk' : 'Documentation & Reference';
+
+    // Am Ende der Liste einfügen
+    list.appendChild(li);
+    _isOurDomChange = false;
+  }
+
+  function buildFermenterDashboard() {
+    var hash = window.location.hash.replace('#', '');
+    if (hash !== '/fermenter') {
+      stopFermenterDashboard();
+      return;
+    }
+
+    // Schon aufgebaut? Nur Daten refreshen
+    if (document.getElementById('cbpi-fermenter-page')) {
+      if (!_fermenterRefreshInterval) {
+        loadFermenterData();
+        _fermenterRefreshInterval = setInterval(loadFermenterData, 5000);
+      }
+      return;
+    }
+
+    var target = findContentTarget();
+    if (!target) return;
 
     var de = currentLang === 'de';
 
-    var overlay = document.createElement('div');
-    overlay.id = 'cbpi-fermenter-overlay';
-    overlay.className = 'fermenter-overlay';
+    // Original-Content verstecken (React rendert nichts auf /fermenter, aber falls doch)
+    _isOurDomChange = true;
+    var origChildren = target.children;
+    for (var c = 0; c < origChildren.length; c++) {
+      if (origChildren[c].id !== 'cbpi-page-title' && origChildren[c].id !== 'cbpi-help-banner' && origChildren[c].id !== 'cbpi-fermenter-page') {
+        origChildren[c].style.display = 'none';
+      }
+    }
 
-    overlay.innerHTML =
-      '<div class="fermenter-modal">' +
-        '<div class="fermenter-header">' +
-          '<h2>🍶 ' + (de ? 'Gärungs-Dashboard' : 'Fermentation Dashboard') + '</h2>' +
-          '<button class="fermenter-close" id="fermenter-close">✕</button>' +
-        '</div>' +
-        '<div class="fermenter-body" id="fermenter-body">' +
-          '<div class="fermenter-loading">' + (de ? 'Gärbehälter werden geladen…' : 'Loading fermenters…') + '</div>' +
-        '</div>' +
+    var container = document.createElement('div');
+    container.id = 'cbpi-fermenter-page';
+    container.innerHTML =
+      '<div class="fermenter-body" id="fermenter-body">' +
+        '<div class="fermenter-loading">' + (de ? 'Gärbehälter werden geladen…' : 'Loading fermenters…') + '</div>' +
       '</div>';
+    target.appendChild(container);
 
-    document.body.appendChild(overlay);
-
-    document.getElementById('fermenter-close').addEventListener('click', function() {
-      if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
-      overlay.remove();
-    });
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) {
-        if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
-        overlay.remove();
-      }
-    });
-
-    // Event Delegation für alle Fermenter-Aktionen
-    document.getElementById('fermenter-body').addEventListener('click', function(e) {
-      var btn = e.target.closest('[data-ferm-action]');
-      if (btn) {
-        e.stopPropagation();
-        var fermId = btn.getAttribute('data-ferm-id');
-        var action = btn.getAttribute('data-ferm-action');
-        btn.disabled = true;
-        btn.style.opacity = '0.5';
-
-        var url = '/fermenter/' + encodeURIComponent(fermId) + '/' + action;
-        var opts = { method: 'POST' };
-
-        // Zieltemperatur setzen braucht JSON-Body
-        if (action === 'target_temp') {
-          var input = document.getElementById('ferm-target-' + fermId);
-          var temp = input ? parseFloat(input.value) : 0;
-          opts.headers = { 'Content-Type': 'application/json' };
-          opts.body = JSON.stringify({ temp: temp });
-        }
-
-        fetch(url, opts)
-          .then(function() { setTimeout(loadFermenterData, 500); })
-          .catch(function(err) { console.error('[Fermenter] Action failed:', err); })
-          .finally(function() { btn.disabled = false; btn.style.opacity = '1'; });
-        return;
-      }
-
-      // Rezept laden
-      var brewBtn = e.target.closest('[data-ferm-brew]');
-      if (brewBtn) {
-        e.stopPropagation();
-        var recipeId = brewBtn.getAttribute('data-ferm-recipe');
-        var fermId2 = brewBtn.getAttribute('data-ferm-brew');
-        var recipeName = brewBtn.getAttribute('data-ferm-recipe-name') || '';
-        brewBtn.disabled = true;
-        brewBtn.textContent = de ? '⏳ Wird geladen…' : '⏳ Loading…';
-        fetch('/fermenterrecipe/' + encodeURIComponent(recipeId) + '/' + encodeURIComponent(fermId2) + '/' + encodeURIComponent(recipeName) + '/brew', { method: 'POST' })
-          .then(function() { setTimeout(loadFermenterData, 500); })
-          .catch(function(err) { console.error('[Fermenter] Brew failed:', err); });
-        return;
-      }
-
-      // Rezeptliste aufklappen
-      var recipeToggle = e.target.closest('[data-ferm-recipe-toggle]');
-      if (recipeToggle) {
-        var panel = document.getElementById('ferm-recipes-' + recipeToggle.getAttribute('data-ferm-recipe-toggle'));
-        if (panel) {
-          panel.classList.toggle('collapsed');
-          if (!panel.classList.contains('collapsed')) {
-            loadFermenterRecipes(recipeToggle.getAttribute('data-ferm-recipe-toggle'));
-          }
-        }
-        return;
-      }
-
-      // Fermenter erstellen Button (im Empty-State)
-      if (e.target.closest('#fermenter-create-btn')) {
-        if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
-        showCreateFermenterForm();
-        return;
-      }
-    });
+    // Event Delegation
+    container.addEventListener('click', fermenterClickHandler);
+    container.addEventListener('input', fermenterInputHandler);
+    container.addEventListener('change', fermenterChangeHandler);
+    _isOurDomChange = false;
 
     loadFermenterData();
     _fermenterRefreshInterval = setInterval(loadFermenterData, 5000);
+  }
+
+  function stopFermenterDashboard() {
+    if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; }
+    var page = document.getElementById('cbpi-fermenter-page');
+    if (page) {
+      var parent = page.parentNode;
+      if (parent) {
+        _isOurDomChange = true;
+        var children = parent.children;
+        for (var i = 0; i < children.length; i++) {
+          if (children[i].style && children[i].style.display === 'none') {
+            children[i].style.display = '';
+          }
+        }
+        parent.removeChild(page);
+        _isOurDomChange = false;
+      }
+    }
+  }
+
+  function fermenterClickHandler(e) {
+    var de = currentLang === 'de';
+
+    var btn = e.target.closest('[data-ferm-action]');
+    if (btn) {
+      e.stopPropagation();
+      var fermId = btn.getAttribute('data-ferm-id');
+      var action = btn.getAttribute('data-ferm-action');
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+
+      var url = '/fermenter/' + encodeURIComponent(fermId) + '/' + action;
+      var opts = { method: 'POST' };
+
+      if (action === 'target_temp') {
+        var input = document.getElementById('ferm-target-' + fermId);
+        var temp = input ? parseFloat(input.value) : 0;
+        opts.headers = { 'Content-Type': 'application/json' };
+        opts.body = JSON.stringify({ temp: temp });
+      }
+
+      fetch(url, opts)
+        .then(function() { setTimeout(loadFermenterData, 500); })
+        .catch(function(err) { console.error('[Fermenter] Action failed:', err); })
+        .finally(function() { btn.disabled = false; btn.style.opacity = '1'; });
+      return;
+    }
+
+    var brewBtn = e.target.closest('[data-ferm-brew]');
+    if (brewBtn) {
+      e.stopPropagation();
+      var recipeId = brewBtn.getAttribute('data-ferm-recipe');
+      var fermId2 = brewBtn.getAttribute('data-ferm-brew');
+      var recipeName = brewBtn.getAttribute('data-ferm-recipe-name') || '';
+      brewBtn.disabled = true;
+      brewBtn.textContent = de ? '⏳ Wird geladen…' : '⏳ Loading…';
+      fetch('/fermenterrecipe/' + encodeURIComponent(recipeId) + '/' + encodeURIComponent(fermId2) + '/' + encodeURIComponent(recipeName) + '/brew', { method: 'POST' })
+        .then(function() { setTimeout(loadFermenterData, 500); })
+        .catch(function(err) { console.error('[Fermenter] Brew failed:', err); });
+      return;
+    }
+
+    var recipeToggle = e.target.closest('[data-ferm-recipe-toggle]');
+    if (recipeToggle) {
+      var panel = document.getElementById('ferm-recipes-' + recipeToggle.getAttribute('data-ferm-recipe-toggle'));
+      if (panel) {
+        panel.classList.toggle('collapsed');
+        if (!panel.classList.contains('collapsed')) {
+          loadFermenterRecipes(recipeToggle.getAttribute('data-ferm-recipe-toggle'));
+        }
+      }
+      return;
+    }
+
+    if (e.target.closest('#fermenter-create-btn')) {
+      showCreateFermenterForm();
+      return;
+    }
+
+    // ── Gärrezept aus Vorlage erstellen ──
+    var profileCard = e.target.closest('[data-ferm-profile]');
+    if (profileCard) {
+      e.stopPropagation();
+      var profileIdx = parseInt(profileCard.getAttribute('data-ferm-profile'));
+      var targetFermId = profileCard.getAttribute('data-ferm-profile-target');
+      var profile = FERMENTATION_PROFILES[profileIdx];
+      if (!profile) return;
+
+      var pName = de ? profile.name.de : profile.name.en;
+      if (!confirm(de ? 'Gärprofil "' + pName + '" als Rezept erstellen und in den Gärbehälter laden?' : 'Create profile "' + pName + '" and load into fermenter?')) return;
+
+      profileCard.style.opacity = '0.5';
+      profileCard.style.pointerEvents = 'none';
+
+      // 1. Rezept erstellen
+      fetch('/fermenterrecipe/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: pName })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var recipeId = data.id;
+        // 2. Schritte speichern
+        var steps = profile.steps.map(function(s) {
+          return { name: de ? s.name.de : s.name.en, type: s.type, props: s.props, status: 'I' };
+        });
+        return fetch('/fermenterrecipe/' + recipeId, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ basic: { name: pName }, steps: steps })
+        }).then(function() { return recipeId; });
+      })
+      .then(function(recipeId) {
+        // 3. In den Fermenter laden (brew)
+        return fetch('/fermenterrecipe/' + encodeURIComponent(recipeId) + '/' + encodeURIComponent(targetFermId) + '/' + encodeURIComponent(pName) + '/brew', { method: 'POST' });
+      })
+      .then(function() {
+        // Full re-render to show the new steps
+        var body = document.getElementById('fermenter-body');
+        if (body) body.querySelector('.fermenter-card').remove();
+        setTimeout(loadFermenterData, 500);
+      })
+      .catch(function(err) {
+        console.error('[Fermenter] Profile create failed:', err);
+        alert(de ? 'Fehler: ' + err.message : 'Error: ' + err.message);
+        profileCard.style.opacity = '1';
+        profileCard.style.pointerEvents = '';
+      });
+      return;
+    }
+
+    // ── Schritt zum Custom-Rezept hinzufügen ──
+    var addStepBtn = e.target.closest('[data-ferm-add-step]');
+    if (addStepBtn) {
+      e.stopPropagation();
+      var fid = addStepBtn.getAttribute('data-ferm-add-step');
+      addFermenterRecipeStep(fid);
+      return;
+    }
+
+    // ── Schritt aus Custom-Rezept entfernen ──
+    var removeStepBtn = e.target.closest('[data-ferm-remove-step]');
+    if (removeStepBtn) {
+      e.stopPropagation();
+      removeStepBtn.closest('.fermenter-recipe-step-row').remove();
+      return;
+    }
+
+    // ── Custom-Rezept speichern + laden ──
+    var saveRecipeBtn = e.target.closest('[data-ferm-save-recipe]');
+    if (saveRecipeBtn) {
+      e.stopPropagation();
+      var sfid = saveRecipeBtn.getAttribute('data-ferm-save-recipe');
+      saveAndBrewCustomRecipe(sfid);
+      return;
+    }
+
+    // ── Rezept löschen ──
+    var delBtn = e.target.closest('[data-ferm-recipe-delete]');
+    if (delBtn) {
+      e.stopPropagation();
+      var delId = delBtn.getAttribute('data-ferm-recipe-delete');
+      var delName = delBtn.getAttribute('data-ferm-recipe-name');
+      if (!confirm(de ? 'Rezept "' + delName + '" wirklich löschen?' : 'Delete recipe "' + delName + '"?')) return;
+      fetch('/fermenterrecipe/' + encodeURIComponent(delId), { method: 'DELETE' })
+        .then(function() {
+          // Panel-ID aus dem nächsten parent finden
+          var panel = delBtn.closest('.fermenter-recipe-panel');
+          if (panel) {
+            var panelFermId = panel.id.replace('ferm-recipes-', '');
+            loadFermenterRecipes(panelFermId);
+          }
+        });
+      return;
+    }
+  }
+
+  // ── Schritt-Zeile zum Custom-Rezept hinzufügen ──
+  function addFermenterRecipeStep(fermId) {
+    var container = document.getElementById('ferm-recipe-steps-' + fermId);
+    if (!container) return;
+    var de = currentLang === 'de';
+    var idx = container.querySelectorAll('.fermenter-recipe-step-row').length + 1;
+
+    var row = document.createElement('div');
+    row.className = 'fermenter-recipe-step-row';
+    row.innerHTML =
+      '<span class="fermenter-step-num">' + idx + '.</span>' +
+      '<div class="ferm-step-field" style="flex:2"><label>' + (de ? 'Name' : 'Name') + '</label>' +
+        '<input type="text" class="fermenter-input ferm-step-name" placeholder="' + (de ? 'Schrittname' : 'Step name') + '" value="' + (de ? 'Schritt ' + idx : 'Step ' + idx) + '">' +
+      '</div>' +
+      '<div class="ferm-step-field" style="flex:1.5"><label>' + (de ? 'Typ' : 'Type') + '</label>' +
+        '<select class="fermenter-input ferm-step-type">' +
+          '<option value="FermenterStep">' + (de ? 'Timer-Schritt' : 'Timer Step') + '</option>' +
+          '<option value="FermenterTargetTempStep">' + (de ? 'Zieltemp erreichen' : 'Reach Target') + '</option>' +
+          '<option value="FermenterRampTempStep">' + (de ? 'Temp. langsam ändern' : 'Gradual Temp Change') + '</option>' +
+          '<option value="FermenterNotificationStep">' + (de ? 'Benachrichtigung' : 'Notification') + '</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="ferm-step-field" style="width:75px"><label>°C</label>' +
+        '<input type="number" class="fermenter-input ferm-step-temp" step="0.5" min="0" max="40" value="18">' +
+      '</div>' +
+      '<div class="ferm-step-field" style="width:70px"><label>' + (de ? 'Tage' : 'Days') + '</label>' +
+        '<input type="number" class="fermenter-input ferm-step-days" min="0" value="7">' +
+      '</div>' +
+      '<button class="fermenter-ctrl-btn" data-ferm-remove-step="1" style="padding:4px 8px;align-self:flex-end;margin-bottom:4px">✕</button>';
+    container.appendChild(row);
+
+    // Input-Events vor Propagation schützen
+    row.querySelectorAll('input, select').forEach(function(inp) {
+      ['keydown','keyup','keypress','input','mousedown','focus'].forEach(function(evt) {
+        inp.addEventListener(evt, function(e2) { e2.stopPropagation(); }, true);
+      });
+    });
+  }
+
+  // ── Custom-Rezept speichern und in Fermenter laden ──
+  function saveAndBrewCustomRecipe(fermId) {
+    var de = currentLang === 'de';
+    var nameInput = document.getElementById('ferm-recipe-name-' + fermId);
+    var recipeName = nameInput ? nameInput.value.trim() : '';
+    if (!recipeName) {
+      alert(de ? 'Bitte einen Rezeptnamen eingeben!' : 'Please enter a recipe name!');
+      return;
+    }
+
+    var container = document.getElementById('ferm-recipe-steps-' + fermId);
+    var rows = container ? container.querySelectorAll('.fermenter-recipe-step-row') : [];
+    if (rows.length === 0) {
+      alert(de ? 'Bitte mindestens einen Schritt hinzufügen!' : 'Please add at least one step!');
+      return;
+    }
+
+    var steps = [];
+    rows.forEach(function(row) {
+      var sName = row.querySelector('.ferm-step-name').value.trim() || 'Step';
+      var sType = row.querySelector('.ferm-step-type').value;
+      var sTemp = parseFloat(row.querySelector('.ferm-step-temp').value) || 18;
+      var sDays = parseInt(row.querySelector('.ferm-step-days').value) || 0;
+
+      var props = { Temp: sTemp, AutoMode: 'Yes' };
+      if (sType === 'FermenterStep') {
+        props.TimerD = sDays;
+        props.TimerH = 0;
+        props.TimerM = 0;
+      }
+      steps.push({ name: sName, type: sType, props: props, status: 'I' });
+    });
+
+    var saveBtn = document.querySelector('[data-ferm-save-recipe="' + fermId + '"]');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = de ? '⏳ Wird gespeichert…' : '⏳ Saving…'; }
+
+    // 1. Rezept erstellen
+    fetch('/fermenterrecipe/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: recipeName })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var recipeId = data.id;
+      // 2. Steps speichern
+      return fetch('/fermenterrecipe/' + recipeId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ basic: { name: recipeName }, steps: steps })
+      }).then(function() { return recipeId; });
+    })
+    .then(function(recipeId) {
+      // 3. In den Fermenter laden
+      return fetch('/fermenterrecipe/' + encodeURIComponent(recipeId) + '/' + encodeURIComponent(fermId) + '/' + encodeURIComponent(recipeName) + '/brew', { method: 'POST' });
+    })
+    .then(function() {
+      // Re-render
+      var body = document.getElementById('fermenter-body');
+      if (body) {
+        var card = body.querySelector('.fermenter-card');
+        if (card) card.remove();
+      }
+      setTimeout(loadFermenterData, 500);
+    })
+    .catch(function(err) {
+      console.error('[Fermenter] Save recipe failed:', err);
+      alert(de ? 'Fehler: ' + err.message : 'Error: ' + err.message);
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = de ? '💾 Rezept speichern' : '💾 Save Recipe'; }
+    });
+  }
+
+  // Legacy: Modal-Wrapper (falls noch irgendwo aufgerufen)
+  function showFermenterDashboard() {
+    window.location.hash = '#/fermenter';
   }
 
   function loadFermenterData() {
     var body = document.getElementById('fermenter-body');
     if (!body) { if (_fermenterRefreshInterval) { clearInterval(_fermenterRefreshInterval); _fermenterRefreshInterval = null; } return; }
     var de = currentLang === 'de';
+    var isUpdate = body.querySelector('.fermenter-card') !== null;
 
     fetch('/fermenter/').then(function(r) { return r.json(); }).then(function(fermData) {
       var fermenters = fermData.data || [];
@@ -5164,28 +5441,105 @@
             if (!sensorMap[sid]) sensorMap[sid] = { name: '', value: sensorValueMap[sid] };
           });
 
-          var html = '';
-          fermenters.forEach(function(f) {
-            html += renderFermenterCard(f, sensorMap, steptypes, de);
-          });
-          body.innerHTML = html;
-
-          // Graphen initialisieren (nach kurzer Verzögerung für DOM-Rendering)
-          setTimeout(function() {
+          if (isUpdate) {
+            // ── In-Place Update: nur dynamische Werte aktualisieren ──
             fermenters.forEach(function(f) {
-              if (f.sensor) {
-                // sensor2 aus den Props oder Fermenter-Type-Config für iSpindle
-                var sensor2Id = (f.props && f.props.sensor2) ? f.props.sensor2 : '';
-                drawFermenterGraph('ferm-graph-' + f.id, f.sensor, f.pressure_sensor, sensor2Id, f.target_temp, f.target_pressure, de);
-              }
+              updateFermenterCardValues(f, sensorMap, de);
             });
-          }, 50);
+            // Graph nur alle 60s neu zeichnen
+            var now = Date.now();
+            if (now - _fermenterLastGraphDraw >= _fermenterGraphInterval) {
+              _fermenterLastGraphDraw = now;
+              setTimeout(function() {
+                fermenters.forEach(function(f) {
+                  if (f.sensor) {
+                    var sensor2Id = (f.props && f.props.sensor2) ? f.props.sensor2 : '';
+                    drawFermenterGraph('ferm-graph-' + f.id, f.sensor, f.pressure_sensor, sensor2Id, f.target_temp, f.target_pressure, de);
+                  }
+                });
+              }, 50);
+            }
+          } else {
+            // ── Erstes Rendering: komplettes HTML aufbauen ──
+            var html = '';
+            fermenters.forEach(function(f) {
+              html += renderFermenterCard(f, sensorMap, steptypes, de);
+            });
+            body.innerHTML = html;
+            _fermenterLastGraphDraw = Date.now();
+
+            // Graphen initialisieren (nach kurzer Verzögerung für DOM-Rendering)
+            setTimeout(function() {
+              fermenters.forEach(function(f) {
+                if (f.sensor) {
+                  var sensor2Id = (f.props && f.props.sensor2) ? f.props.sensor2 : '';
+                  drawFermenterGraph('ferm-graph-' + f.id, f.sensor, f.pressure_sensor, sensor2Id, f.target_temp, f.target_pressure, de);
+                }
+              });
+            }, 50);
+          }
         });
       });
     }).catch(function(err) {
       console.error('[Fermenter] Load failed:', err);
-      body.innerHTML = '<div class="fermenter-error">' + (de ? 'Fehler beim Laden der Gärdaten' : 'Error loading fermentation data') + '</div>';
+      if (!isUpdate) {
+        body.innerHTML = '<div class="fermenter-error">' + (de ? 'Fehler beim Laden der Gärdaten' : 'Error loading fermentation data') + '</div>';
+      }
     });
+  }
+
+  // ── In-Place Update für Fermenter-Karten-Werte (kein HTML-Neuaufbau) ──
+  function updateFermenterCardValues(f, sensorMap, de) {
+    var sensorVal = null;
+    if (f.sensor && sensorMap[f.sensor]) {
+      sensorVal = sensorMap[f.sensor].value !== undefined ? parseFloat(sensorMap[f.sensor].value) : null;
+    }
+    var pressureVal = null;
+    if (f.pressure_sensor && sensorMap[f.pressure_sensor]) {
+      pressureVal = parseFloat(sensorMap[f.pressure_sensor].value);
+    }
+
+    // Temperatur-Wert
+    var tempEl = document.getElementById('ferm-temp-' + f.id);
+    if (tempEl) tempEl.textContent = formatTemp(sensorVal);
+
+    // Delta
+    var deltaEl = document.getElementById('ferm-delta-' + f.id);
+    if (deltaEl && sensorVal !== null && f.target_temp > 0) {
+      var delta = sensorVal - f.target_temp;
+      var deltaClass = Math.abs(delta) < 0.5 ? 'ok' : (delta > 0 ? 'warm' : 'cold');
+      deltaEl.className = 'fermenter-temp-delta ' + deltaClass;
+      deltaEl.textContent = 'Δ ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + '°C';
+    }
+
+    // Druck
+    var pressEl = document.getElementById('ferm-pressure-' + f.id);
+    if (pressEl && pressureVal !== null) {
+      pressEl.innerHTML = '🔵 ' + pressureVal.toFixed(2) + ' bar' +
+        (f.target_pressure && f.target_pressure > 0
+          ? ' <span class="fermenter-pressure-target">(' + (de ? 'Ziel' : 'Target') + ': ' + f.target_pressure.toFixed(2) + ')</span>'
+          : '');
+    }
+
+    // iSpindle
+    var sensor2Id = (f.props && f.props.sensor2) ? f.props.sensor2 : '';
+    var s2El = document.getElementById('ferm-ispindle-' + f.id);
+    if (s2El && sensor2Id && sensorMap[sensor2Id]) {
+      var s2Val = parseFloat(sensorMap[sensor2Id].value);
+      var s2Name = sensorMap[sensor2Id].name || 'iSpindle';
+      if (!isNaN(s2Val)) {
+        s2El.innerHTML = '🫧 ' + s2Name + ': <b>' + s2Val.toFixed(2) + '</b>';
+      }
+    }
+
+    // Aktiver Schritt — Timer-Text aktualisieren
+    var steps = f.steps || [];
+    var activeStep = null;
+    steps.forEach(function(s) { if (s.status === 'A') activeStep = s; });
+    var timerEl = document.getElementById('ferm-timer-' + f.id);
+    if (timerEl && activeStep && activeStep.state_text) {
+      timerEl.textContent = '⏱ ' + activeStep.state_text;
+    }
   }
 
   function renderEmptyFermenter(de, types) {
@@ -5371,7 +5725,7 @@
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
     var W = canvas.width = canvas.parentElement.offsetWidth || 800;
-    var H = canvas.height = 240;
+    var H = canvas.height = 400;
 
     // Lade alle relevanten Sensor-Logs parallel
     var fetches = [fetch('/log/' + encodeURIComponent(sensorId)).then(function(r) { return r.json(); })];
@@ -5465,7 +5819,9 @@
         rangeS2 = maxS2 - minS2;
       }
 
-      var padL = 50, padR = showPressure ? 55 : 15, padT = 28, padB = 35;
+      var padL = 50, padR = (showPressure || showSensor2) ? 55 : 15, padT = 28, padB = 35;
+      // Wenn sowohl Druck als auch iSpindel: rechts mehr Platz für zwei Achsen
+      if (showPressure && showSensor2) padR = 100;
       var gW = W - padL - padR;
       var gH = H - padT - padB;
 
@@ -5492,22 +5848,45 @@
 
       // Druck-Y-Achse (rechts)
       if (showPressure) {
+        var pressAxisX = W - padR + 6;
         for (var gp = 0; gp <= gridSteps; gp++) {
           var gpy = padT + (gH / gridSteps) * gp;
           var gpVal = maxP - (rangeP / gridSteps) * gp;
           ctx.fillStyle = '#42a5f5';
           ctx.font = '11px sans-serif';
           ctx.textAlign = 'left';
-          ctx.fillText(gpVal.toFixed(1), W - padR + 6, gpy + 4);
+          ctx.fillText(gpVal.toFixed(1), pressAxisX, gpy + 4);
         }
         // Rechte Achsen-Beschriftung
         ctx.save();
-        ctx.translate(W - 6, padT + gH / 2);
+        ctx.translate(pressAxisX + 30, padT + gH / 2);
         ctx.rotate(-Math.PI / 2);
         ctx.fillStyle = '#42a5f5';
         ctx.font = '9px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('bar', 0, 0);
+        ctx.restore();
+      }
+
+      // iSpindel-Y-Achse (rechts, neben Druck oder alleine)
+      if (showSensor2) {
+        var s2AxisX = showPressure ? (W - padR + 52) : (W - padR + 6);
+        for (var gs2 = 0; gs2 <= gridSteps; gs2++) {
+          var gs2y = padT + (gH / gridSteps) * gs2;
+          var gs2Val = maxS2 - (rangeS2 / gridSteps) * gs2;
+          ctx.fillStyle = '#ab47bc';
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(gs2Val.toFixed(1), s2AxisX, gs2y + 4);
+        }
+        // Achsen-Beschriftung
+        ctx.save();
+        ctx.translate(s2AxisX + 30, padT + gH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = '#ab47bc';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('°P', 0, 0);
         ctx.restore();
       }
 
@@ -5590,21 +5969,36 @@
         ctx.stroke();
       }
 
-      // --- iSpindle-Kurve (grün-gelb, auf Temp-Achse oder eigene) ---
+      // --- iSpindle-Kurve (lila, eigene Y-Skala) ---
       if (showSensor2) {
+        // Gradient-Füllung
+        var s2Gradient = ctx.createLinearGradient(0, padT, 0, H - padB);
+        s2Gradient.addColorStop(0, 'rgba(171,71,188,0.15)');
+        s2Gradient.addColorStop(1, 'rgba(171,71,188,0.02)');
+        ctx.beginPath();
+        for (var s2f = 0; s2f < vSensor2.length; s2f++) {
+          var s2fx = padL + (s2f / (vSensor2.length - 1)) * gW;
+          var s2fy = padT + gH - ((vSensor2[s2f] - minS2) / rangeS2) * gH;
+          if (s2f === 0) ctx.moveTo(s2fx, s2fy);
+          else ctx.lineTo(s2fx, s2fy);
+        }
+        ctx.lineTo(padL + gW, padT + gH);
+        ctx.lineTo(padL, padT + gH);
+        ctx.closePath();
+        ctx.fillStyle = s2Gradient;
+        ctx.fill();
+
+        // Linie
         ctx.beginPath();
         for (var s2 = 0; s2 < vSensor2.length; s2++) {
           var s2x = padL + (s2 / (vSensor2.length - 1)) * gW;
-          // iSpindle auf eigene Skala mappen (als Overlay)
           var s2y = padT + gH - ((vSensor2[s2] - minS2) / rangeS2) * gH;
           if (s2 === 0) ctx.moveTo(s2x, s2y);
           else ctx.lineTo(s2x, s2y);
         }
         ctx.strokeStyle = '#ab47bc';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
+        ctx.lineWidth = 2;
         ctx.stroke();
-        ctx.setLineDash([]);
       }
 
       // X-Achse Zeitlabels
@@ -5629,7 +6023,10 @@
       ctx.fillStyle = '#ccc';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(de ? 'Temperaturverlauf' : 'Temperature History', padL, 15);
+      var graphTitle = showSensor2
+        ? (de ? 'Gärverlauf' : 'Fermentation Progress')
+        : (de ? 'Temperaturverlauf' : 'Temperature History');
+      ctx.fillText(graphTitle, padL, 15);
 
       // Aktueller Temp-Wert
       var legendX = W - padR;
@@ -5641,21 +6038,23 @@
         ctx.fillText(lastT.toFixed(1) + '°C', legendX, 15);
       }
 
-      // Legende (unter dem Titel)
+      // Legende
       var legY = 15;
-      if (showPressure && vPressure.length > 0) {
-        var lastP = vPressure[vPressure.length - 1];
-        ctx.fillStyle = '#42a5f5';
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('● ' + (de ? 'Druck' : 'Pressure') + ': ' + lastP.toFixed(2) + ' bar', padL + 160, legY);
-      }
+      var legX = padL + 120;
       if (showSensor2 && vSensor2.length > 0) {
         var lastS2 = vSensor2[vSensor2.length - 1];
         ctx.fillStyle = '#ab47bc';
         ctx.font = '11px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText('● iSpindle: ' + lastS2.toFixed(2), padL + 350, legY);
+        ctx.fillText('● ' + (de ? 'Stammwürze' : 'Gravity') + ': ' + lastS2.toFixed(1) + '°P', legX, legY);
+        legX += 170;
+      }
+      if (showPressure && vPressure.length > 0) {
+        var lastP = vPressure[vPressure.length - 1];
+        ctx.fillStyle = '#42a5f5';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('● ' + (de ? 'Druck' : 'Pressure') + ': ' + lastP.toFixed(2) + ' bar', legX, legY);
       }
     }).catch(function(err) {
       console.error('[Fermenter Graph] Load failed:', err);
@@ -5704,18 +6103,18 @@
 
     // Temperatur-Karte
     html += '<div class="fermenter-temp-section">';
-    html += '<div class="fermenter-temp-big">' + formatTemp(sensorVal) + '</div>';
+    html += '<div class="fermenter-temp-big" id="ferm-temp-' + f.id + '">' + formatTemp(sensorVal) + '</div>';
     if (sensorName) html += '<div class="fermenter-temp-label">' + sensorName + '</div>';
     if (f.target_temp && f.target_temp > 0) {
       html += '<div class="fermenter-temp-target">' + (de ? 'Ziel' : 'Target') + ': <b>' + f.target_temp.toFixed(1) + '°C</b></div>';
       if (sensorVal !== null) {
         var delta = sensorVal - f.target_temp;
         var deltaClass = Math.abs(delta) < 0.5 ? 'ok' : (delta > 0 ? 'warm' : 'cold');
-        html += '<div class="fermenter-temp-delta ' + deltaClass + '">Δ ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + '°C</div>';
+        html += '<div class="fermenter-temp-delta ' + deltaClass + '" id="ferm-delta-' + f.id + '">Δ ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + '°C</div>';
       }
     }
     if (pressureVal !== null) {
-      html += '<div class="fermenter-pressure">🔵 ' + pressureVal.toFixed(2) + ' bar';
+      html += '<div class="fermenter-pressure" id="ferm-pressure-' + f.id + '">🔵 ' + pressureVal.toFixed(2) + ' bar';
       if (f.target_pressure && f.target_pressure > 0) {
         html += ' <span class="fermenter-pressure-target">(' + (de ? 'Ziel' : 'Target') + ': ' + f.target_pressure.toFixed(2) + ')</span>';
       }
@@ -5727,7 +6126,7 @@
       var s2Val = parseFloat(sensorMap[sensor2Id].value);
       var s2Name = sensorMap[sensor2Id].name || 'iSpindle';
       if (!isNaN(s2Val)) {
-        html += '<div class="fermenter-ispindle" style="color:#ab47bc;font-size:0.85rem;margin-top:4px">🫧 ' + s2Name + ': <b>' + s2Val.toFixed(2) + '</b></div>';
+        html += '<div class="fermenter-ispindle" id="ferm-ispindle-' + f.id + '" style="color:#ab47bc;font-size:0.85rem;margin-top:4px">🫧 ' + s2Name + ': <b>' + s2Val.toFixed(2) + '</b></div>';
       }
     }
     html += '</div>';
@@ -5742,7 +6141,7 @@
         html += '<div class="fermenter-step-detail">' + (de ? 'Ziel' : 'Target') + ': ' + activeStep.props.Temp + '°C</div>';
       }
       if (activeStep.state_text) {
-        html += '<div class="fermenter-step-timer">⏱ ' + activeStep.state_text + '</div>';
+        html += '<div class="fermenter-step-timer" id="ferm-timer-' + f.id + '">⏱ ' + activeStep.state_text + '</div>';
       }
       if (activeIdx < steps.length - 1) {
         var nextStep = steps[activeIdx + 1];
@@ -5823,6 +6222,42 @@
     return html;
   }
 
+  // ── Vorgefertigte Gärprofile ──
+  var FERMENTATION_PROFILES = [
+    {
+      name: { de: 'Ale Standard (obergärig)', en: 'Ale Standard (top-fermenting)' },
+      steps: [
+        { name: { de: 'Hauptgärung', en: 'Primary' }, type: 'FermenterStep', props: { Temp: 18, TimerD: 7, AutoMode: 'Yes' } },
+        { name: { de: 'Diacetyl-Rast', en: 'Diacetyl Rest' }, type: 'FermenterStep', props: { Temp: 20, TimerD: 2, AutoMode: 'Yes' } },
+        { name: { de: 'Cold Crash', en: 'Cold Crash' }, type: 'FermenterStep', props: { Temp: 4, TimerD: 2, AutoMode: 'Yes' } }
+      ]
+    },
+    {
+      name: { de: 'Lager / Pils (untergärig)', en: 'Lager / Pilsner (bottom-fermenting)' },
+      steps: [
+        { name: { de: 'Hauptgärung', en: 'Primary' }, type: 'FermenterStep', props: { Temp: 10, TimerD: 10, AutoMode: 'Yes' } },
+        { name: { de: 'Diacetyl-Rast', en: 'Diacetyl Rest' }, type: 'FermenterStep', props: { Temp: 16, TimerD: 2, AutoMode: 'Yes' } },
+        { name: { de: 'Nachgärung', en: 'Secondary' }, type: 'FermenterStep', props: { Temp: 4, TimerD: 14, AutoMode: 'Yes' } },
+        { name: { de: 'Cold Crash', en: 'Cold Crash' }, type: 'FermenterStep', props: { Temp: 1, TimerD: 3, AutoMode: 'Yes' } }
+      ]
+    },
+    {
+      name: { de: 'Weizenbier', en: 'Wheat Beer' },
+      steps: [
+        { name: { de: 'Hauptgärung', en: 'Primary' }, type: 'FermenterStep', props: { Temp: 20, TimerD: 5, AutoMode: 'Yes' } },
+        { name: { de: 'Nachgärung', en: 'Secondary' }, type: 'FermenterStep', props: { Temp: 20, TimerD: 3, AutoMode: 'Yes' } },
+        { name: { de: 'Cold Crash', en: 'Cold Crash' }, type: 'FermenterStep', props: { Temp: 4, TimerD: 2, AutoMode: 'Yes' } }
+      ]
+    },
+    {
+      name: { de: 'Kveik (warmgärig)', en: 'Kveik (warm fermenting)' },
+      steps: [
+        { name: { de: 'Hauptgärung', en: 'Primary' }, type: 'FermenterStep', props: { Temp: 35, TimerD: 4, AutoMode: 'Yes' } },
+        { name: { de: 'Cold Crash', en: 'Cold Crash' }, type: 'FermenterStep', props: { Temp: 4, TimerD: 2, AutoMode: 'Yes' } }
+      ]
+    }
+  ];
+
   function loadFermenterRecipes(fermId) {
     var listEl = document.getElementById('ferm-recipe-list-' + fermId);
     if (!listEl) return;
@@ -5830,22 +6265,294 @@
     fetch('/fermenterrecipe/')
       .then(function(r) { return r.json(); })
       .then(function(recipes) {
-        if (!recipes || recipes.length === 0) {
-          listEl.innerHTML = '<div class="fermenter-recipe-empty">' + (de ? 'Keine Gärrezepte vorhanden. Erstelle eins über die Einstellungen!' : 'No fermentation recipes found.') + '</div>';
-          return;
-        }
+        if (!Array.isArray(recipes)) recipes = [];
         var html = '';
-        recipes.forEach(function(r) {
-          html += '<div class="fermenter-recipe-item">';
-          html += '<span class="fermenter-recipe-name">' + (r.name || r.file || '?') + '</span>';
-          html += '<button class="fermenter-recipe-brew-btn" data-ferm-brew="' + fermId + '" data-ferm-recipe="' + (r.file || r.name || '') + '" data-ferm-recipe-name="' + (r.name || '') + '">▶ ' + (de ? 'Laden' : 'Load') + '</button>';
+
+        // Vorhandene Rezepte anzeigen
+        if (recipes.length > 0) {
+          html += '<div class="fermenter-recipe-section-title">' + (de ? '📖 Gespeicherte Rezepte' : '📖 Saved Recipes') + '</div>';
+          recipes.forEach(function(r) {
+            html += '<div class="fermenter-recipe-item">';
+            html += '<span class="fermenter-recipe-name">' + (r.name || r.file || '?') + '</span>';
+            html += '<div class="fermenter-recipe-actions">';
+            html += '<button class="fermenter-recipe-brew-btn" data-ferm-brew="' + fermId + '" data-ferm-recipe="' + (r.file || r.name || '') + '" data-ferm-recipe-name="' + (r.name || '') + '">▶ ' + (de ? 'Laden' : 'Load') + '</button>';
+            html += '<button class="fermenter-recipe-del-btn" data-ferm-recipe-delete="' + (r.file || '') + '" data-ferm-recipe-name="' + (r.name || '') + '">🗑</button>';
+            html += '</div>';
+            html += '</div>';
+          });
+        }
+
+        // Vorlagen-Bereich
+        html += '<div class="fermenter-recipe-section-title" style="margin-top:12px">' + (de ? '⚡ Schnellrezept aus Vorlage' : '⚡ Quick Recipe from Template') + '</div>';
+        html += '<div class="fermenter-profile-grid">';
+        FERMENTATION_PROFILES.forEach(function(profile, idx) {
+          var pName = de ? profile.name.de : profile.name.en;
+          var stepSummary = profile.steps.map(function(s) {
+            var sn = de ? s.name.de : s.name.en;
+            return sn + ' ' + s.props.Temp + '°C / ' + (s.props.TimerD || 0) + (de ? 'T' : 'd');
+          }).join(' → ');
+          html += '<div class="fermenter-profile-card" data-ferm-profile="' + idx + '" data-ferm-profile-target="' + fermId + '">';
+          html += '<div class="fermenter-profile-name">' + pName + '</div>';
+          html += '<div class="fermenter-profile-steps">' + stepSummary + '</div>';
           html += '</div>';
         });
+        html += '</div>';
+
+        // Eigenes Rezept erstellen
+        html += '<div class="fermenter-recipe-section-title" style="margin-top:12px">' + (de ? '✏️ Eigenes Rezept erstellen' : '✏️ Create Custom Recipe') + '</div>';
+        html += '<div class="fermenter-custom-recipe" id="ferm-custom-recipe-' + fermId + '">';
+        html += '<div class="fermenter-form-field" style="margin-bottom:8px">';
+        html += '<label>' + (de ? 'Rezeptname' : 'Recipe Name') + '</label>';
+        html += '<input type="text" class="fermenter-input" id="ferm-recipe-name-' + fermId + '" placeholder="' + (de ? 'z.B. Mein IPA Gärplan' : 'e.g. My IPA Fermentation') + '">';
+        html += '</div>';
+        html += '<div id="ferm-recipe-steps-' + fermId + '" class="fermenter-recipe-step-list"></div>';
+        html += '<button class="fermenter-ctrl-btn" data-ferm-add-step="' + fermId + '">➕ ' + (de ? 'Schritt hinzufügen' : 'Add Step') + '</button>';
+        html += ' <button class="fermenter-ctrl-btn start" data-ferm-save-recipe="' + fermId + '" style="margin-left:8px">💾 ' + (de ? 'Rezept speichern' : 'Save Recipe') + '</button>';
+        html += '</div>';
+
         listEl.innerHTML = html;
       })
       .catch(function() {
-        listEl.innerHTML = '<div class="fermenter-recipe-empty">' + (de ? 'Fehler' : 'Error') + '</div>';
+        listEl.innerHTML = '<div class="fermenter-recipe-empty">' + (de ? 'Fehler beim Laden' : 'Error loading') + '</div>';
       });
+  }
+
+  // ============================================================
+  // HILFE- & DOKUMENTATIONSSEITE
+  // ============================================================
+
+  function buildHelpPage() {
+    var hash = window.location.hash.replace('#', '');
+    if (hash !== '/help') {
+      stopHelpPage();
+      return;
+    }
+    if (document.getElementById('cbpi-help-page')) return;
+
+    var target = findContentTarget();
+    if (!target) return;
+
+    var de = currentLang === 'de';
+    _isOurDomChange = true;
+
+    var origChildren = target.children;
+    for (var c = 0; c < origChildren.length; c++) {
+      if (origChildren[c].id !== 'cbpi-page-title' && origChildren[c].id !== 'cbpi-help-banner' && origChildren[c].id !== 'cbpi-help-page') {
+        origChildren[c].style.display = 'none';
+      }
+    }
+
+    var container = document.createElement('div');
+    container.id = 'cbpi-help-page';
+
+    container.innerHTML = de ? buildHelpContentDE() : buildHelpContentEN();
+    target.appendChild(container);
+
+    // Akkordeon-Klicks
+    container.addEventListener('click', function(e) {
+      var header = e.target.closest('.help-section-header');
+      if (header) {
+        var section = header.parentElement;
+        section.classList.toggle('open');
+      }
+    });
+
+    _isOurDomChange = false;
+  }
+
+  function stopHelpPage() {
+    var page = document.getElementById('cbpi-help-page');
+    if (page) {
+      var parent = page.parentNode;
+      if (parent) {
+        _isOurDomChange = true;
+        var children = parent.children;
+        for (var i = 0; i < children.length; i++) {
+          if (children[i].style && children[i].style.display === 'none') children[i].style.display = '';
+        }
+        parent.removeChild(page);
+        _isOurDomChange = false;
+      }
+    }
+  }
+
+  function buildHelpContentDE() {
+    return '<div class="help-container">' +
+
+    '<div class="help-intro">' +
+      '<h2>📖 CraftBeerPi 4 — Hilfe & Nachschlagewerk</h2>' +
+      '<p>Hier findest du Erklärungen zu allen Funktionen. Klicke auf einen Bereich, um ihn aufzuklappen.</p>' +
+    '</div>' +
+
+    // ── Schnellstart ──
+    helpSection('🚀', 'Schnellstart — Dein erstes Bier brauen', true,
+      '<ol class="help-steps">' +
+        '<li><b>Hardware einrichten</b> → Menü „Hardware"<br>' +
+          'Sensor anlegen (OneWire/DS18B20), Aktor anlegen (GPIOActor für Heizung/Rührwerk), ' +
+          'Kessel anlegen (Sensor + Heizung + Rührwerk verknüpfen)</li>' +
+        '<li><b>Rezept erstellen</b> → Menü „Rezeptbuch"<br>' +
+          'Neues Rezept mit + erstellen, Schritte hinzufügen (Einmaischen → Rasten → Kochen → Abkühlen)</li>' +
+        '<li><b>Rezept laden</b> → Im Rezept auf „Aktives Rezept" klicken<br>' +
+          'Das Rezept wird in den Brauplan übertragen</li>' +
+        '<li><b>Brauen starten</b> → Menü „Brauplan" → Start drücken<br>' +
+          'CraftBeerPi steuert Temperatur und Timer automatisch!</li>' +
+      '</ol>'
+    ) +
+
+    // ── Brau-Cockpit ──
+    helpSection('🎛️', 'Brau-Cockpit',  false,
+      '<p>Das Cockpit ist die Startseite und zeigt alles Wichtige auf einen Blick:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Status-Banner</b></td><td>Zeigt ob gerade gebraut wird und welches Rezept geladen ist</td></tr>' +
+        '<tr><td><b>Temperatur-Anzeige</b></td><td>Aktuelle Temperatur (groß), Zieltemperatur und Abweichung (Δ)</td></tr>' +
+        '<tr><td><b>Aktiver Schritt</b></td><td>Name des aktuellen Brauschritts, Timer und nächster Schritt</td></tr>' +
+        '<tr><td><b>Temperatur-Graph</b></td><td>Verlauf der letzten Stunden mit Ziel-Linie</td></tr>' +
+        '<tr><td><b>Aktoren-Schalter</b></td><td>Heizung, Rührwerk etc. manuell ein-/ausschalten</td></tr>' +
+      '</table>' +
+      '<p><b>Tipp:</b> Auf der Startseite kannst du zwischen <b>Cockpit</b> und <b>Anlagenbild</b> wählen (⚙️ → Startseite).</p>'
+    ) +
+
+    // ── Gärungs-Dashboard ──
+    helpSection('🍶', 'Gärungs-Dashboard', false,
+      '<p>Das Gärungs-Dashboard zeigt deine Gärbehälter mit Echtzeitdaten:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Temperatur</b></td><td>Aktuelle Gärtemperatur, Zieltemperatur und Abweichung</td></tr>' +
+        '<tr><td><b>Druck</b></td><td>CO₂-Druck im Behälter (bei Spunding)</td></tr>' +
+        '<tr><td><b>iSpindel</b></td><td>Stammwürze/Restextrakt in °Plato (wenn iSpindel-Sensor konfiguriert)</td></tr>' +
+        '<tr><td><b>Gärverlauf-Graph</b></td><td>Temperatur (orange), Druck (blau) und iSpindel (lila) über die Zeit</td></tr>' +
+      '</table>' +
+      '<h4>Gärrezepte</h4>' +
+      '<p>Ein Gärrezept besteht aus zeitgesteuerten Schritten:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Timer-Schritt</b></td><td>Hält eine Temperatur für X Tage. Timer startet wenn Zieltemp erreicht ist.</td></tr>' +
+        '<tr><td><b>Zieltemp erreichen</b></td><td>Wartet bis die Temperatur erreicht ist, dann sofort nächster Schritt.</td></tr>' +
+        '<tr><td><b>Temp. langsam ändern</b></td><td>Ändert die Temperatur schrittweise (z.B. 1°C pro Tag) — schonend für die Hefe.</td></tr>' +
+        '<tr><td><b>Benachrichtigung</b></td><td>Zeigt eine Meldung an (z.B. „Probe nehmen").</td></tr>' +
+      '</table>' +
+      '<h4>Typisches Gärprofil (Ale)</h4>' +
+      '<ol>' +
+        '<li><b>Hauptgärung</b> — 18°C für 7 Tage (Hefe vergärt den Zucker)</li>' +
+        '<li><b>Diacetyl-Rast</b> — 20°C für 2 Tage (baut Buttergeschmack ab)</li>' +
+        '<li><b>Cold Crash</b> — 4°C für 2 Tage (Hefe setzt sich ab, Bier wird klar)</li>' +
+      '</ol>'
+    ) +
+
+    // ── Rezepte & Brauplan ──
+    helpSection('📋', 'Rezepte & Brauplan', false,
+      '<h4>Rezeptbuch</h4>' +
+      '<p>Hier erstellst und verwaltest du Bierrezepte. Jedes Rezept besteht aus Brau-Schritten:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Einmaischen (MashIn)</b></td><td>Wasser auf Starttemperatur bringen. Malz erst zugeben wenn Zieltemp erreicht!</td></tr>' +
+        '<tr><td><b>Maisch-Schritt (MashStep)</b></td><td>Temperatur halten für eine bestimmte Zeit (Rasten). Timer startet wenn Temp erreicht.</td></tr>' +
+        '<tr><td><b>Kochschritt (BoilStep)</b></td><td>Würze kochen (meist 60-90 Min). Hopfen nach Rezept zugeben!</td></tr>' +
+        '<tr><td><b>Abkühlen (Cooldown)</b></td><td>Waaret bis Anstelltemperatur erreicht ist (z.B. 20°C für Ale-Hefe).</td></tr>' +
+      '</table>' +
+      '<h4>Rezept zum Brauen laden</h4>' +
+      '<p>Im Rezept-Editor → oben auf <b>„Aktives Rezept"</b> klicken → Rezept wird in den Brauplan geladen → dort <b>Start</b> drücken.</p>'
+    ) +
+
+    // ── Hardware ──
+    helpSection('🔧', 'Hardware einrichten', false,
+      '<p>Die Hardware-Seite hat drei Bereiche:</p>' +
+      '<h4>1. Sensoren</h4>' +
+      '<table class="help-table">' +
+        '<tr><td><b>OneWire</b></td><td>Standard DS18B20 Temperatursensor (an GPIO 4). Wird automatisch erkannt.</td></tr>' +
+        '<tr><td><b>CustomSensor</b></td><td>Erzeugt Zufallswerte — zum Testen ohne echten Sensor.</td></tr>' +
+        '<tr><td><b>HTTPSensor</b></td><td>Empfängt Werte über HTTP (z.B. von iSpindel, ESPEasy).</td></tr>' +
+      '</table>' +
+      '<h4>2. Aktoren</h4>' +
+      '<table class="help-table">' +
+        '<tr><td><b>GPIOActor</b></td><td>Schaltet einen GPIO-Pin am Raspberry Pi (für Relais/SSR).</td></tr>' +
+        '<tr><td><b>Inverted</b></td><td>Auf <b>Yes</b> setzen bei LOW-Trigger-Relais (z.B. blaue Songle-Module).</td></tr>' +
+      '</table>' +
+      '<h4>3. Kessel</h4>' +
+      '<p>Ein Kessel verknüpft Sensor + Heizung + Rührwerk zu einer Steuereinheit.</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Logik</b></td><td><b>PIDBoil</b> = PID-Regler mit Kochstufe. Am häufigsten verwendet.</td></tr>' +
+        '<tr><td><b>Max. Leistung</b></td><td>PWM-Begrenzung in % (z.B. 100% zum Kochen, 70% zum Maischen).</td></tr>' +
+      '</table>'
+    ) +
+
+    // ── Einstellungen ──
+    helpSection('⚙️', 'Wichtige Einstellungen', false,
+      '<table class="help-table">' +
+        '<tr><td><b>BREWERY_NAME</b></td><td>Name deiner Brauerei (wird im Header angezeigt)</td></tr>' +
+        '<tr><td><b>AutoMode</b></td><td>Wenn <b>Yes</b>: Brau-Schritte schalten automatisch weiter</td></tr>' +
+        '<tr><td><b>BoilKettle</b></td><td>Welcher Kessel für den Kochschritt verwendet wird</td></tr>' +
+        '<tr><td><b>MashKettle</b></td><td>Welcher Kessel für die Maischeschritte verwendet wird</td></tr>' +
+        '<tr><td><b>BoilTemp</b></td><td>Ab welcher Temperatur „Kochen" erkannt wird (Standard: 99°C)</td></tr>' +
+        '<tr><td><b>CSVLOGFILES</b></td><td>Wenn <b>Yes</b>: Sensor-Daten werden als CSV aufgezeichnet</td></tr>' +
+        '<tr><td><b>steps_cooldown_sensor</b></td><td>Welcher Sensor im Abkühl-Schritt überwacht wird</td></tr>' +
+      '</table>'
+    ) +
+
+    // ── Glossar ──
+    helpSection('📚', 'Glossar — Brauerischen Begriffe', false,
+      '<table class="help-table">' +
+        '<tr><td><b>Maischen</b></td><td>Malz + Wasser mischen und Enzyme bei verschiedenen Temperaturen arbeiten lassen</td></tr>' +
+        '<tr><td><b>Rasten</b></td><td>Temperatur-Pausen beim Maischen (z.B. 63°C = Maltose-Rast, 72°C = Verzuckerung)</td></tr>' +
+        '<tr><td><b>Läutern</b></td><td>Trennung von Würze (flüssig) und Treber (Malzreste)</td></tr>' +
+        '<tr><td><b>Hopfenkochen</b></td><td>Würze kochen und Hopfen für Bittere, Geschmack und Aroma zugeben</td></tr>' +
+        '<tr><td><b>Anstellen</b></td><td>Hefe zur abgekühlten Würze geben</td></tr>' +
+        '<tr><td><b>Hauptgärung</b></td><td>Hefe wandelt Zucker in Alkohol und CO₂ um (3-14 Tage)</td></tr>' +
+        '<tr><td><b>Nachgärung</b></td><td>Reifung bei kühleren Temperaturen für klareres Bier</td></tr>' +
+        '<tr><td><b>Cold Crash</b></td><td>Schnelles Abkühlen auf ~2-4°C → Hefe/Trübstoffe setzen sich ab</td></tr>' +
+        '<tr><td><b>Diacetyl-Rast</b></td><td>Kurzes Erwärmen nach Hauptgärung zum Abbau von Buttergeschmack</td></tr>' +
+        '<tr><td><b>Stammwürze (OG)</b></td><td>Zuckergehalt vor der Gärung in °Plato (z.B. 12°P ≈ 5% Alk.)</td></tr>' +
+        '<tr><td><b>Restextrakt (FG)</b></td><td>Zuckergehalt nach der Gärung (z.B. 2.5°P)</td></tr>' +
+        '<tr><td><b>Vergärungsgrad</b></td><td>Wie viel % des Zuckers vergoren wurde. 75-80% = normal</td></tr>' +
+        '<tr><td><b>Spunding</b></td><td>Natürliche Karbonisierung im geschlossenen Gärbehälter unter Druck</td></tr>' +
+        '<tr><td><b>iSpindel</b></td><td>DIY-Digitalhydrometer das im Bier schwimmt und Restextrakt/Temp misst</td></tr>' +
+        '<tr><td><b>PID-Regler</b></td><td>Intelligente Temperaturregelung die Über-/Unterschwinger minimiert</td></tr>' +
+        '<tr><td><b>Hysterese</b></td><td>Einfache Regelung: Heizung EIN unter Ziel-X°C, AUS über Ziel+X°C</td></tr>' +
+      '</table>'
+    ) +
+
+    '</div>';
+  }
+
+  function buildHelpContentEN() {
+    return '<div class="help-container">' +
+    '<div class="help-intro">' +
+      '<h2>📖 CraftBeerPi 4 — Help & Reference</h2>' +
+      '<p>Find explanations for all features here. Click a section to expand it.</p>' +
+    '</div>' +
+    helpSection('🚀', 'Quick Start — Brew Your First Beer', true,
+      '<ol class="help-steps">' +
+        '<li><b>Set up hardware</b> → Menu "Hardware"<br>Add sensor (OneWire/DS18B20), actor (GPIOActor), and kettle (link them together)</li>' +
+        '<li><b>Create recipe</b> → Menu "Recipe Book"<br>Create with +, add steps (MashIn → MashStep → BoilStep → Cooldown)</li>' +
+        '<li><b>Load recipe</b> → Click "Active Recipe" in the recipe editor</li>' +
+        '<li><b>Start brewing</b> → Menu "Brew Plan" → Press Start</li>' +
+      '</ol>'
+    ) +
+    helpSection('🎛️', 'Brew Cockpit', false,
+      '<p>The cockpit is your main dashboard showing temperature, active step, timer, graph and actor controls.</p>'
+    ) +
+    helpSection('🍶', 'Fermentation Dashboard', false,
+      '<p>Monitor and control your fermenters with real-time temperature, pressure, and iSpindel data. ' +
+      'Load fermentation profiles (Ale, Lager, Wheat, Kveik) with one click.</p>'
+    ) +
+    helpSection('📋', 'Recipes & Brew Plan', false,
+      '<p>Create recipes with MashIn → MashStep → BoilStep → Cooldown steps. Load into Brew Plan and press Start.</p>'
+    ) +
+    helpSection('🔧', 'Hardware Setup', false,
+      '<p>Configure sensors (OneWire), actors (GPIOActor), and kettles (link sensor + heater + agitator).</p>'
+    ) +
+    helpSection('📚', 'Glossary', false,
+      '<p>Mashing, lautering, sparging, dry hopping, cold crash, diacetyl rest, gravity, attenuation — all explained on the German page.</p>'
+    ) +
+    '</div>';
+  }
+
+  function helpSection(icon, title, openByDefault, content) {
+    return '<div class="help-section' + (openByDefault ? ' open' : '') + '">' +
+      '<div class="help-section-header">' +
+        '<span class="help-section-icon">' + icon + '</span>' +
+        '<span class="help-section-title">' + title + '</span>' +
+        '<span class="help-section-chevron">▶</span>' +
+      '</div>' +
+      '<div class="help-section-body">' + content + '</div>' +
+    '</div>';
   }
 
   // ============================================================
@@ -7048,6 +7755,8 @@
     applyExpertMode();
     createStatusBar();
     buildCockpit();
+    buildFermenterDashboard();
+    buildHelpPage();
     addRecipeTools();
     enhanceRecipePage();
     enhancePluginPage();
@@ -7064,9 +7773,17 @@
         _cockpitMode = false;
         stopCockpit();
       }
+      if (path !== '/fermenter') {
+        stopFermenterDashboard();
+      }
+      if (path !== '/help') {
+        stopHelpPage();
+      }
       setTimeout(function () {
         translatePage();
         buildCockpit();
+        buildFermenterDashboard();
+        buildHelpPage();
         addRecipeTools();
         enhanceRecipePage();
         enhancePluginPage();
@@ -7085,7 +7802,7 @@
       // Eigene Elemente ignorieren
       if (m.target && m.target.id && /^cbpi-/.test(m.target.id)) continue;
       // Mutations innerhalb eigener Overlays/Sektionen ignorieren
-      if (m.target && m.target.closest && (m.target.closest('#cbpi-fermenter-overlay') || m.target.closest('#cbpi-fermenter-hardware') || m.target.closest('#cbpi-fermenter-config-form'))) continue;
+      if (m.target && m.target.closest && (m.target.closest('#cbpi-fermenter-page') || m.target.closest('#cbpi-fermenter-overlay') || m.target.closest('#cbpi-fermenter-hardware') || m.target.closest('#cbpi-fermenter-config-form') || m.target.closest('#cbpi-help-page'))) continue;
       if (m.addedNodes.length > 0) { dominated = true; break; }
     }
     if (!dominated) return;
@@ -7098,6 +7815,8 @@
       createExpertToggle();
       applyExpertMode();
       buildCockpit();
+      buildFermenterDashboard();
+      buildHelpPage();
       addRecipeTools();
       enhanceRecipePage();
       enhancePluginPage();
