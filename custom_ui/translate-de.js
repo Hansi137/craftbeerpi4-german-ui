@@ -463,7 +463,7 @@
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       // Eigene Overlays/Formulare überspringen
-      if (node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware') return;
+      if (node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware' || node.id === 'cbpi-fermenter-config-form') return;
       if (node.placeholder) {
         var pt = node.placeholder.trim();
         if (translations[pt]) node.placeholder = translations[pt][currentLang];
@@ -3750,6 +3750,46 @@
       '.MuiButton-root, .MuiButton-label, .MuiButtonGroup-root .MuiButton-root {',
       '  font-family: "Inter", sans-serif !important;',
       '}',
+      '/* Dropdown/Select + Input Styles — theme-aware */',
+      '#cbpi-fermenter-config-form select,',
+      '#cbpi-fermenter-config-form input[type="text"],',
+      '#cbpi-fermenter-config-form input[type="number"],',
+      '#cbpi-fermenter-detail select,',
+      '#cbpi-fermenter-detail input {',
+      '  background: var(--bg-surface, #16213e) !important;',
+      '  color: var(--text, #e0e0e0) !important;',
+      '  border: none !important;',
+      '  border-bottom: 1px solid var(--border, rgba(255,255,255,0.06)) !important;',
+      '  padding: 8px 4px !important;',
+      '  font-size: 1rem !important;',
+      '  outline: none !important;',
+      '  font-family: inherit !important;',
+      '}',
+      '#cbpi-fermenter-config-form select {',
+      '  -webkit-appearance: none;',
+      '  appearance: none;',
+      '  background-image: url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'8\' viewBox=\'0 0 12 8\'%3E%3Cpath fill=\'%23888\' d=\'M1.41 0L6 4.58 10.59 0 12 1.41l-6 6-6-6z\'/%3E%3C/svg%3E") !important;',
+      '  background-repeat: no-repeat !important;',
+      '  background-position: right 4px center !important;',
+      '  padding-right: 24px !important;',
+      '}',
+      '#cbpi-fermenter-config-form select option,',
+      '#cbpi-fermenter-detail select option {',
+      '  background: var(--bg-surface, #16213e) !important;',
+      '  color: var(--text, #e0e0e0) !important;',
+      '}',
+      '/* Labels im Config-Form */',
+      '#cbpi-fermenter-config-form label,',
+      '#cbpi-fermenter-config-form .MuiPaper-root label {',
+      '  color: var(--text-secondary, rgba(255,255,255,0.7)) !important;',
+      '}',
+      '#cbpi-fermenter-config-form h2,',
+      '#cbpi-fermenter-config-form h3 {',
+      '  color: var(--text, #e0e0e0) !important;',
+      '}',
+      '#cbpi-fermenter-config-form span[style*="font-size:0.7rem"] {',
+      '  color: var(--text-muted, rgba(255,255,255,0.45)) !important;',
+      '}',
     ].join('\n');
     document.head.appendChild(style);
   }
@@ -5106,6 +5146,8 @@
       fermenters.forEach(function(f) {
         if (f.sensor) sensorIds.push(f.sensor);
         if (f.pressure_sensor) sensorIds.push(f.pressure_sensor);
+        // iSpindle (sensor2) aus Props
+        if (f.props && f.props.sensor2) sensorIds.push(f.props.sensor2);
       });
 
       // Sensorwerte über die zentrale Funktion holen
@@ -5132,7 +5174,9 @@
           setTimeout(function() {
             fermenters.forEach(function(f) {
               if (f.sensor) {
-                drawFermenterGraph('ferm-graph-' + f.id, f.sensor, f.target_temp, de);
+                // sensor2 aus den Props oder Fermenter-Type-Config für iSpindle
+                var sensor2Id = (f.props && f.props.sensor2) ? f.props.sensor2 : '';
+                drawFermenterGraph('ferm-graph-' + f.id, f.sensor, f.pressure_sensor, sensor2Id, f.target_temp, f.target_pressure, de);
               }
             });
           }, 50);
@@ -5320,166 +5364,306 @@
   }
 
   // ============================================================
-  // GÄRUNGS-GRAPH — Temperaturverlauf über Canvas zeichnen
+  // GÄRUNGS-GRAPH — Temperatur + Druck + iSpindle über Canvas
   // ============================================================
-  function drawFermenterGraph(canvasId, sensorId, targetTemp, de) {
+  function drawFermenterGraph(canvasId, sensorId, pressureSensorId, sensor2Id, targetTemp, targetPressure, de) {
     var canvas = document.getElementById(canvasId);
     if (!canvas) return;
     var ctx = canvas.getContext('2d');
     var W = canvas.width = canvas.parentElement.offsetWidth || 800;
-    var H = canvas.height = 200;
+    var H = canvas.height = 240;
 
-    // Lade Log-Daten
-    fetch('/log/' + encodeURIComponent(sensorId))
-      .then(function(r) { return r.json(); })
-      .then(function(data) {
-        var times = data.time || [];
-        var values = data[sensorId] || [];
-        if (times.length === 0) {
-          ctx.fillStyle = 'var(--text-secondary, #888)';
-          ctx.font = '14px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(de ? 'Noch keine Messdaten vorhanden' : 'No data yet', W / 2, H / 2);
-          return;
+    // Lade alle relevanten Sensor-Logs parallel
+    var fetches = [fetch('/log/' + encodeURIComponent(sensorId)).then(function(r) { return r.json(); })];
+    var hasPressure = pressureSensorId && pressureSensorId !== sensorId;
+    var hasSensor2 = sensor2Id && sensor2Id !== sensorId && sensor2Id !== pressureSensorId;
+    if (hasPressure) fetches.push(fetch('/log/' + encodeURIComponent(pressureSensorId)).then(function(r) { return r.json(); }));
+    if (hasSensor2) fetches.push(fetch('/log/' + encodeURIComponent(sensor2Id)).then(function(r) { return r.json(); }));
+
+    Promise.all(fetches).then(function(results) {
+      var tempData = results[0];
+      var pressureData = hasPressure ? results[hasPressure ? 1 : -1] : null;
+      var sensor2Data = hasSensor2 ? results[fetches.length - 1] : null;
+
+      var times = tempData.time || [];
+      var tempVals = tempData[sensorId] || [];
+      if (times.length === 0) {
+        ctx.fillStyle = '#888';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(de ? 'Noch keine Messdaten vorhanden' : 'No data yet', W / 2, H / 2);
+        return;
+      }
+
+      // Daten auf maximal 500 Punkte ausdünnen
+      var step = Math.max(1, Math.floor(times.length / 500));
+      var t = [], vTemp = [];
+      for (var i = 0; i < times.length; i += step) {
+        t.push(times[i]);
+        vTemp.push(parseFloat(tempVals[i]));
+      }
+
+      // Druck-Daten synchronisieren (wenn vorhanden)
+      var vPressure = [];
+      if (pressureData) {
+        var pTimes = pressureData.time || [];
+        var pVals = pressureData[pressureSensorId] || [];
+        var pStep = Math.max(1, Math.floor(pTimes.length / 500));
+        for (var pi = 0; pi < pTimes.length; pi += pStep) {
+          vPressure.push(parseFloat(pVals[pi]));
         }
+      }
 
-        // Daten auf maximal 500 Punkte ausdünnen (für Performance)
-        var step = Math.max(1, Math.floor(times.length / 500));
-        var t = [], v = [];
-        for (var i = 0; i < times.length; i += step) {
-          t.push(times[i]);
-          v.push(parseFloat(values[i]));
+      // Sensor2 (iSpindle) Daten
+      var vSensor2 = [];
+      if (sensor2Data) {
+        var s2Vals = sensor2Data[sensor2Id] || [];
+        var s2Step = Math.max(1, Math.floor(s2Vals.length / 500));
+        for (var si = 0; si < s2Vals.length; si += s2Step) {
+          vSensor2.push(parseFloat(s2Vals[si]));
         }
+      }
 
-        var minV = Math.min.apply(null, v);
-        var maxV = Math.max.apply(null, v);
-        if (targetTemp) {
-          minV = Math.min(minV, targetTemp - 1);
-          maxV = Math.max(maxV, targetTemp + 1);
+      // Temperatur Min/Max
+      var minT = Math.min.apply(null, vTemp);
+      var maxT = Math.max.apply(null, vTemp);
+      if (targetTemp) {
+        minT = Math.min(minT, targetTemp - 1);
+        maxT = Math.max(maxT, targetTemp + 1);
+      }
+      var rangeT = maxT - minT || 1;
+      minT -= rangeT * 0.1;
+      maxT += rangeT * 0.1;
+      rangeT = maxT - minT;
+
+      // Druck Min/Max (rechte Y-Achse)
+      var minP = 0, maxP = 1, rangeP = 1;
+      var showPressure = vPressure.length > 0;
+      if (showPressure) {
+        minP = Math.min.apply(null, vPressure);
+        maxP = Math.max.apply(null, vPressure);
+        if (targetPressure) {
+          minP = Math.min(minP, targetPressure * 0.8);
+          maxP = Math.max(maxP, targetPressure * 1.2);
         }
-        var range = maxV - minV || 1;
-        // 10% Rand oben/unten
-        minV -= range * 0.1;
-        maxV += range * 0.1;
-        range = maxV - minV;
+        rangeP = maxP - minP || 1;
+        minP -= rangeP * 0.1;
+        maxP += rangeP * 0.1;
+        if (minP < 0) minP = 0;
+        rangeP = maxP - minP;
+      }
 
-        var padL = 50, padR = 15, padT = 25, padB = 35;
-        var gW = W - padL - padR;
-        var gH = H - padT - padB;
+      // iSpindle Min/Max  
+      var minS2 = 0, maxS2 = 1, rangeS2 = 1;
+      var showSensor2 = vSensor2.length > 0;
+      if (showSensor2) {
+        minS2 = Math.min.apply(null, vSensor2);
+        maxS2 = Math.max.apply(null, vSensor2);
+        rangeS2 = maxS2 - minS2 || 1;
+        minS2 -= rangeS2 * 0.1;
+        maxS2 += rangeS2 * 0.1;
+        rangeS2 = maxS2 - minS2;
+      }
 
-        // Hintergrund
-        ctx.fillStyle = '#1a1a2e';
-        ctx.fillRect(0, 0, W, H);
+      var padL = 50, padR = showPressure ? 55 : 15, padT = 28, padB = 35;
+      var gW = W - padL - padR;
+      var gH = H - padT - padB;
 
-        // Gitternetzlinien
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        ctx.lineWidth = 1;
-        var gridSteps = 5;
-        for (var g = 0; g <= gridSteps; g++) {
-          var gy = padT + (gH / gridSteps) * g;
-          ctx.beginPath();
-          ctx.moveTo(padL, gy);
-          ctx.lineTo(W - padR, gy);
-          ctx.stroke();
-          // Y-Achse Werte
-          var gVal = maxV - (range / gridSteps) * g;
-          ctx.fillStyle = '#888';
-          ctx.font = '11px sans-serif';
-          ctx.textAlign = 'right';
-          ctx.fillText(gVal.toFixed(1) + '°', padL - 6, gy + 4);
-        }
+      // Hintergrund
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(0, 0, W, H);
 
-        // Zieltemperatur-Linie
-        if (targetTemp && targetTemp >= minV && targetTemp <= maxV) {
-          var tY = padT + gH - ((targetTemp - minV) / range) * gH;
-          ctx.strokeStyle = '#4caf50';
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([6, 4]);
-          ctx.beginPath();
-          ctx.moveTo(padL, tY);
-          ctx.lineTo(W - padR, tY);
-          ctx.stroke();
-          ctx.setLineDash([]);
-          ctx.fillStyle = '#4caf50';
-          ctx.font = '10px sans-serif';
-          ctx.textAlign = 'left';
-          ctx.fillText((de ? 'Ziel' : 'Target') + ' ' + targetTemp + '°C', padL + 4, tY - 5);
-        }
-
-        // Gradient-Füllung unter der Kurve
-        var gradient = ctx.createLinearGradient(0, padT, 0, H - padB);
-        gradient.addColorStop(0, 'rgba(255,152,0,0.3)');
-        gradient.addColorStop(1, 'rgba(255,152,0,0.02)');
-
-        // Temperaturkurve zeichnen
+      // Gitternetzlinien + Temperatur-Y-Achse (links)
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      var gridSteps = 5;
+      for (var g = 0; g <= gridSteps; g++) {
+        var gy = padT + (gH / gridSteps) * g;
         ctx.beginPath();
-        for (var p = 0; p < v.length; p++) {
-          var px = padL + (p / (v.length - 1)) * gW;
-          var py = padT + gH - ((v[p] - minV) / range) * gH;
-          if (p === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        }
-        // Füllung
-        ctx.lineTo(padL + gW, padT + gH);
-        ctx.lineTo(padL, padT + gH);
-        ctx.closePath();
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Linie nochmal drüber
-        ctx.beginPath();
-        for (var p2 = 0; p2 < v.length; p2++) {
-          var px2 = padL + (p2 / (v.length - 1)) * gW;
-          var py2 = padT + gH - ((v[p2] - minV) / range) * gH;
-          if (p2 === 0) ctx.moveTo(px2, py2);
-          else ctx.lineTo(px2, py2);
-        }
-        ctx.strokeStyle = '#ff9800';
-        ctx.lineWidth = 2;
+        ctx.moveTo(padL, gy);
+        ctx.lineTo(W - padR, gy);
         ctx.stroke();
+        var gVal = maxT - (rangeT / gridSteps) * g;
+        ctx.fillStyle = '#ff9800';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(gVal.toFixed(1) + '°', padL - 6, gy + 4);
+      }
 
-        // X-Achse Zeitlabels (5 Stück)
-        ctx.fillStyle = '#888';
+      // Druck-Y-Achse (rechts)
+      if (showPressure) {
+        for (var gp = 0; gp <= gridSteps; gp++) {
+          var gpy = padT + (gH / gridSteps) * gp;
+          var gpVal = maxP - (rangeP / gridSteps) * gp;
+          ctx.fillStyle = '#42a5f5';
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(gpVal.toFixed(1), W - padR + 6, gpy + 4);
+        }
+        // Rechte Achsen-Beschriftung
+        ctx.save();
+        ctx.translate(W - 6, padT + gH / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillStyle = '#42a5f5';
+        ctx.font = '9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('bar', 0, 0);
+        ctx.restore();
+      }
+
+      // Zieltemperatur-Linie
+      if (targetTemp && targetTemp >= minT && targetTemp <= maxT) {
+        var tY = padT + gH - ((targetTemp - minT) / rangeT) * gH;
+        ctx.strokeStyle = '#4caf50';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padL, tY);
+        ctx.lineTo(W - padR, tY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#4caf50';
         ctx.font = '10px sans-serif';
-        ctx.textAlign = 'center';
-        var labelCount = Math.min(6, t.length);
-        for (var lbl = 0; lbl < labelCount; lbl++) {
-          var li = Math.floor((lbl / (labelCount - 1)) * (t.length - 1));
-          var lx = padL + (li / (t.length - 1)) * gW;
-          var ts = t[li] || '';
-          // Zeige nur HH:MM
-          var tsParts = ts.split(' ');
-          var timeStr = tsParts[1] ? tsParts[1].substring(0, 5) : ts;
-          // Datum anzeigen wenn mehr als 24h
-          if (lbl === 0 || lbl === labelCount - 1) {
-            var datePart = tsParts[0] ? tsParts[0].substring(5) : '';
-            if (datePart) timeStr = datePart + '\n' + timeStr;
-          }
-          ctx.fillText(timeStr, lx, H - padB + 14);
-        }
-
-        // Titel
-        ctx.fillStyle = '#ccc';
-        ctx.font = 'bold 12px sans-serif';
         ctx.textAlign = 'left';
-        ctx.fillText(de ? 'Temperaturverlauf' : 'Temperature History', padL, 15);
+        ctx.fillText((de ? 'Ziel' : 'Target') + ' ' + targetTemp + '°C', padL + 4, tY - 5);
+      }
 
-        // Aktueller Wert
-        if (v.length > 0) {
-          var lastV = v[v.length - 1];
-          ctx.fillStyle = '#ff9800';
-          ctx.font = 'bold 12px sans-serif';
-          ctx.textAlign = 'right';
-          ctx.fillText(lastV.toFixed(1) + '°C', W - padR, 15);
+      // Zieldruck-Linie
+      if (showPressure && targetPressure && targetPressure > 0 && targetPressure >= minP && targetPressure <= maxP) {
+        var pTY = padT + gH - ((targetPressure - minP) / rangeP) * gH;
+        ctx.strokeStyle = '#42a5f5';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(padL, pTY);
+        ctx.lineTo(W - padR, pTY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#42a5f5';
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText((de ? 'Ziel' : 'Target') + ' ' + targetPressure + ' bar', W - padR - 4, pTY - 5);
+      }
+
+      // --- Temperatur-Gradient + Kurve ---
+      var gradient = ctx.createLinearGradient(0, padT, 0, H - padB);
+      gradient.addColorStop(0, 'rgba(255,152,0,0.25)');
+      gradient.addColorStop(1, 'rgba(255,152,0,0.02)');
+
+      // Füllung
+      ctx.beginPath();
+      for (var p = 0; p < vTemp.length; p++) {
+        var px = padL + (p / (vTemp.length - 1)) * gW;
+        var py = padT + gH - ((vTemp[p] - minT) / rangeT) * gH;
+        if (p === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.lineTo(padL + gW, padT + gH);
+      ctx.lineTo(padL, padT + gH);
+      ctx.closePath();
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Linie
+      ctx.beginPath();
+      for (var p2 = 0; p2 < vTemp.length; p2++) {
+        var px2 = padL + (p2 / (vTemp.length - 1)) * gW;
+        var py2 = padT + gH - ((vTemp[p2] - minT) / rangeT) * gH;
+        if (p2 === 0) ctx.moveTo(px2, py2);
+        else ctx.lineTo(px2, py2);
+      }
+      ctx.strokeStyle = '#ff9800';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // --- Druck-Kurve (blau, rechte Y-Achse) ---
+      if (showPressure) {
+        ctx.beginPath();
+        for (var dp = 0; dp < vPressure.length; dp++) {
+          var dpx = padL + (dp / (vPressure.length - 1)) * gW;
+          var dpy = padT + gH - ((vPressure[dp] - minP) / rangeP) * gH;
+          if (dp === 0) ctx.moveTo(dpx, dpy);
+          else ctx.lineTo(dpx, dpy);
         }
-      })
-      .catch(function(err) {
-        console.error('[Fermenter Graph] Load failed:', err);
-        ctx.fillStyle = '#888';
-        ctx.font = '13px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(de ? 'Graph konnte nicht geladen werden' : 'Failed to load graph', W / 2, H / 2);
-      });
+        ctx.strokeStyle = '#42a5f5';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // --- iSpindle-Kurve (grün-gelb, auf Temp-Achse oder eigene) ---
+      if (showSensor2) {
+        ctx.beginPath();
+        for (var s2 = 0; s2 < vSensor2.length; s2++) {
+          var s2x = padL + (s2 / (vSensor2.length - 1)) * gW;
+          // iSpindle auf eigene Skala mappen (als Overlay)
+          var s2y = padT + gH - ((vSensor2[s2] - minS2) / rangeS2) * gH;
+          if (s2 === 0) ctx.moveTo(s2x, s2y);
+          else ctx.lineTo(s2x, s2y);
+        }
+        ctx.strokeStyle = '#ab47bc';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // X-Achse Zeitlabels
+      ctx.fillStyle = '#888';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      var labelCount = Math.min(6, t.length);
+      for (var lbl = 0; lbl < labelCount; lbl++) {
+        var li = Math.floor((lbl / (labelCount - 1)) * (t.length - 1));
+        var lx = padL + (li / (t.length - 1)) * gW;
+        var ts = t[li] || '';
+        var tsParts = ts.split(' ');
+        var timeStr = tsParts[1] ? tsParts[1].substring(0, 5) : ts;
+        if (lbl === 0 || lbl === labelCount - 1) {
+          var datePart = tsParts[0] ? tsParts[0].substring(5) : '';
+          if (datePart) timeStr = datePart + '\n' + timeStr;
+        }
+        ctx.fillText(timeStr, lx, H - padB + 14);
+      }
+
+      // Titel
+      ctx.fillStyle = '#ccc';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(de ? 'Temperaturverlauf' : 'Temperature History', padL, 15);
+
+      // Aktueller Temp-Wert
+      var legendX = W - padR;
+      if (vTemp.length > 0) {
+        var lastT = vTemp[vTemp.length - 1];
+        ctx.fillStyle = '#ff9800';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText(lastT.toFixed(1) + '°C', legendX, 15);
+      }
+
+      // Legende (unter dem Titel)
+      var legY = 15;
+      if (showPressure && vPressure.length > 0) {
+        var lastP = vPressure[vPressure.length - 1];
+        ctx.fillStyle = '#42a5f5';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('● ' + (de ? 'Druck' : 'Pressure') + ': ' + lastP.toFixed(2) + ' bar', padL + 160, legY);
+      }
+      if (showSensor2 && vSensor2.length > 0) {
+        var lastS2 = vSensor2[vSensor2.length - 1];
+        ctx.fillStyle = '#ab47bc';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('● iSpindle: ' + lastS2.toFixed(2), padL + 350, legY);
+      }
+    }).catch(function(err) {
+      console.error('[Fermenter Graph] Load failed:', err);
+      ctx.fillStyle = '#888';
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(de ? 'Graph konnte nicht geladen werden' : 'Failed to load graph', W / 2, H / 2);
+    });
   }
 
   function renderFermenterCard(f, sensorMap, steptypes, de) {
@@ -5536,6 +5720,15 @@
         html += ' <span class="fermenter-pressure-target">(' + (de ? 'Ziel' : 'Target') + ': ' + f.target_pressure.toFixed(2) + ')</span>';
       }
       html += '</div>';
+    }
+    // iSpindle (sensor2) Messwert
+    var sensor2Id = (f.props && f.props.sensor2) ? f.props.sensor2 : '';
+    if (sensor2Id && sensorMap[sensor2Id]) {
+      var s2Val = parseFloat(sensorMap[sensor2Id].value);
+      var s2Name = sensorMap[sensor2Id].name || 'iSpindle';
+      if (!isNaN(s2Val)) {
+        html += '<div class="fermenter-ispindle" style="color:#ab47bc;font-size:0.85rem;margin-top:4px">🫧 ' + s2Name + ': <b>' + s2Val.toFixed(2) + '</b></div>';
+      }
     }
     html += '</div>';
 
@@ -5656,21 +5849,695 @@
   }
 
   // ============================================================
+  // HARDWARE-SEITE — Alle Tabellen patchen
+  // ============================================================
+
+  // --- Kessel-Tabelle: Sensor-Wert → Sensor-Name, Zieltemp entfernen ---
+  function patchKettleTable() {
+    var papers = document.querySelectorAll('.MuiPaper-root');
+    if (papers.length < 1) return;
+
+    // Kessel ist das erste Paper mit einer Tabelle
+    var kettlePaper = null;
+    for (var i = 0; i < papers.length; i++) {
+      var table = papers[i].querySelector('table');
+      if (!table) continue;
+      var firstTh = table.querySelector('thead th');
+      if (firstTh && (firstTh.textContent === 'Name' || firstTh.textContent === 'Kessel')) {
+        // Prüfe ob Heater-Spalte da ist (Kessel-Tabelle hat Heater)
+        var headers = table.querySelectorAll('thead th');
+        var hasHeater = false;
+        headers.forEach(function(h) {
+          if (h.textContent === 'Heater' || h.textContent === 'Heizung') hasHeater = true;
+        });
+        if (hasHeater) { kettlePaper = papers[i]; break; }
+      }
+    }
+    if (!kettlePaper) return;
+    if (kettlePaper.getAttribute('data-patched') === 'true') return;
+
+    var de = currentLang === 'de';
+
+    // Tabelle komplett neu bauen per API
+    Promise.all([
+      fetch('/kettle/').then(function(r) { return r.json(); }),
+      fetch('/sensor/').then(function(r) { return r.json(); }),
+      fetch('/actor/').then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var kettles = results[0].data || [];
+      var sensors = results[1].data || [];
+      var actors = results[2].data || [];
+
+      var sensorNames = {};
+      sensors.forEach(function(s) { sensorNames[s.id] = s.name; });
+      var actorNames = {};
+      actors.forEach(function(a) { actorNames[a.id] = a.name; });
+
+      var table = kettlePaper.querySelector('table');
+      if (!table) return;
+
+      _isOurDomChange = true;
+
+      // Header neu
+      var thead = table.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
+          '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Logik' : 'Logic') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Heizung' : 'Heater') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Rührwerk' : 'Agitator') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">Sensor</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
+          '</tr>';
+      }
+
+      // Body neu
+      var tbody = table.querySelector('tbody');
+      if (tbody) {
+        var html = '';
+        kettles.forEach(function(k) {
+          html += '<tr class="MuiTableRow-root">';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (k.name || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (k.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[k.heater] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[k.agitator] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[k.sensor] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-kettle-delete="' + k.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '</button>';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-kettle-view="' + k.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '</button>';
+          html += '</td></tr>';
+        });
+        tbody.innerHTML = html;
+
+        // Delete handler — benutzt originale React-Route
+        tbody.querySelectorAll('[data-kettle-delete]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-kettle-delete');
+            if (confirm(de ? 'Kessel wirklich löschen?' : 'Really delete this kettle?')) {
+              btn.disabled = true;
+              fetch('/kettle/' + encodeURIComponent(id), { method: 'DELETE' })
+                .then(function() { location.reload(); })
+                .catch(function() { btn.disabled = false; });
+            }
+          });
+        });
+
+        // View handler — navigiert zur Kessel-Detail-Seite
+        tbody.querySelectorAll('[data-kettle-view]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-kettle-view');
+            window.location.hash = '#/kettle/' + id;
+          });
+        });
+      }
+
+      kettlePaper.setAttribute('data-patched', 'true');
+      _isOurDomChange = false;
+    });
+  }
+
+  // --- Sensor-Tabelle: Wert entfernen, Adresse + Interval hinzufügen ---
+  function patchSensorTable() {
+    var papers = document.querySelectorAll('.MuiPaper-root');
+    var sensorPaper = null;
+    for (var i = 0; i < papers.length; i++) {
+      var table = papers[i].querySelector('table');
+      if (!table) continue;
+      var headers = table.querySelectorAll('thead th');
+      var texts = [];
+      headers.forEach(function(h) { texts.push(h.textContent); });
+      // Sensor-Tabelle hat: Name, (Logic/Type/Logik), (Value/Wert), Actions
+      if (texts.length >= 3 && (texts.indexOf('Value') >= 0 || texts.indexOf('Wert') >= 0)) {
+        sensorPaper = papers[i];
+        break;
+      }
+    }
+    if (!sensorPaper) return;
+    if (sensorPaper.getAttribute('data-patched') === 'true') return;
+
+    var de = currentLang === 'de';
+
+    fetch('/sensor/').then(function(r) { return r.json(); }).then(function(sData) {
+      var sensors = sData.data || [];
+      var types = sData.types || {};
+      var table = sensorPaper.querySelector('table');
+      if (!table) return;
+
+      _isOurDomChange = true;
+
+      var thead = table.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
+          '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Typ' : 'Type') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Adresse / ID' : 'Address / ID') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">Interval</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
+          '</tr>';
+      }
+
+      var tbody = table.querySelector('tbody');
+      if (tbody) {
+        var html = '';
+        sensors.forEach(function(s) {
+          var props = s.props || {};
+          // Adresse: für OneWire ist es props.Sensor, für HTTPSensor props.Key etc.
+          var address = props.Sensor || props.Key || '—';
+          var interval = props.Interval ? props.Interval + 's' : '—';
+
+          html += '<tr class="MuiTableRow-root">';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (s.name || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (s.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace;font-size:0.8rem">' + address + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + interval + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-sensor-delete="' + s.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '</button>';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-sensor-view="' + s.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '</button>';
+          html += '</td></tr>';
+        });
+        tbody.innerHTML = html;
+
+        tbody.querySelectorAll('[data-sensor-delete]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-sensor-delete');
+            if (confirm(de ? 'Sensor wirklich löschen?' : 'Really delete this sensor?')) {
+              btn.disabled = true;
+              fetch('/sensor/' + encodeURIComponent(id), { method: 'DELETE' })
+                .then(function() { location.reload(); })
+                .catch(function() { btn.disabled = false; });
+            }
+          });
+        });
+
+        tbody.querySelectorAll('[data-sensor-view]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-sensor-view');
+            window.location.hash = '#/sensor/' + id;
+          });
+        });
+      }
+
+      sensorPaper.setAttribute('data-patched', 'true');
+      _isOurDomChange = false;
+    });
+  }
+
+  // --- Aktor-Tabelle: GPIO + Invertiert hinzufügen, Toggle entfernen ---
+  function patchActorTable() {
+    var papers = document.querySelectorAll('.MuiPaper-root');
+    var actorPaper = null;
+    for (var i = 0; i < papers.length; i++) {
+      var table = papers[i].querySelector('table');
+      if (!table) continue;
+      var headers = table.querySelectorAll('thead th');
+      var texts = [];
+      headers.forEach(function(h) { texts.push(h.textContent); });
+      // Aktor-Tabelle hat: Name, Type/Typ, State/Status, Actions
+      if (texts.length >= 3 && (texts.indexOf('State') >= 0 || texts.indexOf('Status') >= 0)) {
+        actorPaper = papers[i];
+        break;
+      }
+    }
+    if (!actorPaper) return;
+    if (actorPaper.getAttribute('data-patched') === 'true') return;
+
+    var de = currentLang === 'de';
+
+    fetch('/actor/').then(function(r) { return r.json(); }).then(function(aData) {
+      var actors = aData.data || [];
+      var table = actorPaper.querySelector('table');
+      if (!table) return;
+
+      _isOurDomChange = true;
+
+      var thead = table.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
+          '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Typ' : 'Type') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">GPIO</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Invertiert' : 'Inverted') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
+          '</tr>';
+      }
+
+      var tbody = table.querySelector('tbody');
+      if (tbody) {
+        var html = '';
+        actors.forEach(function(act) {
+          var props = act.props || {};
+          var gpio = props.GPIO !== undefined ? 'GPIO ' + props.GPIO : '—';
+          var inverted = props.Inverted || '—';
+
+          html += '<tr class="MuiTableRow-root">';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (act.name || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (act.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace">' + gpio + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + inverted + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-actor-delete="' + act.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '</button>';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-actor-view="' + act.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '</button>';
+          html += '</td></tr>';
+        });
+        tbody.innerHTML = html;
+
+        tbody.querySelectorAll('[data-actor-delete]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-actor-delete');
+            if (confirm(de ? 'Aktor wirklich löschen?' : 'Really delete this actor?')) {
+              btn.disabled = true;
+              fetch('/actor/' + encodeURIComponent(id), { method: 'DELETE' })
+                .then(function() { location.reload(); })
+                .catch(function() { btn.disabled = false; });
+            }
+          });
+        });
+
+        tbody.querySelectorAll('[data-actor-view]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-actor-view');
+            window.location.hash = '#/actor/' + id;
+          });
+        });
+      }
+
+      actorPaper.setAttribute('data-patched', 'true');
+      _isOurDomChange = false;
+    });
+  }
+
+  // ============================================================
+  // FERMENTER-DETAILSEITE — Konfigurations-Formular
+  // ============================================================
+  function enhanceFermenterDetailPage() {
+    var hash = window.location.hash.replace('#', '');
+    var match = hash.match(/^\/fermenter\/(.+)$/);
+    if (!match) {
+      // Aufräumen: Formular entfernen wenn nicht mehr auf Fermenter-Detailseite
+      var stale = document.getElementById('cbpi-fermenter-config-form');
+      if (stale) stale.remove();
+      return;
+    }
+    var fermenterId = match[1];
+
+    // Bereits injiziert?
+    if (document.getElementById('cbpi-fermenter-config-form')) return;
+
+    // Suche den leeren main-Bereich der Fermenter-Detailseite
+    var main = document.querySelector('main');
+    if (!main) return;
+
+    var de = currentLang === 'de';
+    _isOurDomChange = true;
+
+    // Lade-Container erstellen
+    var container = document.createElement('div');
+    container.id = 'cbpi-fermenter-config-form';
+    container.style.cssText = 'padding:24px;max-width:1100px;margin:0 auto';
+    container.innerHTML = '<div style="color:var(--text-secondary,#888);padding:40px;text-align:center">' + (de ? 'Gärbehälter-Konfiguration wird geladen…' : 'Loading fermenter configuration…') + '</div>';
+
+    // In main nach der Überschrift einfügen
+    var existingContent = main.querySelector('.MuiGrid-container, .MuiGrid-root');
+    if (existingContent) {
+      existingContent.parentNode.insertBefore(container, existingContent.nextSibling);
+    } else {
+      main.appendChild(container);
+    }
+    _isOurDomChange = false;
+
+    // Daten laden
+    Promise.all([
+      fetch('/fermenter/').then(function(r) { return r.json(); }),
+      fetch('/sensor/').then(function(r) { return r.json(); }),
+      fetch('/actor/').then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var fermData = results[0];
+      var sensors = results[1].data || [];
+      var actors = results[2].data || [];
+      var types = fermData.types || {};
+      var fermenters = fermData.data || [];
+      var f = fermenters.find(function(x) { return x.id === fermenterId; });
+      if (!f) {
+        container.innerHTML = '<div style="color:#f44336;padding:40px;text-align:center">' + (de ? 'Gärbehälter nicht gefunden' : 'Fermenter not found') + '</div>';
+        return;
+      }
+
+      buildFermenterConfigForm(container, f, sensors, actors, types, de);
+    }).catch(function(err) {
+      console.error('[Fermenter Config] Load failed:', err);
+      container.innerHTML = '<div style="color:#f44336;padding:40px;text-align:center">' + (de ? 'Fehler beim Laden' : 'Load error') + '</div>';
+    });
+  }
+
+  function buildFermenterConfigForm(container, f, sensors, actors, types, de) {
+    var typeInfo = types[f.type] || {};
+    var props = f.props || {};
+    var typeProps = typeInfo.properties || [];
+
+    // Sensor-Optionen
+    var sensorOpts = '<option value="">— ' + (de ? 'Kein Sensor' : 'No sensor') + ' —</option>';
+    sensors.forEach(function(s) {
+      sensorOpts += '<option value="' + s.id + '"' + (s.id === f.sensor ? ' selected' : '') + '>' + s.name + '</option>';
+    });
+    var pressureSensorOpts = '<option value="">— ' + (de ? 'Kein Sensor' : 'No sensor') + ' —</option>';
+    sensors.forEach(function(s) {
+      pressureSensorOpts += '<option value="' + s.id + '"' + (s.id === f.pressure_sensor ? ' selected' : '') + '>' + s.name + '</option>';
+    });
+
+    // Aktor-Optionen
+    function buildActorOpts(selectedId) {
+      var o = '<option value="">— ' + (de ? 'Keiner' : 'None') + ' —</option>';
+      actors.forEach(function(a) {
+        o += '<option value="' + a.id + '"' + (a.id === selectedId ? ' selected' : '') + '>' + a.name + '</option>';
+      });
+      return o;
+    }
+
+    // Typ-Optionen
+    var typeOpts = '';
+    Object.keys(types).forEach(function(t) {
+      typeOpts += '<option value="' + t + '"' + (t === f.type ? ' selected' : '') + '>' + t + '</option>';
+    });
+
+    _isOurDomChange = true;
+
+    var html = '';
+    html += '<div style="margin-bottom:16px">';
+    html += '<h2 style="margin:0 0 4px;font-size:1.2rem;color:var(--text-primary,#eee)">' + (de ? 'Gärbehälter-Konfiguration' : 'Fermenter Configuration') + '</h2>';
+    html += '<div style="color:var(--text-secondary,#888);font-size:0.9rem">' + (de ? 'Gärbehälter' : 'Fermenter') + ' / <span style="color:#00FF00">' + (f.name || '') + '</span></div>';
+    html += '</div>';
+
+    // Formular im Paper-Style
+    html += '<div class="MuiPaper-root MuiPaper-elevation1 MuiPaper-rounded" style="padding:24px">';
+
+    // Grid — 2 Spalten
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 32px">';
+
+    // Name
+    html += '<div style="display:flex;flex-direction:column">';
+    html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">Name *</label>';
+    html += '<input type="text" id="fc-name" value="' + (f.name || '').replace(/"/g, '&quot;') + '" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">';
+    html += '</div>';
+
+    // Logik-Typ
+    html += '<div style="display:flex;flex-direction:column">';
+    html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">' + (de ? 'Logik' : 'Logic') + '</label>';
+    html += '<select id="fc-type" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">' + typeOpts + '</select>';
+    html += '</div>';
+
+    // Sensor
+    html += '<div style="display:flex;flex-direction:column">';
+    html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">' + (de ? 'Temperatursensor' : 'Temp Sensor') + '</label>';
+    html += '<select id="fc-sensor" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">' + sensorOpts + '</select>';
+    html += '</div>';
+
+    // Drucksensor
+    html += '<div style="display:flex;flex-direction:column">';
+    html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">' + (de ? 'Drucksensor' : 'Pressure Sensor') + '</label>';
+    html += '<select id="fc-pressure" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">' + pressureSensorOpts + '</select>';
+    html += '</div>';
+
+    // Heizung
+    html += '<div style="display:flex;flex-direction:column">';
+    html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">' + (de ? 'Heizung' : 'Heater') + '</label>';
+    html += '<select id="fc-heater" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">' + buildActorOpts(f.heater) + '</select>';
+    html += '</div>';
+
+    // Kühlung
+    html += '<div style="display:flex;flex-direction:column">';
+    html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">' + (de ? 'Kühlung' : 'Cooler') + '</label>';
+    html += '<select id="fc-cooler" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">' + buildActorOpts(f.cooler) + '</select>';
+    html += '</div>';
+
+    // Ventil
+    html += '<div style="display:flex;flex-direction:column">';
+    html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">' + (de ? 'Ventil (Spunding)' : 'Valve (Spunding)') + '</label>';
+    html += '<select id="fc-valve" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">' + buildActorOpts(f.valve) + '</select>';
+    html += '</div>';
+
+    // Leer-Platzhalter für Grid-Alignment  
+    html += '<div></div>';
+
+    html += '</div>'; // grid ende
+
+    // Logik-Properties (dynamisch je nach gewähltem Typ)
+    html += '<div id="fc-props-section" style="margin-top:24px;border-top:1px solid var(--border-color,#333);padding-top:20px">';
+    html += buildPropsFields(typeInfo, props, de, sensors);
+    html += '</div>';
+
+    // Buttons
+    html += '<div style="display:flex;justify-content:flex-end;gap:12px;margin-top:28px">';
+    html += '<button id="fc-cancel" style="background:#f44336;color:#fff;border:none;padding:8px 24px;border-radius:4px;font-size:0.9rem;cursor:pointer;font-family:inherit">' + (de ? 'Abbrechen' : 'Cancel') + '</button>';
+    html += '<button id="fc-save" style="background:#26a69a;color:#fff;border:none;padding:8px 24px;border-radius:4px;font-size:0.9rem;cursor:pointer;font-family:inherit">' + (de ? 'Speichern' : 'Save') + '</button>';
+    html += '</div>';
+
+    html += '</div>'; // paper ende
+    container.innerHTML = html;
+    _isOurDomChange = false;
+
+    // Events vor React-Interference schützen
+    container.querySelectorAll('input, select').forEach(function(inp) {
+      inp.addEventListener('keydown', function(e) { e.stopPropagation(); });
+      inp.addEventListener('keyup', function(e) { e.stopPropagation(); });
+      inp.addEventListener('keypress', function(e) { e.stopPropagation(); });
+      inp.addEventListener('input', function(e) { e.stopPropagation(); });
+      inp.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+      inp.addEventListener('focus', function(e) { e.stopPropagation(); });
+    });
+
+    // Typ-Wechsel: Properties neu rendern
+    document.getElementById('fc-type').addEventListener('change', function() {
+      var newType = this.value;
+      var newTypeInfo = types[newType] || {};
+      var section = document.getElementById('fc-props-section');
+      if (section) {
+        _isOurDomChange = true;
+        section.innerHTML = buildPropsFields(newTypeInfo, {}, de, sensors);
+        _isOurDomChange = false;
+        // Events auf neue Felder anwenden
+        section.querySelectorAll('input, select').forEach(function(inp) {
+          inp.addEventListener('keydown', function(e) { e.stopPropagation(); });
+          inp.addEventListener('keyup', function(e) { e.stopPropagation(); });
+          inp.addEventListener('keypress', function(e) { e.stopPropagation(); });
+          inp.addEventListener('input', function(e) { e.stopPropagation(); });
+        });
+      }
+    });
+
+    // Cancel
+    document.getElementById('fc-cancel').addEventListener('click', function() {
+      window.location.hash = '#/hardware';
+    });
+
+    // Save
+    document.getElementById('fc-save').addEventListener('click', function() {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = de ? 'Speichern…' : 'Saving…';
+
+      // Props sammeln
+      var newProps = {};
+      container.querySelectorAll('[data-prop-label]').forEach(function(inp) {
+        var label = inp.getAttribute('data-prop-label');
+        var val = inp.value;
+        // Zahlenwerte konvertieren
+        if (inp.type === 'number' && val !== '') {
+          val = parseFloat(val);
+        }
+        newProps[label] = val;
+      });
+
+      var payload = {
+        name: document.getElementById('fc-name').value.trim(),
+        type: document.getElementById('fc-type').value,
+        sensor: document.getElementById('fc-sensor').value,
+        pressure_sensor: document.getElementById('fc-pressure').value,
+        heater: document.getElementById('fc-heater').value,
+        cooler: document.getElementById('fc-cooler').value,
+        valve: document.getElementById('fc-valve').value,
+        target_temp: f.target_temp || 0,
+        target_pressure: f.target_pressure || 0,
+        brewname: f.brewname || '',
+        description: f.description || '',
+        props: newProps,
+        steps: f.steps || []
+      };
+
+      if (!payload.name) {
+        alert(de ? 'Name darf nicht leer sein!' : 'Name cannot be empty!');
+        btn.disabled = false;
+        btn.textContent = de ? 'Speichern' : 'Save';
+        return;
+      }
+
+      fetch('/fermenter/' + encodeURIComponent(f.id), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        btn.textContent = de ? 'Gespeichert ✓' : 'Saved ✓';
+        btn.style.background = '#4caf50';
+        setTimeout(function() { window.location.hash = '#/hardware'; }, 800);
+      })
+      .catch(function(err) {
+        console.error('[Fermenter Config] Save failed:', err);
+        alert((de ? 'Speichern fehlgeschlagen: ' : 'Save failed: ') + err.message);
+        btn.disabled = false;
+        btn.textContent = de ? 'Speichern' : 'Save';
+      });
+    });
+  }
+
+  // Übersetzungstabelle für Property-Labels und Beschreibungen aus der API
+  var propTranslations = {
+    labels: {
+      'HeaterOffsetOn': 'Heizung Ein-Offset',
+      'HeaterOffsetOff': 'Heizung Aus-Offset',
+      'CoolerOffsetOn': 'Kühlung Ein-Offset',
+      'CoolerOffsetOff': 'Kühlung Aus-Offset',
+      'AutoStart': 'Autostart',
+      'sensor2': 'Sensor 2 (iSpindle)',
+      'SpundingOffsetOpen': 'Spunding-Offset',
+      'ValveRelease': 'Ventil-Öffnungszeit',
+      'Pause': 'Pause',
+      'OffsetOn': 'Ein-Offset',
+      'OffsetOff': 'Aus-Offset',
+      'Sensor': 'Sensor',
+      'Inverted': 'Invertiert',
+      'SamplingTime': 'Abtastzeit',
+      'GPIO': 'GPIO',
+      'Frequency': 'Frequenz',
+      'Power': 'Leistung',
+      'Key': 'HTTP-Schlüssel',
+      'offset': 'Offset',
+      'Interval': 'Intervall',
+      'Topic': 'MQTT-Topic',
+      'PayloadDictionary': 'Payload-Pfad',
+      'Notification': 'Benachrichtigung',
+      'AutoNext': 'Automatisch weiter',
+      'Temp': 'Temperatur',
+      'Timer': 'Timer (Minuten)',
+      'AutoMode': 'Automatikmodus',
+      'toggle_type': 'Schaltaktion',
+      'LidAlert': 'Deckel-Warnung',
+      'Pressure': 'Druck',
+      'PressureIncrease': 'Druckanstieg',
+      'PressureDecrease': 'Druckabfall',
+      'Fermenter': 'Gärbehälter'
+    },
+    descriptions: {
+      'Offset as decimal number when the heater is switched on. Should be greater then \'HeaterOffsetOff\'. For example a value of 2 switches on the heater if the current temperature is 2 degrees below the target temperature': 'Offset als Dezimalzahl für das Einschalten der Heizung. Sollte größer sein als der Aus-Offset. Beispiel: Wert 2 schaltet die Heizung ein, wenn die Temperatur 2°C unter dem Ziel liegt.',
+      'Offset as decimal number when the heater is switched off. Should be smaller then \'HeaterOffsetOn\'. For example a value of 1 switches off the heater if the current temperature is 1 degree below the target temperature': 'Offset als Dezimalzahl für das Ausschalten der Heizung. Sollte kleiner sein als der Ein-Offset. Beispiel: Wert 1 schaltet die Heizung aus, wenn die Temperatur 1°C unter dem Ziel liegt.',
+      'Offset as decimal number when the cooler is switched on. Should be greater then \'CoolerOffsetOff\'. For example a value of 2 switches on the cooler if the current temperature is 2 degrees below the target temperature': 'Offset als Dezimalzahl für das Einschalten der Kühlung. Sollte größer sein als der Aus-Offset. Beispiel: Wert 2 schaltet die Kühlung ein, wenn die Temperatur 2°C über dem Ziel liegt.',
+      'Offset as decimal number when the cooler is switched off. Should be smaller then \'CoolerOffsetOn\'. For example a value of 1 switches off the cooler if the current temperature is 1 degree below the target temperature': 'Offset als Dezimalzahl für das Ausschalten der Kühlung. Sollte kleiner sein als der Ein-Offset. Beispiel: Wert 1 schaltet die Kühlung aus, wenn die Temperatur 1°C über dem Ziel liegt.',
+      'Autostart Fermenter on cbpi start': 'Gärbehälter automatisch starten beim Start von CraftBeerPi',
+      'Optional Sensor for LCDisplay(e.g. iSpindle)': 'Optionaler Sensor für LC-Display (z.B. iSpindle)',
+      'Offset above target pressure as decimal number when the valve is opened': 'Offset über dem Zieldruck als Dezimalzahl, bei dem das Ventil geöffnet wird',
+      'Valve Release time in seconds': 'Ventil-Öffnungszeit in Sekunden',
+      'Pause time in seconds between valve release': 'Pausenzeit in Sekunden zwischen Ventilöffnungen',
+      'Offset below target temp when heater should switched on': 'Offset unter Zieltemperatur, bei dem die Heizung einschaltet',
+      'Offset below target temp when heater should switched off': 'Offset unter Zieltemperatur, bei dem die Heizung ausschaltet',
+      'No: Active on high; Yes: Active on low': 'Nein: Aktiv bei High; Ja: Aktiv bei Low',
+      'Time in seconds for power base interval (Default:5)': 'Leistungs-Intervall in Sekunden (Standard: 5)',
+      'Power Setting [0-100]': 'Leistungseinstellung [0-100]',
+      'Sensor Offset (Default is 0)': 'Sensor-Offset (Standard: 0)',
+      'Interval in Seconds': 'Intervall in Sekunden',
+      'Http Key': 'HTTP-Schlüssel',
+      'MQTT Topic': 'MQTT-Topic',
+      'Text for notification': 'Text für die Benachrichtigung',
+      'Text for notification when Temp is reached': 'Benachrichtigung wenn Temperatur erreicht',
+      'Automatically move to next step (Yes) or pause after Notification (No)': 'Automatisch zum nächsten Schritt (Yes) oder Pause nach Benachrichtigung (No)',
+      'Switch Kettlelogic automatically on and off -> Yes': 'Kessellogik automatisch ein-/ausschalten → Yes',
+      'Time in Minutes': 'Zeit in Minuten',
+      'Boil temperature': 'Kochtemperatur',
+      'Trigger Alert to remove lid if temp is close to boil': 'Warnung zum Deckel-Abnehmen wenn Temperatur nahe Kochpunkt',
+      'Target temperature for cooldown. Notification will be send when temp is reached and Actor can be triggered': 'Zieltemperatur für Abkühlung. Benachrichtigung wird gesendet wenn Temperatur erreicht und Aktor ausgelöst wird',
+      'Sensor that is used during cooldown': 'Sensor der beim Abkühlen verwendet wird'
+    }
+  };
+
+  function buildPropsFields(typeInfo, currentProps, de, sensors) {
+    var typeProps = (typeInfo && typeInfo.properties) ? typeInfo.properties : [];
+    if (typeProps.length === 0) {
+      return '<div style="color:var(--text-secondary,#666);font-size:0.85rem;font-style:italic">' + (de ? 'Keine Logik-Einstellungen für diesen Typ' : 'No logic settings for this type') + '</div>';
+    }
+
+    var html = '<h3 style="margin:0 0 16px;font-size:0.95rem;color:var(--text-secondary,#888)">' + (de ? 'Logik-Einstellungen' : 'Logic Settings') + ' (' + (typeInfo.name || '') + ')</h3>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px 24px">';
+
+    typeProps.forEach(function(tp) {
+      var val = currentProps[tp.label] !== undefined ? currentProps[tp.label] : (tp.default_value || '');
+      var displayLabel = (de && propTranslations.labels[tp.label]) ? propTranslations.labels[tp.label] : tp.label;
+      html += '<div style="display:flex;flex-direction:column">';
+      html += '<label style="font-size:0.75rem;color:var(--text-secondary,#888);margin-bottom:4px">' + displayLabel + '</label>';
+
+      if (tp.type === 'select' && tp.options) {
+        html += '<select data-prop-label="' + tp.label + '" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">';
+        tp.options.forEach(function(opt) {
+          html += '<option value="' + opt + '"' + (String(val) === String(opt) ? ' selected' : '') + '>' + opt + '</option>';
+        });
+        html += '</select>';
+      } else if (tp.type === 'sensor') {
+        html += '<select data-prop-label="' + tp.label + '" data-prop-type="sensor" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit">';
+        html += '<option value="">— ' + (de ? 'Kein Sensor' : 'No sensor') + ' —</option>';
+        if (sensors) {
+          sensors.forEach(function(s) {
+            html += '<option value="' + s.id + '"' + (s.id === val ? ' selected' : '') + '>' + s.name + '</option>';
+          });
+        }
+        html += '</select>';
+      } else {
+        html += '<input type="' + (tp.type === 'number' ? 'number' : 'text') + '" data-prop-label="' + tp.label + '" value="' + (val !== null && val !== undefined ? String(val).replace(/"/g, '&quot;') : '') + '" style="background:transparent;border:none;border-bottom:1px solid var(--border-color,#555);color:var(--text-primary,#eee);padding:8px 0;font-size:1rem;outline:none;font-family:inherit"' + (tp.type === 'number' ? ' step="any"' : '') + '>';
+      }
+
+      if (tp.description) {
+        var displayDesc = (de && propTranslations.descriptions[tp.description]) ? propTranslations.descriptions[tp.description] : tp.description;
+        html += '<span style="font-size:0.7rem;color:var(--text-secondary,#666);margin-top:4px;line-height:1.3">' + displayDesc + '</span>';
+      }
+      html += '</div>';
+    });
+
+    html += '</div>';
+    return html;
+  }
+
+  // ============================================================
   // HARDWARE-SEITE — Fermenter-Sektion injizieren
   // ============================================================
   function enhanceHardwarePage() {
     var hash = window.location.hash.replace('#', '');
     if (hash !== '/hardware') return;
+
+    // Bestehende Tabellen patchen (Kessel/Sensor/Aktor)
+    patchKettleTable();
+    patchSensorTable();
+    patchActorTable();
+
     if (document.getElementById('cbpi-fermenter-hardware')) return;
 
     // Hardware-Seite besteht aus MuiPaper-root Karten für Kessel/Sensor/Aktor
-    var papers = document.querySelectorAll('.MuiPaper-root');
-    if (papers.length < 3) return;
-
-    // Das letzte Paper (Aktor) → Grid item → Grid container
-    var lastPaper = papers[papers.length - 1];
-    var gridItem = lastPaper.parentNode;
-    var gridContainer = gridItem ? gridItem.parentNode : null;
+    // Finde den Grid-Container direkt statt über das letzte Paper zu gehen
+    var gridContainer = document.querySelector('.MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-3');
     if (!gridContainer) return;
 
     var de = currentLang === 'de';
@@ -5732,9 +6599,10 @@
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Name' : 'Name') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Logik' : 'Logic') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Sensor' : 'Sensor') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Drucksensor' : 'Pressure') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Heizung' : 'Heater') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Kühlung' : 'Cooler') + '</th>';
-        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Zieltemp.' : 'Target') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Ventil' : 'Valve') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>';
         html += '</tr></thead><tbody class="MuiTableBody-root">';
 
@@ -5748,13 +6616,18 @@
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (f.name || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (f.type || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.sensor] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.pressure_sensor] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.heater] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.cooler] || '—') + '</td>';
-          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (f.target_temp ? f.target_temp + '°C' : '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.valve] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-delete="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
           html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '</button>';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-edit="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
           html += '</button>';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-view="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Anzeigen' : 'View') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
@@ -5790,6 +6663,14 @@
               .then(function() { setTimeout(loadFermenterHardwareList, 500); })
               .catch(function(err) { console.error('[Fermenter] Delete failed:', err); btn.disabled = false; });
           }
+        });
+      });
+
+      // Bearbeiten-Handler — navigiert zur Fermenter Config-Seite
+      content.querySelectorAll('[data-ferm-edit]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var id = btn.getAttribute('data-ferm-edit');
+          window.location.hash = '#/fermenter/' + id;
         });
       });
 
@@ -5860,8 +6741,9 @@
       html += '<table style="width:100%;border-collapse:collapse">';
       typeProps.forEach(function(tp) {
         var val = props[tp.label] !== undefined ? props[tp.label] : (tp.default_value || '—');
+        var displayLabel = (de && propTranslations.labels[tp.label]) ? propTranslations.labels[tp.label] : tp.label;
         html += '<tr style="border-bottom:1px solid var(--border-color,#333)">';
-        html += '<td style="padding:8px 12px;color:var(--text-secondary,#888);font-size:0.85rem;width:40%">' + tp.label + '</td>';
+        html += '<td style="padding:8px 12px;color:var(--text-secondary,#888);font-size:0.85rem;width:40%">' + displayLabel + '</td>';
         html += '<td style="padding:8px 12px;font-size:0.9rem">' + val + '</td>';
         html += '</tr>';
       });
@@ -6189,6 +7071,7 @@
         enhanceRecipePage();
         enhancePluginPage();
         enhanceHardwarePage();
+        enhanceFermenterDetailPage();
       }, 300);
     }
   }
@@ -6202,7 +7085,7 @@
       // Eigene Elemente ignorieren
       if (m.target && m.target.id && /^cbpi-/.test(m.target.id)) continue;
       // Mutations innerhalb eigener Overlays/Sektionen ignorieren
-      if (m.target && m.target.closest && (m.target.closest('#cbpi-fermenter-overlay') || m.target.closest('#cbpi-fermenter-hardware'))) continue;
+      if (m.target && m.target.closest && (m.target.closest('#cbpi-fermenter-overlay') || m.target.closest('#cbpi-fermenter-hardware') || m.target.closest('#cbpi-fermenter-config-form'))) continue;
       if (m.addedNodes.length > 0) { dominated = true; break; }
     }
     if (!dominated) return;
@@ -6219,6 +7102,7 @@
       enhanceRecipePage();
       enhancePluginPage();
       enhanceHardwarePage();
+      enhanceFermenterDetailPage();
     }, 250);
   });
 
