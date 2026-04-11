@@ -1,2 +1,2 @@
-__version__ = "4.7.5.a1"
+__version__ = "4.7.5"
 __codename__ = "Winter Bock"

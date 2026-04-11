@@ -1,18 +1,8 @@
 import asyncio
-import json
 import logging
-import webbrowser
-from asyncio import tasks
 
-import aiohttp
-from aiohttp import web
 from cbpi.api import *
-from cbpi.api.base import CBPiBase
-from cbpi.api.config import ConfigType
-from cbpi.api.dataclasses import Fermenter, Props, Step
 from cbpi.controller.fermentation_controller import FermentationController
-
-
 
 class FermenterAutostart(CBPiExtension):
 
@@ -56,7 +46,6 @@ class FermenterAutostart(CBPiExtension):
                     pass
         except:
             pass
-
 
 @parameters(
     [
@@ -169,7 +158,6 @@ class FermenterHysteresis(CBPiFermenterLogic):
                 await self.actor_off(self.heater)
             if self.cooler:
                 await self.actor_off(self.cooler)
-
 
 @parameters(
     [
