@@ -856,6 +856,335 @@
   // Guards gegen MutationObserver-Loop
   var _isOurDomChange = false;
 
+  // ============================================================
+  // TOAST-NOTIFICATION SYSTEM
+  // ============================================================
+  var _toastContainer = null;
+  var _toastId = 0;
+
+  function showToast(message, type, duration) {
+    // type: 'success' | 'error' | 'warning' | 'info'
+    type = type || 'info';
+    duration = duration || 3500;
+    if (!_toastContainer) {
+      _toastContainer = document.createElement('div');
+      _toastContainer.id = 'cbpi-toast-container';
+      document.body.appendChild(_toastContainer);
+    }
+    var id = ++_toastId;
+    var icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    var toast = document.createElement('div');
+    toast.className = 'cbpi-toast cbpi-toast-' + type;
+    toast.setAttribute('data-toast-id', id);
+    toast.innerHTML = '<span class="cbpi-toast-icon">' + (icons[type] || '') + '</span>' +
+      '<span class="cbpi-toast-msg">' + message + '</span>' +
+      '<button class="cbpi-toast-close" data-toast-dismiss="' + id + '">✕</button>';
+    _toastContainer.appendChild(toast);
+    // Animate in
+    requestAnimationFrame(function() { toast.classList.add('show'); });
+    // Auto-dismiss
+    var timer = setTimeout(function() { dismissToast(id); }, duration);
+    toast.querySelector('[data-toast-dismiss]').addEventListener('click', function() {
+      clearTimeout(timer);
+      dismissToast(id);
+    });
+  }
+
+  function dismissToast(id) {
+    if (!_toastContainer) return;
+    var el = _toastContainer.querySelector('[data-toast-id="' + id + '"]');
+    if (!el) return;
+    el.classList.remove('show');
+    el.classList.add('hide');
+    setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 300);
+  }
+
+  // ============================================================
+  // BESTÄTIGUNGS-DIALOG (ersetzt native confirm())
+  // ============================================================
+  function showConfirm(title, message, onConfirm, opts) {
+    opts = opts || {};
+    var de = currentLang === 'de';
+    var confirmText = opts.confirmText || (de ? 'Ja, fortfahren' : 'Yes, continue');
+    var cancelText = opts.cancelText || (de ? 'Abbrechen' : 'Cancel');
+    var danger = opts.danger || false;
+
+    var existing = document.getElementById('cbpi-confirm-overlay');
+    if (existing) existing.remove();
+
+    _isOurDomChange = true;
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-confirm-overlay';
+    overlay.innerHTML =
+      '<div class="cbpi-confirm-backdrop"></div>' +
+      '<div class="cbpi-confirm-card">' +
+        '<div class="cbpi-confirm-icon">' + (danger ? '⚠️' : '❓') + '</div>' +
+        '<h3 class="cbpi-confirm-title">' + title + '</h3>' +
+        '<p class="cbpi-confirm-msg">' + message + '</p>' +
+        '<div class="cbpi-confirm-buttons">' +
+          '<button class="cbpi-confirm-btn secondary" id="cbpi-confirm-cancel">' + cancelText + '</button>' +
+          '<button class="cbpi-confirm-btn ' + (danger ? 'danger' : 'primary') + '" id="cbpi-confirm-ok">' + confirmText + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+    _isOurDomChange = false;
+
+    document.getElementById('cbpi-confirm-cancel').addEventListener('click', function() { overlay.remove(); });
+    document.getElementById('cbpi-confirm-ok').addEventListener('click', function() { overlay.remove(); onConfirm(); });
+    overlay.querySelector('.cbpi-confirm-backdrop').addEventListener('click', function() { overlay.remove(); });
+  }
+
+  // ============================================================
+  // HARDWARE-VALIDIERUNG
+  // ============================================================
+  function validateHardwareConfig() {
+    var de = currentLang === 'de';
+    return Promise.all([
+      fetch('/kettle/').then(function(r) { return r.json(); }),
+      fetch('/sensor/').then(function(r) { return r.json(); }),
+      fetch('/actor/').then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var kettles = results[0].data || [];
+      var sensors = results[1].data || [];
+      var actors = results[2].data || [];
+      var warnings = [];
+
+      if (sensors.length === 0) {
+        warnings.push({
+          icon: '🌡️',
+          text: de ? 'Kein Temperatursensor angelegt. Ohne Sensor kann nicht gebraut werden!'
+                   : 'No temperature sensor configured. Cannot brew without a sensor!',
+          severity: 'error'
+        });
+      }
+      if (actors.length === 0) {
+        warnings.push({
+          icon: '🔌',
+          text: de ? 'Kein Aktor (Heizung/Rührwerk) angelegt. Lege zuerst einen Aktor an.'
+                   : 'No actor (heater/agitator) configured. Add an actor first.',
+          severity: 'error'
+        });
+      }
+      if (kettles.length === 0) {
+        warnings.push({
+          icon: '🫗',
+          text: de ? 'Kein Kessel angelegt. Erstelle einen Kessel und verknüpfe Sensor + Heizung.'
+                   : 'No kettle configured. Create a kettle and link sensor + heater.',
+          severity: 'error'
+        });
+      }
+      kettles.forEach(function(k) {
+        if (!k.sensor) {
+          warnings.push({
+            icon: '⚠️',
+            text: de ? 'Kessel "' + k.name + '" hat keinen Temperatursensor zugewiesen!'
+                     : 'Kettle "' + k.name + '" has no temperature sensor assigned!',
+            severity: 'warning'
+          });
+        }
+        if (!k.heater) {
+          warnings.push({
+            icon: '⚠️',
+            text: de ? 'Kessel "' + k.name + '" hat keine Heizung zugewiesen.'
+                     : 'Kettle "' + k.name + '" has no heater assigned.',
+            severity: 'warning'
+          });
+        }
+      });
+
+      return warnings;
+    }).catch(function() { return []; });
+  }
+
+  function renderHardwareWarnings(container) {
+    validateHardwareConfig().then(function(warnings) {
+      var existing = document.getElementById('cbpi-hw-warnings');
+      if (existing) existing.remove();
+      if (warnings.length === 0) return;
+
+      _isOurDomChange = true;
+      var panel = document.createElement('div');
+      panel.id = 'cbpi-hw-warnings';
+      panel.className = 'cbpi-hw-warnings';
+      var html = '';
+      warnings.forEach(function(w) {
+        html += '<div class="cbpi-hw-warning cbpi-hw-' + w.severity + '">' +
+          '<span class="cbpi-hw-warning-icon">' + w.icon + '</span>' +
+          '<span class="cbpi-hw-warning-text">' + w.text + '</span>' +
+          '</div>';
+      });
+      panel.innerHTML = html;
+      if (container && container.firstChild) {
+        container.insertBefore(panel, container.firstChild);
+      } else if (container) {
+        container.appendChild(panel);
+      }
+      _isOurDomChange = false;
+    });
+  }
+
+  // ============================================================
+  // OFFLINE-INDIKATOR
+  // ============================================================
+  var _onlineCheckInterval = null;
+  var _isOffline = false;
+
+  function startOnlineCheck() {
+    if (_onlineCheckInterval) return;
+    _onlineCheckInterval = setInterval(checkOnlineStatus, 10000);
+    checkOnlineStatus();
+  }
+
+  function checkOnlineStatus() {
+    fetch('/system/', { method: 'GET', cache: 'no-store' })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        if (_isOffline) {
+          _isOffline = false;
+          updateOfflineBanner();
+          showToast(currentLang === 'de' ? 'Verbindung wiederhergestellt' : 'Connection restored', 'success');
+        }
+      })
+      .catch(function() {
+        if (!_isOffline) {
+          _isOffline = true;
+          updateOfflineBanner();
+        }
+      });
+  }
+
+  function updateOfflineBanner() {
+    var existing = document.getElementById('cbpi-offline-banner');
+    if (_isOffline) {
+      if (!existing) {
+        _isOurDomChange = true;
+        var banner = document.createElement('div');
+        banner.id = 'cbpi-offline-banner';
+        var de = currentLang === 'de';
+        banner.innerHTML = '<span class="cbpi-offline-icon">📡</span> ' +
+          (de ? 'Keine Verbindung zum Brau-Server – Daten könnten veraltet sein'
+              : 'No connection to brew server – data may be outdated');
+        document.body.appendChild(banner);
+        _isOurDomChange = false;
+      }
+    } else {
+      if (existing) existing.remove();
+    }
+  }
+
+  // ============================================================
+  // SETTINGS-BESCHREIBUNGEN
+  // ============================================================
+  var settingsDescriptions = {
+    'BREWERY_NAME': {
+      de: 'Der Name deiner Brauerei. Wird im UI und in Exporten angezeigt.',
+      en: 'Your brewery name. Displayed in UI and exports.'
+    },
+    'AutoMode': {
+      de: 'Wenn aktiviert, werden Brau-Schritte automatisch weitergeschaltet sobald Zieltemperatur/Zeit erreicht ist.',
+      en: 'When enabled, brew steps advance automatically when target temp/time is reached.'
+    },
+    'BoilKettle': {
+      de: 'Welcher Kessel für den Kochschritt verwendet wird. Nur relevant bei Multi-Kessel-Setups.',
+      en: 'Which kettle is used for the boil step. Only relevant for multi-kettle setups.'
+    },
+    'MashTun': {
+      de: 'Der Hauptkessel (Maischebottich) für Maisch-Schritte.',
+      en: 'The main mash tun kettle for mash steps.'
+    },
+    'CSVLOGFILES': {
+      de: 'Temperatur- und Sensordaten als CSV-Dateien aufzeichnen. Dateien findest du unter System → Logs.',
+      en: 'Record temperature and sensor data as CSV files. Find files under System → Logs.'
+    },
+    'TEMP_UNIT': {
+      de: 'Temperatureinheit: Celsius (°C) oder Fahrenheit (°F).',
+      en: 'Temperature unit: Celsius (°C) or Fahrenheit (°F).'
+    },
+    'BoilTemp': {
+      de: 'Kochtemperatur in deiner Einheit (Standard: 99°C). Wird für den Kochschritt verwendet.',
+      en: 'Boil temperature in your unit (default: 99°C). Used for the boil step.'
+    },
+    'max_dashboard_number': {
+      de: 'Maximale Anzahl Dashboard-Seiten. Standard ist 4.',
+      en: 'Maximum number of dashboard pages. Default is 4.'
+    },
+    'current_dashboard_number': {
+      de: 'Aktuell angezeigte Dashboard-Seite (1 bis max).',
+      en: 'Currently displayed dashboard page (1 to max).'
+    },
+    'steps_cooldown_sensor': {
+      de: 'Welcher Sensor die Temperatur beim Abkühlschritt misst (kann ein anderer Sensor sein als im Kessel).',
+      en: 'Which sensor measures temperature during cooldown (can differ from kettle sensor).'
+    },
+    'steps_cooldown_actor': {
+      de: 'Aktor der beim Abkühlschritt aktiv ist (z.B. Pumpe für Gegenstromkühler).',
+      en: 'Actor active during cooldown (e.g. pump for counterflow chiller).'
+    },
+    'steps_cooldown_temp': {
+      de: 'Zieltemperatur beim Abkühlen (Anstelltemperatur). Standard: 20°C.',
+      en: 'Target cooldown temperature (pitching temp). Default: 20°C.'
+    },
+    'AddMashInStep': {
+      de: 'Automatisch einen Einmaisch-Schritt am Anfang jedes Rezepts einfügen. Empfohlen: Ja.',
+      en: 'Auto-add a MashIn step at the beginning of each recipe. Recommended: Yes.'
+    },
+    'MQTT_UPDATE': {
+      de: 'MQTT Updates für Sensor-Werte aktivieren. Nur nötig, wenn MQTT-Sensoren verwendet werden.',
+      en: 'Enable MQTT updates for sensor values. Only needed for MQTT sensors.'
+    },
+    'MQTT_HOST': {
+      de: 'Hostname/IP des MQTT Brokers (z.B. localhost oder 192.168.1.100).',
+      en: 'Hostname/IP of MQTT broker (e.g. localhost or 192.168.1.100).'
+    },
+    'MQTT_PORT': {
+      de: 'Port des MQTT Brokers. Standard: 1883.',
+      en: 'Port of MQTT broker. Default: 1883.'
+    },
+    'MQTT_USERNAME': {
+      de: 'Benutzername für MQTT-Authentifizierung (leer lassen wenn nicht nötig).',
+      en: 'Username for MQTT authentication (leave empty if not needed).'
+    },
+    'MQTT_PASSWORD': {
+      de: 'Passwort für MQTT-Authentifizierung.',
+      en: 'Password for MQTT authentication.'
+    }
+  };
+
+  function enhanceSettingsPage() {
+    var hash = window.location.hash.replace('#', '');
+    if (hash !== '/settings') return;
+    if (document.getElementById('cbpi-settings-enhanced')) return;
+
+    var de = currentLang === 'de';
+    // Finde alle Settings-Rows
+    var inputs = document.querySelectorAll('.MuiTableCell-root');
+    if (!inputs.length) return;
+
+    _isOurDomChange = true;
+    // Markiere als enhanced
+    var marker = document.createElement('span');
+    marker.id = 'cbpi-settings-enhanced';
+    marker.style.display = 'none';
+    document.body.appendChild(marker);
+
+    // Durchlaufe alle Tabellenzeilen und suche nach bekannten Setting-Namen
+    var rows = document.querySelectorAll('.MuiTableRow-root');
+    rows.forEach(function(row) {
+      var cells = row.querySelectorAll('.MuiTableCell-root');
+      if (cells.length < 2) return;
+      var label = (cells[0].textContent || '').trim();
+      var desc = settingsDescriptions[label];
+      if (!desc) return;
+      // Prüfe ob schon ein Hinweis existiert
+      if (cells[0].querySelector('.cbpi-setting-hint')) return;
+      var hint = document.createElement('div');
+      hint.className = 'cbpi-setting-hint';
+      hint.textContent = de ? desc.de : desc.en;
+      cells[0].appendChild(hint);
+    });
+    _isOurDomChange = false;
+  }
+
   function findContentTarget() {
     var root = document.getElementById('root');
     if (!root) return null;
@@ -3173,6 +3502,27 @@
     return 0;
   }
 
+  function executeCockpitAction(action) {
+    var de = currentLang === 'de';
+    _cockpitRenderLock = Date.now() + 2000;
+    fetch('/step2/' + action, { method: 'POST' })
+      .then(function () {
+        var msgs = {
+          start: de ? 'Brauprozess gestartet' : 'Brew process started',
+          stop: de ? 'Brauprozess gestoppt' : 'Brew process stopped',
+          next: de ? 'Nächster Schritt' : 'Next step',
+          reset: de ? 'Schritte zurückgesetzt' : 'Steps reset'
+        };
+        showToast(msgs[action] || action, action === 'start' || action === 'next' ? 'success' : 'info');
+        _cockpitRenderLock = 0; renderCockpit(true);
+      })
+      .catch(function (err) {
+        console.error('[CBPI Cockpit] Action failed:', err);
+        showToast((de ? 'Fehler: ' : 'Error: ') + err.message, 'error');
+        _cockpitRenderLock = 0; renderCockpit(true);
+      });
+  }
+
   // Event Delegation Handler – wird einmal auf #cbpi-cockpit registriert
   // und bleibt aktiv auch wenn innerHTML aktualisiert wird.
   function cockpitClickHandler(e) {
@@ -3286,16 +3636,31 @@
     var ctrlBtn = e.target.closest('.cockpit-ctrl-btn[data-action]');
     if (ctrlBtn) {
       e.stopPropagation();
-      _cockpitRenderLock = Date.now() + 2000; // 2s Lock gegen Flackern
-      ctrlBtn.style.opacity = '0.5';
-      ctrlBtn.style.pointerEvents = 'none';
       var action = ctrlBtn.getAttribute('data-action');
-      fetch('/step2/' + action, { method: 'POST' })
-        .then(function () { _cockpitRenderLock = 0; renderCockpit(true); })
-        .catch(function (err) {
-          console.error('[CBPI Cockpit] Action failed:', err);
-          _cockpitRenderLock = 0; renderCockpit(true);
-        });
+      var de = currentLang === 'de';
+
+      // Stop und Reset brauchen Bestätigung
+      if (action === 'stop') {
+        showConfirm(
+          de ? 'Brauprozess stoppen?' : 'Stop brew process?',
+          de ? 'Der aktuelle Brau-Schritt wird angehalten. Du kannst ihn später fortsetzen.' : 'The current brew step will be paused. You can resume later.',
+          function() { executeCockpitAction(action); },
+          { danger: true, confirmText: de ? '⏹ Stoppen' : '⏹ Stop' }
+        );
+        return;
+      }
+      if (action === 'reset') {
+        showConfirm(
+          de ? 'Alle Schritte zurücksetzen?' : 'Reset all steps?',
+          de ? 'ACHTUNG: Alle Brau-Schritte werden auf Anfang zurückgesetzt. Dein aktueller Fortschritt geht verloren!' : 'WARNING: All brew steps will be reset to the beginning. Your current progress will be lost!',
+          function() { executeCockpitAction(action); },
+          { danger: true, confirmText: de ? '🔄 Ja, zurücksetzen' : '🔄 Yes, reset' }
+        );
+        return;
+      }
+
+      // Start/Next direkt ausführen
+      executeCockpitAction(action);
       return;
     }
 
@@ -6646,12 +7011,17 @@
         tbody.querySelectorAll('[data-kettle-delete]').forEach(function(btn) {
           btn.addEventListener('click', function() {
             var id = btn.getAttribute('data-kettle-delete');
-            if (confirm(de ? 'Kessel wirklich löschen?' : 'Really delete this kettle?')) {
-              btn.disabled = true;
-              fetch('/kettle/' + encodeURIComponent(id), { method: 'DELETE' })
-                .then(function() { location.reload(); })
-                .catch(function() { btn.disabled = false; });
-            }
+            showConfirm(
+              de ? 'Kessel löschen?' : 'Delete kettle?',
+              de ? 'Der Kessel und seine Zuordnungen werden entfernt.' : 'The kettle and its assignments will be removed.',
+              function() {
+                btn.disabled = true;
+                fetch('/kettle/' + encodeURIComponent(id), { method: 'DELETE' })
+                  .then(function() { showToast(de ? 'Kessel gelöscht' : 'Kettle deleted', 'success'); location.reload(); })
+                  .catch(function() { btn.disabled = false; showToast(de ? 'Fehler beim Löschen' : 'Delete failed', 'error'); });
+              },
+              { danger: true, confirmText: de ? '🗑 Löschen' : '🗑 Delete' }
+            );
           });
         });
 
@@ -6703,6 +7073,7 @@
         thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
           '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Typ' : 'Type') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">GPIO</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Adresse / ID' : 'Address / ID') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">Interval</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
@@ -6717,10 +7088,13 @@
           // Adresse: für OneWire ist es props.Sensor, für HTTPSensor props.Key etc.
           var address = props.Sensor || props.Key || '—';
           var interval = props.Interval ? props.Interval + 's' : '—';
+          // GPIO-Pin: OneWire nutzt standardmäßig GPIO 4, andere Sensoren haben ggf. eigene GPIO-Props
+          var gpio = props.GPIO !== undefined ? 'GPIO ' + props.GPIO : (s.type && s.type.indexOf('OneWire') >= 0 ? 'GPIO 4' : '—');
 
           html += '<tr class="MuiTableRow-root">';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (s.name || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (s.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace">' + gpio + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace;font-size:0.8rem">' + address + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + interval + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
@@ -6739,12 +7113,17 @@
         tbody.querySelectorAll('[data-sensor-delete]').forEach(function(btn) {
           btn.addEventListener('click', function() {
             var id = btn.getAttribute('data-sensor-delete');
-            if (confirm(de ? 'Sensor wirklich löschen?' : 'Really delete this sensor?')) {
-              btn.disabled = true;
-              fetch('/sensor/' + encodeURIComponent(id), { method: 'DELETE' })
-                .then(function() { location.reload(); })
-                .catch(function() { btn.disabled = false; });
-            }
+            showConfirm(
+              de ? 'Sensor löschen?' : 'Delete sensor?',
+              de ? 'Der Sensor wird entfernt. Prüfe, ob er noch in einem Kessel zugewiesen ist!' : 'The sensor will be removed. Check if it\'s still assigned to a kettle!',
+              function() {
+                btn.disabled = true;
+                fetch('/sensor/' + encodeURIComponent(id), { method: 'DELETE' })
+                  .then(function() { showToast(de ? 'Sensor gelöscht' : 'Sensor deleted', 'success'); location.reload(); })
+                  .catch(function() { btn.disabled = false; showToast(de ? 'Fehler beim Löschen' : 'Delete failed', 'error'); });
+              },
+              { danger: true, confirmText: de ? '🗑 Löschen' : '🗑 Delete' }
+            );
           });
         });
 
@@ -6829,12 +7208,17 @@
         tbody.querySelectorAll('[data-actor-delete]').forEach(function(btn) {
           btn.addEventListener('click', function() {
             var id = btn.getAttribute('data-actor-delete');
-            if (confirm(de ? 'Aktor wirklich löschen?' : 'Really delete this actor?')) {
-              btn.disabled = true;
-              fetch('/actor/' + encodeURIComponent(id), { method: 'DELETE' })
-                .then(function() { location.reload(); })
-                .catch(function() { btn.disabled = false; });
-            }
+            showConfirm(
+              de ? 'Aktor löschen?' : 'Delete actor?',
+              de ? 'Der Aktor wird entfernt. Prüfe, ob er noch in einem Kessel zugewiesen ist!' : 'The actor will be removed. Check if it\'s still assigned to a kettle!',
+              function() {
+                btn.disabled = true;
+                fetch('/actor/' + encodeURIComponent(id), { method: 'DELETE' })
+                  .then(function() { showToast(de ? 'Aktor gelöscht' : 'Actor deleted', 'success'); location.reload(); })
+                  .catch(function() { btn.disabled = false; showToast(de ? 'Fehler beim Löschen' : 'Delete failed', 'error'); });
+              },
+              { danger: true, confirmText: de ? '🗑 Löschen' : '🗑 Delete' }
+            );
           });
         });
 
@@ -7240,6 +7624,12 @@
     patchSensorTable();
     patchActorTable();
 
+    // Hardware-Validierung anzeigen
+    var gridContainer = document.querySelector('.MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-3');
+    if (gridContainer && !document.getElementById('cbpi-hw-warnings')) {
+      renderHardwareWarnings(gridContainer);
+    }
+
     if (document.getElementById('cbpi-fermenter-hardware')) return;
 
     // Hardware-Seite besteht aus MuiPaper-root Karten für Kessel/Sensor/Aktor
@@ -7364,12 +7754,17 @@
       content.querySelectorAll('[data-ferm-delete]').forEach(function(btn) {
         btn.addEventListener('click', function() {
           var id = btn.getAttribute('data-ferm-delete');
-          if (confirm(de ? 'Gärbehälter wirklich löschen?' : 'Really delete this fermenter?')) {
-            btn.disabled = true;
-            fetch('/fermenter/' + encodeURIComponent(id), { method: 'DELETE' })
-              .then(function() { setTimeout(loadFermenterHardwareList, 500); })
-              .catch(function(err) { console.error('[Fermenter] Delete failed:', err); btn.disabled = false; });
-          }
+          showConfirm(
+            de ? 'Gärbehälter löschen?' : 'Delete fermenter?',
+            de ? 'Der Gärbehälter und seine Einstellungen werden entfernt.' : 'The fermenter and its settings will be removed.',
+            function() {
+              btn.disabled = true;
+              fetch('/fermenter/' + encodeURIComponent(id), { method: 'DELETE' })
+                .then(function() { showToast(de ? 'Gärbehälter gelöscht' : 'Fermenter deleted', 'success'); setTimeout(loadFermenterHardwareList, 500); })
+                .catch(function(err) { console.error('[Fermenter] Delete failed:', err); btn.disabled = false; showToast(de ? 'Fehler beim Löschen' : 'Delete failed', 'error'); });
+            },
+            { danger: true, confirmText: de ? '🗑 Löschen' : '🗑 Delete' }
+          );
         });
       });
 
@@ -7660,27 +8055,34 @@
     document.getElementById('plugin-install-btn').addEventListener('click', function() {
       var name = document.getElementById('plugin-pip-name').value.trim();
       if (!name) return;
-      if (!confirm(de ? 'Plugin "' + name + '" installieren?' : 'Install plugin "' + name + '"?')) return;
-      var btn = this;
-      btn.disabled = true;
-      btn.textContent = '⏳ ...';
-      fetch('/plugin/install/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ package_name: name })
-      })
-        .then(function(r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          alert(de ? 'Plugin installiert! Bitte CraftBeerPi neu starten.' : 'Plugin installed! Please restart CraftBeerPi.');
-          btn.disabled = false;
-          btn.textContent = '📥 ' + (de ? 'Installieren' : 'Install');
-          loadInstalledPlugins();
-        })
-        .catch(function(err) {
-          alert((de ? 'Installation fehlgeschlagen: ' : 'Installation failed: ') + err.message);
-          btn.disabled = false;
-          btn.textContent = '📥 ' + (de ? 'Installieren' : 'Install');
-        });
+      var btn = document.getElementById('plugin-install-btn');
+      var deLang = currentLang === 'de';
+      showConfirm(
+        deLang ? 'Plugin installieren?' : 'Install plugin?',
+        deLang ? 'Plugin "' + name + '" wird installiert. Nach der Installation muss CraftBeerPi neu gestartet werden.'
+               : 'Plugin "' + name + '" will be installed. CraftBeerPi restart required after installation.',
+        function() {
+          btn.disabled = true;
+          btn.textContent = '⏳ ...';
+          fetch('/plugin/install/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ package_name: name })
+          })
+            .then(function(r) {
+              if (!r.ok) throw new Error('HTTP ' + r.status);
+              showToast(deLang ? 'Plugin installiert! Bitte CraftBeerPi neu starten.' : 'Plugin installed! Please restart CraftBeerPi.', 'success', 6000);
+              btn.disabled = false;
+              btn.textContent = '📥 ' + (deLang ? 'Installieren' : 'Install');
+              loadInstalledPlugins();
+            })
+            .catch(function(err) {
+              showToast((deLang ? 'Installation fehlgeschlagen: ' : 'Installation failed: ') + err.message, 'error', 5000);
+              btn.disabled = false;
+              btn.textContent = '📥 ' + (deLang ? 'Installieren' : 'Install');
+            });
+        }
+      );
     });
   }
 
@@ -7752,12 +8154,14 @@
     createExpertToggle();
     applyExpertMode();
     createStatusBar();
+    startOnlineCheck();
     buildCockpit();
     buildFermenterDashboard();
     buildHelpPage();
     addRecipeTools();
     enhanceRecipePage();
     enhancePluginPage();
+    enhanceSettingsPage();
     checkOnboarding();
   }
 
@@ -7787,6 +8191,7 @@
         enhancePluginPage();
         enhanceHardwarePage();
         enhanceFermenterDetailPage();
+        enhanceSettingsPage();
       }, 300);
     }
   }
@@ -7820,6 +8225,7 @@
       enhancePluginPage();
       enhanceHardwarePage();
       enhanceFermenterDetailPage();
+      enhanceSettingsPage();
     }, 250);
   });
 

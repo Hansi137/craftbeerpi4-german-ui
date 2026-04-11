@@ -4852,3 +4852,306 @@ select.fermenter-input {
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 4px;
 }
+
+/* ============================================================
+   TOAST-BENACHRICHTIGUNGEN
+   ============================================================ */
+#cbpi-toast-container {
+  position: fixed;
+  top: 64px;
+  right: 16px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  max-width: 420px;
+  width: calc(100vw - 32px);
+}
+
+.cbpi-toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  pointer-events: auto;
+  transform: translateX(120%);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+.cbpi-toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.cbpi-toast.hide {
+  transform: translateX(120%);
+  opacity: 0;
+}
+
+.cbpi-toast-success { border-left: 4px solid var(--success); }
+.cbpi-toast-error { border-left: 4px solid var(--danger); }
+.cbpi-toast-warning { border-left: 4px solid var(--warning); }
+.cbpi-toast-info { border-left: 4px solid var(--accent); }
+
+.cbpi-toast-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.cbpi-toast-msg {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.cbpi-toast-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.cbpi-toast-close:hover {
+  color: var(--text);
+}
+
+/* ============================================================
+   BESTÄTIGUNGS-DIALOG
+   ============================================================ */
+#cbpi-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.cbpi-confirm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.cbpi-confirm-card {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  max-width: 440px;
+  width: 90vw;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.cbpi-confirm-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.cbpi-confirm-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px 0;
+}
+
+.cbpi-confirm-msg {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.cbpi-confirm-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.cbpi-confirm-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.cbpi-confirm-btn.primary {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+  color: var(--text-inverse);
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+
+.cbpi-confirm-btn.primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px var(--accent-glow);
+}
+
+.cbpi-confirm-btn.danger {
+  background: linear-gradient(135deg, var(--danger) 0%, var(--danger-dark) 100%);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(231, 76, 60, 0.3);
+}
+
+.cbpi-confirm-btn.danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(231, 76, 60, 0.4);
+}
+
+.cbpi-confirm-btn.secondary {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.cbpi-confirm-btn.secondary:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* ============================================================
+   HARDWARE-VALIDIERUNGS-WARNUNGEN
+   ============================================================ */
+.cbpi-hw-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.cbpi-hw-warning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.cbpi-hw-error {
+  background: rgba(231, 76, 60, 0.1);
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  color: var(--danger);
+}
+
+.cbpi-hw-warning.cbpi-hw-warning {
+  background: rgba(243, 156, 18, 0.1);
+  border: 1px solid rgba(243, 156, 18, 0.3);
+  color: var(--warning);
+}
+
+.cbpi-hw-warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.cbpi-hw-warning-text {
+  flex: 1;
+}
+
+/* ============================================================
+   OFFLINE-INDIKATOR
+   ============================================================ */
+#cbpi-offline-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99998;
+  background: linear-gradient(90deg, #c0392b 0%, #e74c3c 100%);
+  color: #fff;
+  text-align: center;
+  padding: 8px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  animation: cbpi-slide-down 0.3s ease-out;
+}
+
+@keyframes cbpi-slide-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
+
+.cbpi-offline-icon {
+  margin-right: 8px;
+}
+
+body:has(#cbpi-offline-banner) header {
+  margin-top: 36px;
+}
+
+/* ============================================================
+   SETTINGS-BESCHREIBUNGEN (Inline-Hilfe)
+   ============================================================ */
+.cbpi-setting-hint {
+  display: block;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-top: 4px;
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ============================================================
+   RESPONSIVE — Neue UX Features
+   ============================================================ */
+@media (max-width: 600px) {
+  #cbpi-toast-container {
+    right: 8px;
+    top: 56px;
+    max-width: calc(100vw - 16px);
+  }
+  .cbpi-toast {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+  .cbpi-confirm-card {
+    padding: 24px 20px;
+    border-radius: 12px;
+  }
+  .cbpi-confirm-title {
+    font-size: 16px;
+  }
+  .cbpi-confirm-buttons {
+    flex-direction: column;
+  }
+  .cbpi-confirm-btn {
+    min-width: 0;
+  }
+  #cbpi-offline-banner {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+}
