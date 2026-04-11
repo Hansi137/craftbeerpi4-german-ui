@@ -1,8 +1,24 @@
+"""kettle_controller.py - Verwaltung von Kesseln und Heizlogik
+
+Verwaltet Kessel-Entitaeten mit zugeordneten Heizern, Ruehrwerken und Sensoren.
+Steuert die Heizlogik (z.B. PID, Hysterese) ueber start/stop/toggle.
+
+Kessel-Aufbau:
+    Kettle -> heater (Actor), agitator (Actor), sensor (Sensor)
+           -> target_temp (Solltemperatur)
+           -> type (Regelungslogik-Plugin, z.B. 'Hysteresis')
+
+MQTT-Topics: cbpi/kettleupdate/{id}
+"""
+
 from cbpi.api.dataclasses import Kettle, Props
 from cbpi.controller.basic_controller2 import BasicController
 import logging
 from tabulate import tabulate
+
+
 class KettleController(BasicController):
+    """Controller fuer Kessel-Verwaltung mit Heizlogik-Steuerung."""
 
     def __init__(self, cbpi):
         super(KettleController, self).__init__(cbpi, Kettle, "kettle.json")

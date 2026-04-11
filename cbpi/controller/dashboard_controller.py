@@ -1,3 +1,12 @@
+"""dashboard_controller.py - Dashboard-Widget-Verwaltung
+
+Verwaltet mehrere Dashboards mit konfigurierbaren Widgets.
+Jedes Dashboard ist ein JSON-Layout mit SVG-Widgets.
+
+Dashboard-Dateien: config/dashboard/cbpi_dashboard_N.json
+Benutzerdefinierte Widgets: config/dashboard/widgets/*.svg
+"""
+
 from cbpi.api.dataclasses import NotificationType
 import logging
 import json
@@ -30,11 +39,11 @@ class DashboardController:
             with open(self.path) as json_file:
                 data = json.load(json_file)
                 return data
-        except:
+        except Exception:
             return {'elements': [], 'pathes': []}
     
     async def add_content(self, dashboard_id, data):
-        print(data)
+        logging.debug("Dashboard %s content update", dashboard_id)
         self.path = self.cbpi.config_folder.get_file_path("cbpi_dashboard_" + str(dashboard_id)+ ".json")
         with open(self.path, 'w') as outfile:
             json.dump(data, outfile, indent=4, sort_keys=True)

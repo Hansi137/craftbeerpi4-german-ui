@@ -1,3 +1,18 @@
+"""mashstep - Maisch-Schritttypen fuer den Brauprozess
+
+Enthaltene Schritttypen:
+    NotificationStep - Benachrichtigung anzeigen (optional AutoNext)
+    MashInStep       - Aufheizen auf Einmaischtemperatur + Agitator
+    MashStep         - Maischen mit Timer (Rast halten)
+    WaitStep         - Einfacher Countdown-Timer
+    ToggleStep       - Aktor ein-/ausschalten
+    ActorStep        - Aktor fuer bestimmte Zeit aktivieren
+    BoilStep         - Kochen mit bis zu 6 Hopfengaben-Alarmen
+    CooldownStep     - Abkuehlen mit Vorhersage (Polynomial Fitting)
+
+Alle Schritte unterstuetzen optionalen AutoMode (KettleLogic auto ein/aus).
+"""
+
 import asyncio
 
 from cbpi.api import parameters, Property, action
@@ -193,7 +208,7 @@ class MashStep(CBPiStep):
             try:
                 if self.timer.is_running == True:
                     self.timer.start()
-            except:
+            except Exception:
                 pass
 
         self.summary = "Waiting for Target Temp"
@@ -399,7 +414,7 @@ class BoilStep(CBPiStep):
             try:
                 if self.timer.is_running == True:
                     self.timer.start()
-            except:
+            except Exception:
                 pass
 
         self.summary = "Waiting for Target Temp"

@@ -1,3 +1,15 @@
+"""eventbus.py - Internes Event-/Nachrichtensystem (Pub/Sub)
+
+Implementiert einen hierarchischen Event-Bus mit Baum-basiertem Topic-Routing.
+Topics werden durch "/" getrennt (z.B. "sensor/temperature/update").
+Listener koennen sich mit dem Wildcard "#" fuer alle Events registrieren.
+
+Verwendung:
+    - WebSocket-Broadcasting: Alle Events an verbundene Clients weiterleiten
+    - Plugin-Kommunikation: Lose gekoppelte Kommunikation zwischen Modulen
+    - MQTT-Bridge: Events an externe MQTT-Broker weiterleiten
+"""
+
 import asyncio
 import inspect
 import logging
@@ -6,6 +18,7 @@ from cbpi.api import *
 
 
 class CBPiEventBus(object):
+    """Event-Bus mit Baum-basiertem Topic-Routing und Callback-Registry."""
 
 
     class Node(object):
@@ -204,6 +217,6 @@ class CBPiEventBus(object):
                 try:
                     doc = yaml.load(method.__doc__)
                     doc["topic"] = method.__getattribute__("topic")
-                except:
+                except Exception:
                     pass
             self.register(method.__getattribute__("topic"), method)

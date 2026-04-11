@@ -1,3 +1,16 @@
+"""fermentation_controller.py - Gaerungsprozess-Steuerung
+
+Verwaltet Fermenter-Entitaeten und deren Gaerungsschritte.
+Jeder Fermenter hat zugeordnete Sensoren (Temperatur, Druck),
+Aktoren (Heizer, Kuehler, Ventil) und eine optionale Regelungslogik.
+
+Schritt-Ausfuehrung analog zum StepController:
+    start() -> on_start() -> run() -> done() -> naechster Schritt
+
+Persistenz: fermenter_data.json
+MQTT-Topics: cbpi/fermenterupdate/{id}
+"""
+
 from abc import abstractmethod
 import asyncio
 import cbpi
@@ -83,7 +96,7 @@ class FermentationController:
         props = Props(item.get("props"))
         try:
             endtime = int(item.get("endtime", 0))
-        except:
+        except (ValueError, TypeError):
             endtime=0
 
         status = StepState(item.get("status", "I"))
@@ -128,7 +141,8 @@ class FermentationController:
             fermenter.steps = list(map(lambda item: self._create_step(fermenter, item), data.get("steps", [])))
             self.push_update()
             return fermenter
-        except:
+        except Exception as e:
+            logging.error("Failed to create fermenter: %s", e)
             return
 
         
@@ -337,16 +351,6 @@ class FermentationController:
     def _find_step_by_id(self, data, id):
         return next((item for item in data if item.id == id), None)
 
-    async def update_endtime(self, id, stepid, endtime):
-        try:
-            item = self._find_by_id(id)
-            step = self._find_step_by_id(item.steps, stepid)
-            step.endtime = int(endtime)
-            self.save()
-            self.push_update("fermenterstepupdate")          
-        except Exception as e:
-            self.logger.error(e)
-
 
     async def start(self, id):
         self.logger.info("Start {}".format(id))
@@ -548,14 +552,14 @@ class FermentationController:
             brewname = fermenter.brewname
             description = fermenter.description
             
-        except:
+        except (AttributeError, TypeError):
             brewname = ""
             description = ""
         self.basic_data={"name": brewname, "description": description}
 
         try:
             fermentersteps = fermenter.steps
-        except:
+        except AttributeError:
             fermentersteps = []
         data = dict(basic=self.basic_data, steps=list(map(lambda item: item.to_dict(), fermentersteps)))
         with open(path, "w") as file:
@@ -564,8 +568,8 @@ class FermentationController:
     async def load_recipe(self, data, fermenterid, name):
         try:
             await self.shutdown(None, fermenterid)
-        except: 
-            pass
+        except Exception as e:
+            logging.warning("Shutdown before recipe load failed: %s", e)
         fermenter = self._find_by_id(fermenterid)
 
         def add_runtime_data(item):
@@ -577,14 +581,14 @@ class FermentationController:
         list(map(lambda item: add_runtime_data(item), data.get("steps")))
         try:
             fermenter.description = data['basic'].get("desc")
-        except:
+        except (KeyError, AttributeError):
             fermenter.description = "No Description"
         if name is not None:
             fermenter.brewname = name
         else:
             try:
                 fermenter.brewname = data['basic'].get("name")
-            except:
+            except (KeyError, AttributeError):
                 fermenter.brewname = "Fermentation"
         await self.update(fermenter)
         fermenter.steps=[]

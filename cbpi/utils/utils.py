@@ -1,3 +1,10 @@
+"""utils.py - Hilfsfunktionen (YAML-Laden, JSON-Serialisierung)
+
+Stellt allgemeine Utility-Funktionen bereit:
+    load_config(fname) - Laedt eine YAML-Konfigurationsdatei
+    json_dumps(obj)    - Serialisiert Objekte zu JSON (mit ComplexEncoder)
+"""
+
 from cbpi.utils.encoder import ComplexEncoder
 
 __all__ = ['load_config',"json_dumps"]

@@ -1,3 +1,13 @@
+"""hysteresis - Einfache Kessel-Temperaturregelung mit Hysterese
+
+Regelt die Kesseltemperatur durch Ein-/Ausschalten des Heizers
+mit konfigurierbaren Hysterese-Schwellen:
+    - OffsetOn:  Heizer AN wenn Sensor < Zieltemp - OffsetOn
+    - OffsetOff: Heizer AUS wenn Sensor >= Zieltemp - OffsetOff
+
+Dies verhindert staendiges Ein-/Ausschalten (Pendeln) des Heizers.
+"""
+
 import asyncio
 from asyncio import tasks
 import logging

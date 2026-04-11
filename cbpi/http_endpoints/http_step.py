@@ -1,3 +1,19 @@
+"""http_step.py - REST-API Endpunkte fuer Maisch-Schritte
+
+Routen:
+    GET    /step2/              - Alle Schritte auflisten
+    POST   /step2/              - Neuen Schritt erstellen
+    PUT    /step2/{id}          - Schritt aktualisieren
+    DELETE /step2/{id}          - Schritt loeschen
+    POST   /step2/start         - Brauprozess starten
+    POST   /step2/next          - Zum naechsten Schritt springen
+    POST   /step2/stop          - Brauprozess anhalten
+    POST   /step2/reset         - Alle Schritte zuruecksetzen
+    PUT    /step2/move           - Schritt-Reihenfolge aendern
+    POST   /step2/action/{id}   - Schritt-spezifische Aktion
+    POST   /step2/savetobook    - Aktives Rezept speichern
+"""
+
 from cbpi.controller.step_controller import StepController
 from cbpi.api.dataclasses import Props, Step
 from aiohttp import web

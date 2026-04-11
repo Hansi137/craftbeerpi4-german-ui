@@ -1,3 +1,14 @@
+"""configFolder.py - Verwaltung des Konfigurationsverzeichnisses
+
+Verwaltet alle Dateisystem-Operationen fuer die CraftBeerPi-Konfiguration.
+Erstellt die Ordnerstruktur beim Setup, kopiert Standarddateien und
+implementiert Backup/Restore-Funktionalitaet.
+
+Struktur: config/ -> config.yaml, config.json, actor.json, sensor.json,
+          kettle.json, fermenter_data.json, step_data.json,
+          dashboard/, recipes/, upload/
+"""
+
 import os
 from os import listdir
 from os.path import isfile, join
@@ -9,6 +20,7 @@ import glob
 
 
 class ConfigFolder:
+    """Verwaltung des Konfigurationsverzeichnisses mit Backup/Restore-Unterstuetzung."""
     def __init__(self, configFolderPath):
         self._rawPath = configFolderPath
 
@@ -63,7 +75,7 @@ class ConfigFolder:
             for content in required_content:
                 try:
                     check = zip_content_list.index(content)
-                except:
+                except ValueError:
                     zip_content = False
 
             if zip_content == True:

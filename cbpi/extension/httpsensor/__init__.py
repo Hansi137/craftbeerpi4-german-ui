@@ -1,3 +1,14 @@
+"""httpsensor - HTTP-Schnittstelle fuer externe Sensordaten
+
+Stellt einen REST-Endpunkt bereit, ueber den externe Systeme
+Sensorwerte per HTTP-Request einspeisen koennen.
+
+Endpunkt: /httpsensor/{key}/{value}
+Beispiel: curl http://cbpi:8000/httpsensor/temp1/65.3
+
+Validierung: Werte muessen dem Pattern ^[a-zA-Z0-9,.]{0,10}$ entsprechen.
+"""
+
 # -*- coding: utf-8 -*-
 import asyncio
 from aiohttp import web

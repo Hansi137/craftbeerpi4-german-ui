@@ -1,3 +1,16 @@
+"""fermenter_logic.py - Basisklasse fuer Fermenter-Regelungslogik
+
+Identisch zu kettle_logic.py, aber fuer Gaerbottiche/Fermenter.
+Unterstuetzt zusaetzlich Kuehlung und Druckregelung (Spunding).
+
+Plugin-Implementierung:
+    class MeineGaerLogik(CBPiFermenterLogic):
+        async def run(self):
+            while self.running:
+                # Temperatur- und Druckregelung
+                await asyncio.sleep(1)
+"""
+
 from cbpi.api.base import CBPiBase
 from cbpi.api.extension import CBPiExtension
 from abc import ABCMeta

@@ -1,3 +1,12 @@
+"""http_login.py - Authentifizierungs-Endpunkte
+
+Routen:
+    POST /login  - Anmeldung mit Benutzername/Passwort
+    GET  /logout - Abmeldung (Session beenden)
+
+Standard-Zugangsdaten: cbpi/cbpi (konfigurierbar in config.yaml)
+"""
+
 from aiohttp import web
 from aiohttp_auth import auth
 

@@ -1,3 +1,15 @@
+"""FermentationStep - Gaerungsschritttypen
+
+Enthaltene Schritttypen:
+    FermenterNotificationStep - Benachrichtigung waehrend Gaerung
+    FermenterTargetTempStep   - Aufheizen/Abkuehlen bis Zieltemperatur
+    FermenterStep             - Haupt-Gaerschritt mit Timer (Tage/Stunden/Minuten)
+    FermenterRampTempStep     - Lineare Temperatur-Rampe (Grad pro Tag)
+
+Alle Schritte unterstuetzen automatische Logik-Steuerung und
+Zeitfortsetzung nach Neustart (Endzeit-Persistierung).
+"""
+
 import asyncio
 
 from cbpi.api import parameters, Property, action
@@ -223,7 +235,7 @@ class FermenterStep(CBPiFermentationStep):
                     self.timer.start()
                     self.endtime = time.time() + self.fermentationtime
                     await self.update_endtime()
-            except:
+            except Exception:
                 pass
 
         if self.endtime != 0 and self.timer is not None and self.timer.is_running == False:

@@ -1,3 +1,20 @@
+"""sensor.py - Basisklasse fuer Sensoren (Temperatur, Druck etc.)
+
+Sensoren messen physikalische Groessen und pushen ihre Werte ueber
+WebSocket und optional MQTT an alle verbundenen Clients.
+
+Datenfluss:
+    Sensor-Hardware -> push_update(value) -> WebSocket + MQTT
+    
+Plugin-Implementierung:
+    class MeinSensor(CBPiSensor):
+        async def run(self):
+            while self.running:
+                value = await self.read_hardware()
+                self.push_update(value)
+                await asyncio.sleep(1)
+"""
+
 import asyncio
 import logging
 from abc import abstractmethod, ABCMeta
@@ -38,7 +55,7 @@ class CBPiSensor(CBPiBase, metaclass=ABCMeta):
             if mqtt:
                 self.cbpi.push_update("cbpi/sensordata/{}".format(self.id), dict(id=self.id, value=value), retain=True)
 #            self.cbpi.push_update("cbpi/sensor/{}/udpate".format(self.id), dict(id=self.id, value=value), retain=True)
-        except:
+        except Exception:
             logging.error("Failed to push sensor update")
 
     async def start(self):

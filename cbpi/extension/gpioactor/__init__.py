@@ -1,3 +1,16 @@
+"""gpioactor - GPIO-Ausgaenge fuer Raspberry Pi
+
+Zwei Varianten:
+    GPIOActor    - Digital Ein/Aus + Software-PWM (27 GPIO-Pins)
+    GPIOPWMActor - Hardware-PWM mit konfigurierbarer Frequenz
+
+Konfiguration:
+    - GPIO: Pin-Nummer (BCM-Modus)
+    - Inverted: Invertierte Logik (Active Low)
+    - SamplingTime: PWM-Zykluszeit (2s oder 5s)
+    - Frequency: PWM-Frequenz (nur GPIOPWMActor)
+"""
+
 import asyncio
 import logging
 from unittest.mock import MagicMock, patch
@@ -138,8 +151,8 @@ class GPIOPWMActor(CBPiActor):
             self.p.start(self.power)
             self.state = True
 #            await self.cbpi.actor.actor_update(self.id,self.power)
-        except:
-            pass
+        except Exception as e:
+            logging.error("PWM ACTOR %s failed to start on GPIO %s: %s", self.id, self.gpio, e)
 
     async def off(self):
         logger.info("PWM ACTOR %s OFF - GPIO %s " % (self.id, self.gpio))

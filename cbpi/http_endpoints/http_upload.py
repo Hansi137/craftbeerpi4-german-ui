@@ -1,3 +1,17 @@
+"""http_upload.py - REST-API Endpunkte fuer Rezept-Import
+
+Routen:
+    POST   /upload/                      - Datei hochladen (BeerXML, JSON, KBH)
+    GET    /upload/kbh                    - KBH-Rezeptliste aus Datenbank
+    POST   /upload/kbh/{id}               - KBH-Rezept importieren
+    GET    /upload/xml                    - BeerXML-Rezeptliste
+    POST   /upload/xml/{id}               - BeerXML-Rezept importieren
+    GET    /upload/json                   - MMuM-JSON-Rezeptliste
+    POST   /upload/json/{id}              - MMuM-Rezept importieren
+    GET    /upload/brewfather/{offset}    - Brewfather API-Rezepte abrufen
+    POST   /upload/brewfather/{id}        - Brewfather-Rezept importieren
+"""
+
 from cbpi.controller.upload_controller import UploadController
 from cbpi.api.dataclasses import Props, Step
 from aiohttp import web

@@ -1,3 +1,16 @@
+"""base.py - Abstrakte Basisklasse fuer alle Plugin-Typen
+
+Stellt gemeinsame Utility-Methoden bereit, die von allen Plugin-Typen
+(Sensoren, Aktoren, Steps, Kessel-/Fermenter-Logik) geerbt werden.
+
+Bereitgestellte Funktionen:
+    - Konfigurationszugriff: get_config_value(), set_config_value()
+    - Sensor-Operationen: get_sensor(), get_sensor_value()
+    - Aktor-Steuerung: actor_on(), actor_off(), actor_set_power()
+    - Kessel-Steuerung: get_kettle(), set_target_temp()
+    - Fermenter-Steuerung: get_fermenter(), set_fermenter_target_temp()
+"""
+
 from abc import abstractmethod, ABCMeta
 import asyncio
 from cbpi.api.config import ConfigType
@@ -58,7 +71,7 @@ class CBPiBase(metaclass=ABCMeta):
         try:
             actor = self.cbpi.actor.find_by_id(id)
             return actor.instance.state
-        except:
+        except Exception:
             logging.error("Failed to read actor state in step - actor {}".format(id))
             return False 
 

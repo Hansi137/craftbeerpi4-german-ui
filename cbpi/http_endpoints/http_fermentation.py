@@ -1,3 +1,17 @@
+"""http_fermentation.py - REST-API Endpunkte fuer Gaerungssteuerung
+
+Routen:
+    GET    /fermenter/               - Alle Fermenter auflisten
+    POST   /fermenter/               - Neuen Fermenter erstellen
+    PUT    /fermenter/{id}           - Fermenter aktualisieren
+    DELETE /fermenter/{id}           - Fermenter loeschen
+    POST   /fermenter/{id}/toggle    - Fermenter-Logik umschalten
+    POST   /fermenter/{id}/target_temp    - Zieltemperatur setzen
+    POST   /fermenter/{id}/target_pressure - Zieldruck setzen
+    Gaerungsschritte: create_step, update_step, delete_step, move_step
+    Gaerungsprozess: start, stop, reset, next
+"""
+
 from cbpi.controller.fermentation_controller import FermentationController
 from cbpi.api.dataclasses import Fermenter, Step, Props, FermenterStep
 from aiohttp import web

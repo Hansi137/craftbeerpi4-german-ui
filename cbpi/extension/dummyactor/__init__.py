@@ -1,3 +1,9 @@
+"""dummyactor - Test-Aktor fuer Entwicklung ohne Hardware
+
+Simuliert einen Aktor ohne echte Hardware-Ansteuerung.
+Nuetzlich zum Testen der UI und des Brauprozesses am Desktop.
+"""
+
 from socket import timeout
 from typing import KeysView
 

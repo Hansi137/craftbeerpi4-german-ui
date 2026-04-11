@@ -1,3 +1,19 @@
+"""step_controller.py - Orchestrierung des Maischprozesses
+
+Steuert die sequenzielle Ausfuehrung von Maisch-Schritten (Steps).
+Ein aktives Brau-Profil besteht aus einer geordneten Liste von Steps,
+die nacheinander ausgefuehrt werden.
+
+State Machine:
+    INITIAL -> start() -> ACTIVE -> done() -> DONE
+    ACTIVE  -> stop()  -> STOP (Pause)
+    STOP    -> start() -> ACTIVE (Resume)
+    ACTIVE  -> next()  -> naechster Schritt
+    *       -> reset_all() -> alle auf INITIAL
+
+Persistenz: step_data.json (wird bei jeder Aenderung gespeichert)
+"""
+
 import asyncio
 import cbpi
 import copy
@@ -141,9 +157,7 @@ class StepController:
 
     async def next(self):
         logging.info("Trigger Next")
-        print("\n\n\n\n")
-        print(self.profile)
-        print("\n\n\n\n")
+        logging.debug("Current profile: %s", self.profile)
         step = self.find_by_status(StepState.ACTIVE)
         if step is not None:
             if step.instance is not None:
@@ -159,10 +173,9 @@ class StepController:
             logging.info("No Step is running")
         
     async def resume(self):
-        step = self.find_by_status("P")
+        step = self.find_by_status(StepState.STOP)
         if step is not None:
-            instance = step.get("instance")
-            if instance is not None:
+            if step.instance is not None:
                 await self.start_step(step)
         else:
             logging.info("Nothing to resume")
@@ -191,7 +204,7 @@ class StepController:
             try:
                 await item.instance.reset()
                 self.cbpi.push_update(topic="cbpi/notification", data=dict(type="info", title="Stop", message="Calling stop step"))
-            except:
+            except Exception:
                 logging.warning("No Step Instance - Id: %s", item.id)
         await self.save()
         self.push_udpate()
@@ -298,8 +311,8 @@ class StepController:
     async def load_recipe(self, data):
         try:
             await self.shutdown()
-        except: 
-            pass
+        except Exception as e:
+            logging.warning("Shutdown before recipe load failed: %s", e)
         def add_runtime_data(item):
             item["status"] = "I"
             item["id"] = shortuuid.uuid()
@@ -312,8 +325,8 @@ class StepController:
     async def clear(self):
         try:
             await self.shutdown()
-        except: 
-            pass
+        except Exception as e:
+            logging.warning("Shutdown before clear failed: %s", e)
         
         data = dict(basic=dict(), steps=[])
         with open(self.path, "w") as file:

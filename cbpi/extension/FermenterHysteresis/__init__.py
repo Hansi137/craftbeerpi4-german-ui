@@ -1,3 +1,14 @@
+"""FermenterHysteresis - Fermenter-Regelungslogik mit Spunding
+
+Drei Klassen:
+    FermenterAutostart       - Autostart bei Systemboot (falls konfiguriert)
+    FermenterHysteresis      - Temperaturregelung mit Heizer/Kuehler-Hysterese
+    FermenterSpundingHysteresis - Temperatur + Druckregelung (Pulsventil)
+
+Die Spunding-Variante verwendet asyncio.gather() fuer gleichzeitige
+Temperatur- und Druck-Regelung mit konfigurierbaren Ventil-Timings.
+"""
+
 import asyncio
 from asyncio import tasks
 import logging
@@ -36,10 +47,10 @@ class FermenterAutostart(CBPiExtension):
                                 logging.info("Successfully switched on Ferenterlogic for Fermenter {}".format(self.fermenter.id))
                         except Exception as e:
                             logging.error("Failed to switch on FermenterLogic {} {}".format(self.fermenter.id, e))
-                except:
-                    pass
-        except:
-            pass
+                except Exception as e:
+                    logging.warning("Fermenter autostart check failed: %s", e)
+        except Exception as e:
+            logging.warning("Fermenter autostart init failed: %s", e)
 
 
 @parameters([Property.Number(label="HeaterOffsetOn", configurable=True, description="Offset as decimal number when the heater is switched on. Should be greater then 'HeaterOffsetOff'. For example a value of 2 switches on the heater if the current temperature is 2 degrees below the target temperature"),
@@ -72,12 +83,10 @@ class FermenterHysteresis(CBPiFermenterLogic):
 
                 try:
                     heater_state = heater.instance.state
-                except:
-                    heater_state= False
+                except (AttributeError, TypeError):`n                    heater_state= False
                 try:
                     cooler_state = cooler.instance.state
-                except:
-                    cooler_state= False
+                except (AttributeError, TypeError):`n                    cooler_state= False
 
                 if sensor_value + self.heater_offset_min <= target_temp:
                     if self.heater and (heater_state == False):
@@ -164,12 +173,10 @@ class FermenterSpundingHysteresis(CBPiFermenterLogic):
 
                 try:
                     heater_state = heater.instance.state
-                except:
-                    heater_state= False
+                except (AttributeError, TypeError):`n                    heater_state= False
                 try:
                     cooler_state = cooler.instance.state
-                except:
-                    cooler_state= False
+                except (AttributeError, TypeError):`n                    cooler_state= False
 
                 if sensor_value + self.heater_offset_min <= target_temp:
                     if self.heater and (heater_state == False):

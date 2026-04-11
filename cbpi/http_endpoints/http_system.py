@@ -1,3 +1,17 @@
+"""http_system.py - REST-API Endpunkte fuer Systemverwaltung
+
+Routen:
+    GET    /system/              - Gesamter Systemstatus (Aktoren, Sensoren, Kessel, Config)
+    GET    /system/logs           - Logdateien auflisten
+    GET    /system/events         - Registrierte Events auflisten
+    GET    /system/jobs           - Laufende Hintergrund-Jobs
+    GET    /system/backup         - Konfigurations-Backup herunterladen (ZIP)
+    GET    /system/log/{logtime}/ - Komprimiertes Log-Paket herunterladen
+    POST   /system/restore        - Backup wiederherstellen
+    POST   /system/restart        - System neu starten
+    POST   /system/shutdown       - System herunterfahren
+"""
+
 import re
 from aiohttp import web
 from aiohttp import streamer
@@ -88,7 +102,7 @@ class SystemHttpEndpoints:
         for j in scheduler:
             try:
                 result.append(dict(name=j.name, type=j.type, time=j.start_time))
-            except:
+            except (AttributeError, TypeError):
                 pass
         return web.json_response(data=result)
 

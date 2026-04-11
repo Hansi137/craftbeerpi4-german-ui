@@ -7664,19 +7664,17 @@
       var btn = this;
       btn.disabled = true;
       btn.textContent = '⏳ ...';
-      fetch('/system/plugins/install', {
+      fetch('/plugin/install/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ package_name: name })
       })
         .then(function(r) {
           if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        })
-        .then(function() {
           alert(de ? 'Plugin installiert! Bitte CraftBeerPi neu starten.' : 'Plugin installed! Please restart CraftBeerPi.');
           btn.disabled = false;
           btn.textContent = '📥 ' + (de ? 'Installieren' : 'Install');
+          loadInstalledPlugins();
         })
         .catch(function(err) {
           alert((de ? 'Installation fehlgeschlagen: ' : 'Installation failed: ') + err.message);
@@ -7691,7 +7689,7 @@
     var listEl = document.getElementById('plugin-installed-list');
     if (!listEl) return;
 
-    fetch('/plugin/')
+    fetch('/plugin/list')
       .then(function(r) { return r.json(); })
       .then(function(plugins) {
         if (!plugins || plugins.length === 0) {

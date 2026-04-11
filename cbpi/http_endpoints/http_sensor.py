@@ -1,3 +1,14 @@
+"""http_sensor.py - REST-API Endpunkte fuer Sensor-Daten
+
+Routen:
+    GET    /sensor/            - Alle Sensoren auflisten
+    GET    /sensor/{id}        - Aktuellen Messwert eines Sensors abrufen
+    POST   /sensor/            - Neuen Sensor erstellen
+    PUT    /sensor/{id}        - Sensor aktualisieren
+    DELETE /sensor/{id}        - Sensor loeschen
+    POST   /sensor/{id}/action - Sensor-spezifische Aktion
+"""
+
 from cbpi.api.dataclasses import Props, Sensor
 from aiohttp import web
 from cbpi.api import *
@@ -224,7 +235,7 @@ class SensorHttpEndpoints():
         """
         sensor_id = request.match_info['id']
         data = await request.json()
-        print(data)
+        logging.debug("Sensor action request: %s", data)
         await self.controller.call_action(sensor_id, data.get("action"), data.get("parameter"))
 
         return web.Response(status=204)

@@ -1,3 +1,16 @@
+"""basic_controller2.py - Abstrakte Basisklasse fuer Resource-Controller
+
+Stellt CRUD-Operationen und Lifecycle-Management fuer alle Ressourcen bereit.
+Alle spezifischen Controller (Actor, Sensor, Kettle) erben von dieser Klasse.
+
+Funktionalitaet:
+    - load()/save(): JSON-Persistenz auf Festplatte
+    - add()/update()/delete(): CRUD-Operationen mit Auto-Save
+    - start()/stop(): Plugin-Instanz erstellen und async Task starten/stoppen
+    - call_action(): Plugin-spezifische Aktionen ausfuehren
+    - push_udpate(): WebSocket + MQTT Broadcasting bei Aenderungen
+    - Type-Registry: Verwaltung verfuegbarer Plugin-Typen
+"""
 
 import logging
 import os.path

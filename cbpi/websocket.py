@@ -1,3 +1,14 @@
+"""websocket.py - WebSocket-Handler fuer Echtzeit-Kommunikation
+
+Stellt eine bidirektionale WebSocket-Verbindung unter /ws bereit.
+Verwendet WeakSet fuer automatische Bereinigung getrennter Clients.
+
+Protokoll:
+    Bei Verbindung: Server sendet {topic: 'connection/success'}
+    Client -> Server: {topic: 'string', data: {}} -> wird auf Event-Bus gefeuert
+    Server -> Client: {topic: 'event_name', data: {...}} -> Broadcast aller Events
+"""
+
 import logging
 import weakref
 from collections import defaultdict
@@ -10,6 +21,7 @@ from cbpi.utils import json_dumps
 
 
 class CBPiWebSocket:
+    """WebSocket-Manager fuer Echtzeit-Push-Updates an alle verbundenen Clients."""
     def __init__(self, cbpi) -> None:
         self.cbpi = cbpi
         self._callbacks = defaultdict(set)
@@ -36,7 +48,7 @@ class CBPiWebSocket:
                     if sorting:
                         try:
                             data['data'].sort(key=lambda x: x.get('name').upper())
-                        except:
+                        except (KeyError, AttributeError, TypeError):
                             pass
                     await ws.send_json(data=data, dumps=json_dumps)
                 except Exception as e:

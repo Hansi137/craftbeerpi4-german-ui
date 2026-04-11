@@ -47,7 +47,7 @@ class CBPiExtension():
                 data = yaml.load(f)
 
             return data
-        except:
+        except Exception:
             logger.warning("Failed to load config %s/config.yaml" % path)
 
     

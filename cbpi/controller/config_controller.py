@@ -1,3 +1,12 @@
+"""config_controller.py - Zentrale Konfigurationsverwaltung
+
+Verwaltet Systemkonfiguration mit Cache fuer schnellen Zugriff.
+Konfigurationswerte werden in config.json persistiert.
+Statische Werte (Port, MQTT) kommen aus config.yaml.
+
+Konfigurationstypen: STRING, NUMBER, SELECT, KETTLE, ACTOR, SENSOR, STEP, FERMENTER
+"""
+
 from cbpi.api.dataclasses import Config
 import logging
 import os

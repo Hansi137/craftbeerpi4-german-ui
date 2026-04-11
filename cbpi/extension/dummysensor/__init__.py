@@ -1,3 +1,11 @@
+"""dummysensor - Test-Sensoren fuer Entwicklung ohne Hardware
+
+Enthaltene Sensoren:
+    CustomSensor  - Zufaellige Temperaturwerte (10-100 Grad)
+    DummyPressure - Druck-Simulation basierend auf Gaerlogik-Status
+                   (steigender Druck + Ventil-Entlastung simuliert)
+"""
+
 # -*- coding: utf-8 -*-
 import asyncio
 import random

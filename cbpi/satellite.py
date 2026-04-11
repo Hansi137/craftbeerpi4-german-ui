@@ -1,3 +1,10 @@
+"""satellite.py - WebSocket-Endpunkt fuer Satelliten-Geraete
+
+Ermoeglicht die Anbindung externer CraftBeerPi-Satellite-Knoten unter /satellite.
+Satelliten sind entfernte Raspberry Pis oder ESP32-Geraete, die als zusaetzliche
+Sensor-/Aktor-Knoten fungieren und ueber WebSocket mit dem Hauptserver kommunizieren.
+"""
+
 import logging
 import weakref
 from collections import defaultdict
@@ -10,6 +17,7 @@ from cbpi.utils import json_dumps
 
 
 class CBPiSatellite:
+    """WebSocket-Manager fuer verbundene Satelliten-Geraete (Remote-Sensoren/Aktoren)."""
     def __init__(self, cbpi) -> None:
         self.cbpi = cbpi
         self._callbacks = defaultdict(set)

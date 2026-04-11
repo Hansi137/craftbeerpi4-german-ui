@@ -1,3 +1,21 @@
+"""actor.py - Basisklasse fuer Hardware-Aktoren
+
+Aktoren sind steuerbare Hardware-Komponenten wie Heizer, Pumpen, Ventile
+oder Ruehrwerke. Jeder Aktor hat einen An/Aus-Status und eine Leistung (0-100%).
+
+Lebenszyklus:
+    1. Instanzierung durch ActorController (create/start)
+    2. _run() startet on_start() -> run() -> on_stop()
+    3. on(power)/off()/set_power() fuer Zustandsaenderungen
+    4. stop() beendet den async Task
+
+Plugin-Implementierung:
+    class MeinAktor(CBPiActor):
+        async def on(self, power=100): ...
+        async def off(self): ...
+        async def run(self): ...
+"""
+
 from abc import ABCMeta
 import asyncio
 from cbpi.api.config import ConfigType

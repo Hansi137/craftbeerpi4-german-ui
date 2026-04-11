@@ -1,3 +1,14 @@
+"""cli.py - Kommandozeilen-Interface fuer CraftBeerPi4
+
+Stellt das 'cbpi' CLI-Kommando bereit:
+    cbpi setup    - Erstellt Konfigurationsordner und Standarddateien
+    cbpi start    - Startet den CraftBeerPi-Server
+    cbpi plugins  - Listet alle installierten Plugins auf
+    cbpi create   - Erstellt ein neues Plugin-Template
+    cbpi autostart [on|off|status] - Verwaltet systemd-Autostart
+    cbpi onewire  - Konfiguriert den 1-Wire Bus
+"""
+
 import logging
 import requests
 from cbpi.configFolder import ConfigFolder
@@ -13,7 +24,7 @@ from colorama import Fore, Back, Style
 import importlib
 from importlib_metadata import metadata
 from tabulate import tabulate
-from PyInquirer import prompt, print_json
+import questionary
 import platform
 
 class CraftBeerPiCli():
@@ -75,17 +86,10 @@ class CraftBeerPiCli():
         print("Plugin Creation")
         print("")
 
-        questions = [
-            {
-                'type': 'input',
-                'name': 'name',
-                'message': 'Plugin Name:',
-            }
-        ]
-
-        answers = prompt(questions)
-
-        name = "cbpi4_" + answers["name"]
+        name = "cbpi4_" + questionary.text("Plugin Name:").ask()
+        if not name or name == "cbpi4_":
+            print("Cancelled.")
+            return
         if os.path.exists(os.path.join(".", name)) is True:
             print("Cant create Plugin. Folder {} already exists ".format(name))
             return

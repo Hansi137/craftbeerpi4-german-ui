@@ -1,8 +1,23 @@
+"""notification_controller.py - Benachrichtigungssystem
+
+Sendet Benachrichtigungen an die UI (WebSocket) und optional MQTT.
+Unterstuetzt interaktive Aktionen (Buttons) mit Callback-System.
+
+Flow:
+    1. notify(title, message, type, actions) -> erstellt Notification mit UUID
+    2. UI zeigt Notification + optionale Action-Buttons  
+    3. User klickt Button -> notify_callback(notification_id, action_id)
+    4. Registrierter Listener-Callback wird ausgefuehrt
+"""
+
 import asyncio
 from cbpi.api.dataclasses import NotificationType
 import logging
 import shortuuid
+
+
 class NotificationController:
+    """Benachrichtigungsmanager mit Listener-Pattern fuer UI-Interaktionen."""
 
     def __init__(self, cbpi):
         '''
@@ -21,12 +36,12 @@ class NotificationController:
     def remove_listener(self, listener_id):
         try:
             del self.listener[listener_id] 
-        except:
+        except KeyError:
             self.logger.error("Failed to remove listener {}".format(listener_id))
 
     async def _call_listener(self, title, message, type, action):
         for id, method in self.listener.items():
-            print(id, method)
+            logging.debug("Calling notification listener %s", id)
             asyncio.create_task(method(self.cbpi, title, message, type, action ))
 
 

@@ -1,3 +1,17 @@
+"""http_kettle.py - REST-API Endpunkte fuer Kessel-Steuerung
+
+Routen:
+    GET    /kettle/              - Alle Kessel auflisten
+    GET    /kettle/{id}          - Einzelnen Kessel abrufen
+    POST   /kettle/              - Neuen Kessel erstellen
+    PUT    /kettle/{id}          - Kessel aktualisieren
+    DELETE /kettle/{id}          - Kessel loeschen
+    POST   /kettle/{id}/target_temp - Solltemperatur setzen
+    POST   /kettle/{id}/on       - Heizlogik starten
+    POST   /kettle/{id}/toggle   - Heizlogik umschalten
+    POST   /kettle/{id}/action   - Kessel-Action ausfuehren
+"""
+
 from cbpi.controller.kettle_controller import KettleController
 from cbpi.api.dataclasses import Kettle, Props
 from aiohttp import web

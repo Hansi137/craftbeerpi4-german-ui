@@ -1,3 +1,11 @@
+"""mqtt_actor - MQTT-basierte Aktoren (Generic, Tasmota)
+
+Drei MQTT-Aktor-Varianten (nur wenn MQTT in config.yaml aktiviert):
+    MQTTActor          - Standard MQTT Actor (ON/OFF Payload)
+    GenericMqttActor   - Konfigurierbarer MQTT Actor (Topic + Payload)
+    TasmotaMqttActor   - Tasmota-spezifischer Actor (cmnd/POWER)
+"""
+
 # -*- coding: utf-8 -*-
 from cbpi.api import *
 from .mqtt_actor import MQTTActor

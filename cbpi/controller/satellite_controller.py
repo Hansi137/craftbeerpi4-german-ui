@@ -1,8 +1,26 @@
+"""satellite_controller.py - MQTT-Verbindung und Remote-Steuerung
+
+Verwaltet die MQTT-Verbindung zum Broker und ermoeglicht:
+    - Veroeffentlichen von Status-Updates (Kessel, Fermenter, Sensoren)
+    - Empfang von Aktor-Befehlen (on/off/power) ueber MQTT
+    - Automatische Reconnection bei Verbindungsverlust
+
+MQTT-Topics (empfangen):
+    cbpi/actor/{id}/on    - Aktor einschalten
+    cbpi/actor/{id}/off   - Aktor ausschalten  
+    cbpi/actor/{id}/power - Leistung setzen
+
+MQTT-Topics (senden):
+    cbpi/updateactor, cbpi/updatekettle, cbpi/updatesensor, cbpi/updatefermenter
+"""
 
 import asyncio
 import json
 from re import M
-from asyncio_mqtt import Client, MqttError, Will, client
+try:
+    from aiomqtt import Client, MqttError, Will
+except ImportError:
+    from asyncio_mqtt import Client, MqttError, Will
 from contextlib import AsyncExitStack, asynccontextmanager
 from cbpi import __version__
 import logging
@@ -71,9 +89,9 @@ class SatelliteController:
                         power = 0
                     await self.cbpi.actor.set_power(topic_key[2],power)
                     #await self.cbpi.actor.actor_update(topic_key[2],power)
-                except:
+                except (ValueError, TypeError):
                     self.logger.warning("Failed to set actor power via mqtt. No valid power in message")
-            except:
+            except Exception:
                 self.logger.warning("Failed to set actor power via mqtt")
 
     async def _kettleupdate(self, messages):

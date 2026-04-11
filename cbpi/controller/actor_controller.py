@@ -1,8 +1,19 @@
+"""actor_controller.py - Verwaltung aller Aktoren im System
+
+Steuert Aktoren (Heizer, Pumpen, Ventile, Ruehrwerke) und deren Status.
+Erweitert BasicController um on/off/toggle/set_power Operationen.
+
+MQTT-Topics: cbpi/actorupdate/{id}
+"""
+
 from cbpi.api.dataclasses import Actor
 from cbpi.controller.basic_controller2 import BasicController
 import logging
 from tabulate import tabulate
+
+
 class ActorController(BasicController):
+    """Controller fuer Aktor-Verwaltung (Ein/Aus, Leistung, Toggle)."""
 
     def __init__(self, cbpi):
         super(ActorController, self).__init__(cbpi, Actor,"actor.json")
@@ -43,8 +54,7 @@ class ActorController(BasicController):
     async def toogle(self, id):
         try:
             item = self.find_by_id(id)
-            instance = item.get("instance")
-            await instance.toggle()
+            await item.instance.toggle()
             self.cbpi.ws.send(dict(topic=self.update_key, data=list(map(lambda item: item.to_dict(), self.data))),self.sorting)
             self.cbpi.push_update("cbpi/actorupdate/{}".format(id), item.to_dict())
         except Exception as e:

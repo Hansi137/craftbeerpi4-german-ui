@@ -1,3 +1,20 @@
+"""dataclasses.py - Zentrale Datenmodelle fuer alle Entitaeten
+
+Definiert die Datenstrukturen fuer alle CraftBeerPi-Objekte:
+    Props     - Dynamisches Property-Dictionary (Plugin-Konfiguration)
+    Actor     - Aktor-Entitaet (Heizer, Pumpe, Ventil)
+    Sensor    - Sensor-Entitaet (Temperatur, Druck)
+    Kettle    - Kessel mit Heizer, Ruehrwerk, Sensor, Solltemperatur
+    Step      - Maisch-Schritt mit Status und Timer
+    Fermenter - Gaerbottich mit Heizer, Kuehler, Ventil, Druck
+    FermenterStep - Gaerungsschritt
+    Config    - Systemkonfiguration (Key-Value mit Typ)
+    NotificationAction - UI-Aktion fuer Benachrichtigungen
+    NotificationType   - Enum: INFO, WARNING, ERROR, SUCCESS
+
+Alle Entitaeten haben eine to_dict() Methode fuer JSON-Serialisierung.
+"""
+
 from cbpi.api.config import ConfigType
 from enum import Enum
 from typing import Any
@@ -65,6 +82,11 @@ class Actor:
         return dict(id=self.id, name=self.name, type=self.type, props=self.props.to_dict(), state=self.instance.get_state(), power=self.power)
 
 
+class DataType(Enum):
+    VALUE = "value"
+    DATETIME = "datetime"
+    STRING = "string"
+
 @dataclass
 class Sensor:
     id: str = None
@@ -73,6 +95,7 @@ class Sensor:
     state: bool = False
     type: str = None
     instance: str = None
+    datatype: DataType = DataType.VALUE
 
     def __str__(self):
         return "name={} props={}, state={}".format(self.name, self.props, self.state)

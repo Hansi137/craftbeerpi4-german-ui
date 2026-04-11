@@ -1,3 +1,16 @@
+"""http_log.py - REST-API fuer Sensor-Logdaten
+
+Routen:
+    GET    /log/{name}                - Sensordaten als JSON (mit Resampling)
+    POST   /log/                      - Batch-Abfrage fuer mehrere Sensoren
+    POST   /log/{name}/zip            - Logdaten komprimieren
+    GET    /log/zip/download/{name}   - ZIP-Datei herunterladen
+    GET    /log/zip/names             - Verfuegbare ZIP-Dateien auflisten
+    GET    /log/names                 - Verfuegbare Logdateien auflisten
+    DELETE /log/{name}                - Logdaten loeschen
+"""
+
+import logging
 from cbpi.utils.encoder import ComplexEncoder
 from aiohttp import web
 from cbpi.utils.utils import json_dumps
@@ -188,7 +201,7 @@ class LogHttpEndpoints:
                 description: successful operation.
         """
         data = await request.json()
-        print(data)
+        logging.debug("Log data request: %s", data)
         return web.json_response(await self.cbpi.log.get_data2(data), dumps=json_dumps)
 
 
@@ -239,7 +252,5 @@ class LogHttpEndpoints:
         data = await request.json()
         
         result = await self.cbpi.log.get_data(data)
-        print("JSON")
-        print(json.dumps(result, cls=ComplexEncoder))
-        print("JSON----")
+        logging.debug("Log data result: %s entries", len(result) if isinstance(result, list) else 'n/a')
         return web.json_response(result, dumps=json_dumps)

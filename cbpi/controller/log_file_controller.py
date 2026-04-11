@@ -1,3 +1,13 @@
+"""log_file_controller.py - Datalogging und InfluxDB-Integration
+
+Protokolliert Sensordaten in CSV-Dateien und optional in InfluxDB.
+Unterstuetzt Daten-Resampling fuer Diagramme und ZIP-Export.
+
+CSV-Logging: ./logs/sensor_{name}.log (mit RotatingFileHandler)
+InfluxDB: Cloud oder On-Premise (konfigurierbar)
+Daten-Analyse: Pandas Resampling fuer Temperaturkurven
+"""
+
 import datetime
 import glob
 import logging

@@ -1,3 +1,17 @@
+"""onewire - Dallas 1-Wire Temperatursensor (DS18B20)
+
+Liest Temperatursensoren ueber den Linux 1-Wire-Bus aus.
+Unterstuetzt DS18B20 (28-xxxx) und DS18S20 (10-xxxx) Sensoren.
+
+Voraussetzung: dtoverlay=w1-gpio in /boot/config.txt
+Sensor-Verzeichnis: /sys/bus/w1/devices/
+
+Konfiguration:
+    - Sensor: Auswahl des 1-Wire Geraets
+    - Intervall: Abtastrate (1/5/10/30/60 Sekunden)
+    - Offset: Kalibrierungs-Offset (Grad)
+"""
+
 # -*- coding: utf-8 -*-
 import asyncio
 import random
@@ -16,7 +30,7 @@ def getSensors():
             if (dirname.startswith("28") or dirname.startswith("10")):
                 arr.append(dirname)
         return arr
-    except:
+    except FileNotFoundError:
         return []
 
 
@@ -46,7 +60,7 @@ class ReadThread (threading.Thread):
                     if (content.split('\n')[0].split(' ')[11] == "YES"):
                         temp = float(content.split("=")[-1]) / 1000  # temp in Celcius
                         self.value = temp
-            except:
+            except (FileNotFoundError, IndexError, ValueError):
                 pass
             
             time.sleep(1)
@@ -77,7 +91,7 @@ class OneWire(CBPiSensor):
         try:
             self.t.stop()
             self.running = False
-        except:
+        except Exception:
             pass
 
     async def run(self):

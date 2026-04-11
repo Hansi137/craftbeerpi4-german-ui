@@ -1,3 +1,23 @@
+"""kettle_logic.py - Basisklasse fuer Kessel-Regelungslogik
+
+Definiert die Schnittstelle fuer Temperaturregler im Maischkessel.
+Typische Implementierungen: Hysterese-Regler, PID-Regler.
+
+Der Controller startet die Logik als async Task, der solange laeuft
+bis stop() aufgerufen oder der Task abgebrochen wird.
+
+Plugin-Implementierung:
+    class MeinPIDRegler(CBPiKettleLogic):
+        async def run(self):
+            while self.running:
+                temp = self.get_sensor_value(self.kettle.sensor)
+                if temp < self.kettle.target_temp:
+                    await self.actor_on(self.kettle.heater)
+                else:
+                    await self.actor_off(self.kettle.heater)
+                await asyncio.sleep(1)
+"""
+
 from cbpi.api.base import CBPiBase
 from cbpi.api.extension import CBPiExtension
 from abc import ABCMeta

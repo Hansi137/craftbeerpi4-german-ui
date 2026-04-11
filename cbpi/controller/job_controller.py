@@ -1,3 +1,9 @@
+"""job_controller.py - Hintergrund-Task-Scheduler
+
+Integriert den aiojobs-Scheduler mit dem CraftBeerPi-System.
+Registriert @background_task dekorierte Methoden als periodische Jobs.
+"""
+
 import asyncio
 import logging
 

@@ -1,3 +1,11 @@
+"""fermenter_recipe_controller.py - Gaerrezept-Verwaltung
+
+Verwaltet Gaerrezepte als YAML-Dateien im fermenterrecipes/-Ordner.
+Analog zum RecipeController, aber fuer Fermentationsprozesse.
+
+Rezept-Format identisch zu Braurezepten, aber mit
+Fermentationsschritt-Typen (FermenterStep, FermenterTargetTempStep etc.)
+"""
 
 import logging
 import os.path

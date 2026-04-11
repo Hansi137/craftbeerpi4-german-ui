@@ -1,3 +1,11 @@
+"""http_plugin.py - REST-API fuer Plugin-Verwaltung
+
+Routen:
+    POST /plugin/install/    - Plugin via pip installieren
+    POST /plugin/uninstall/  - Plugin deinstallieren
+    GET  /plugin/list        - Installierte Plugins auflisten
+"""
+
 from aiohttp import web
 from cbpi.api import request_mapping
 from cbpi.utils import json_dumps

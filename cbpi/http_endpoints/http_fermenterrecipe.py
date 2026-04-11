@@ -1,3 +1,15 @@
+"""http_fermenterrecipe.py - REST-API fuer Gaerrezepte
+
+Routen:
+    GET    /fermenterrecipe/                    - Alle Gaerrezepte
+    GET    /fermenterrecipe/{name}               - Gaerrezept-Details
+    POST   /fermenterrecipe/create               - Neues Gaerrezept
+    PUT    /fermenterrecipe/{name}               - Gaerrezept speichern
+    DELETE /fermenterrecipe/{name}               - Gaerrezept loeschen
+    POST   /fermenterrecipe/{id}/{fermenterid}/brew - Rezept in Fermenter laden
+    POST   /fermenterrecipe/{id}/clone           - Gaerrezept duplizieren
+"""
+
 from cbpi.controller.fermenter_recipe_controller import FermenterRecipeController
 from cbpi.api.dataclasses import Props, Step
 from aiohttp import web
@@ -58,7 +70,7 @@ class FermenterRecipeHttpEndpoints():
                 description: successful operation
         """
         data = await request.json()
-        print(data)
+        logging.debug("Create fermenter recipe: %s", data.get("name"))
         return web.json_response(dict(id=await self.controller.create(data.get("name"))))
        
     
@@ -90,7 +102,7 @@ class FermenterRecipeHttpEndpoints():
         data = await request.json()
         name = request.match_info['name']
         await self.controller.save(name, data)
-        print(data)
+        logging.debug("Fermenter recipe '%s' saved", name)
         return web.Response(status=204)
     
     @request_mapping(path="/{name}", method="DELETE", auth_required=False)

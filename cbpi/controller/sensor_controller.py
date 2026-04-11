@@ -1,8 +1,18 @@
+"""sensor_controller.py - Verwaltung aller Sensoren im System
+
+Verwaltet Sensor-Instanzen und stellt Messwerte bereit.
+Sensoren werden automatisch beim Start initialisiert und laufen als async Tasks.
+
+MQTT-Topics: cbpi/sensorupdate/{id}
+"""
+
 from cbpi.api.dataclasses import Sensor
 from cbpi.controller.basic_controller2 import BasicController
 import logging
 
+
 class SensorController(BasicController):
+    """Controller fuer Sensor-Verwaltung und Messwert-Zugriff."""
     def __init__(self, cbpi):
         super(SensorController, self).__init__(cbpi, Sensor, "sensor.json")
         self.update_key = "sensorupdate"

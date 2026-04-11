@@ -1,3 +1,16 @@
+"""http_dashboard.py - REST-API fuer Dashboard-Verwaltung
+
+Routen:
+    GET    /dashboard/{id}/content    - Dashboard-Layout (Widget-Array)
+    POST   /dashboard/{id}/content    - Dashboard-Layout speichern
+    DELETE /dashboard/{id}/content    - Dashboard-Layout loeschen
+    GET    /dashboard/widgets         - Verfuegbare Widgets auflisten
+    GET    /dashboard/numbers         - Anzahl vorhandener Dashboards
+    GET    /dashboard/current         - Aktuelles Dashboard abrufen
+    POST   /dashboard/current/{id}    - Aktives Dashboard wechseln
+"""
+
+import logging
 import os
 
 from aiohttp import web
@@ -69,7 +82,7 @@ class DashBoardHttpEndpoints:
         data = await request.json()
         dashboard_id = int(request.match_info['id'])
         await self.cbpi.dashboard.add_content(dashboard_id, data)
-        print("##### SAVE")
+        logging.debug("Dashboard %s saved", dashboard_id)
         return web.Response(status=204)
 
     @request_mapping(path="/{id:\d+}/content", method="DELETE", auth_required=False)

@@ -1,3 +1,20 @@
+"""timer.py - Countdown-Timer mit Callback-System
+
+Implementiert einen asynchronen Countdown-Timer mit Sekunden-Granularitaet.
+Wird von Maisch- und Gaerungsschritten fuer zeitgesteuerte Prozesse verwendet.
+
+Funktionen:
+    start()        - Timer starten
+    stop()         - Timer anhalten (behalt restliche Zeit)
+    reset()        - Auf Original-Wert zuruecksetzen
+    add(seconds)   - Zeit hinzufuegen (z.B. +5 Minuten)
+    format_time()  - Formatiert als HH:MM:SS oder DD HH:MM:SS
+
+Callbacks:
+    on_done   - Wird aufgerufen wenn Timer abgelaufen ist
+    on_update - Wird jede Sekunde mit verbleibender Zeit aufgerufen
+"""
+
 import time
 import asyncio
 import math

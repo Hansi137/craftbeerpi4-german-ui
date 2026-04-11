@@ -48,7 +48,7 @@ class Job:
         return self._closed
 
     async def _do_wait(self, timeout):
-        with async_timeout.timeout(timeout=timeout, loop=self._loop):
+        async with async_timeout.timeout(timeout):
             # TODO: add a test for waiting for a pending coro
             await self._started
             return await self._task
@@ -59,8 +59,7 @@ class Job:
         self._explicit = True
         scheduler = self._scheduler
         try:
-            return await asyncio.shield(self._do_wait(timeout),
-                                        loop=self._loop)
+            return await asyncio.shield(self._do_wait(timeout))
         except asyncio.CancelledError:
             # Don't stop inner coroutine on explicit cancel
             raise
@@ -88,8 +87,7 @@ class Job:
         # self._scheduler is None after _done_callback()
         scheduler = self._scheduler
         try:
-            with async_timeout.timeout(timeout=timeout,
-                                       loop=self._loop):
+            async with async_timeout.timeout(timeout):
                 await self._task
         except asyncio.CancelledError:
             pass

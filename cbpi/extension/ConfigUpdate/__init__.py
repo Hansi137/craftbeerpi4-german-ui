@@ -1,3 +1,10 @@
+"""ConfigUpdate - Konfigurations-Migrations-Helfer
+
+Prueft beim Start ob neue Konfigurationsparameter hinzugefuegt werden muessen
+und fuegt fehlende Parameter mit Standardwerten hinzu.
+Wird bei Versions-Updates verwendet um neue Features zu konfigurieren.
+"""
+
 import os, threading, time, shutil
 from aiohttp import web
 import logging

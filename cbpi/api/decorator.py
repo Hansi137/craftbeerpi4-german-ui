@@ -1,3 +1,17 @@
+"""decorator.py - Dekoratoren fuer Plugin-Funktionen
+
+Stellt Dekoratoren bereit, mit denen Plugins ihre Methoden annotieren:
+    @request_mapping(path, method) - HTTP-Routing (GET/POST/PUT/DELETE)
+    @on_event(topic)               - Event-Bus Subscription
+    @action(key, parameters)       - UI-Aktion (Button in der Oberflaeche)
+    @parameters(params)            - Step-Parameter-Definition
+    @background_task(name, interval) - Periodische Hintergrund-Aufgabe
+    @on_startup(name, order)       - Startup-Hook (wird beim Start ausgefuehrt)
+
+Das Framework iteriert beim Registrieren einer Klasse ueber alle Methoden
+und erkennt anhand der gesetzten Attribute welche Dekoratoren verwendet wurden.
+"""
+
 from functools import wraps
 
 from voluptuous import Schema

@@ -1,6 +1,27 @@
+"""property.py - Property-Typen fuer Plugin-Konfiguration
+
+Definiert die verschiedenen Eingabetypen, die Plugins fuer ihre
+Konfiguration verwenden koennen. Die UI rendert basierend auf
+diesen Typen die passenden Eingabefelder.
+
+Verfuegbare Typen:
+    Property.Number   - Numerische Eingabe (mit Einheit, Min/Max)
+    Property.Text     - Texteingabe
+    Property.Select   - Dropdown-Auswahl (Optionsliste)
+    Property.Actor    - Aktor-Auswahl (Dropdown aller Aktoren)
+    Property.Sensor   - Sensor-Auswahl
+    Property.Kettle   - Kessel-Auswahl
+    Property.Fermenter - Fermenter-Auswahl
+
+Beispiel:
+    @parameters([Property.Number('Temperatur', configurable=True, default_value=65)])
+    class MeinStep(CBPiStep): ...
+"""
+
 __all__ = ["PropertyType", "Property"]
 
 class PropertyType(object):
+    """Marker-Basisklasse fuer alle Property-Typen."""
     pass
 
 class Property(object):

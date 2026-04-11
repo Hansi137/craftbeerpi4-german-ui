@@ -1,3 +1,17 @@
+"""http_actor.py - REST-API Endpunkte fuer Aktor-Steuerung
+
+Routen:
+    GET    /actor/            - Alle Aktoren auflisten
+    GET    /actor/{id}        - Einzelnen Aktor abrufen
+    POST   /actor/            - Neuen Aktor erstellen
+    PUT    /actor/{id}        - Aktor aktualisieren
+    DELETE /actor/{id}        - Aktor loeschen
+    POST   /actor/{id}/on     - Aktor einschalten
+    POST   /actor/{id}/off    - Aktor ausschalten
+    POST   /actor/{id}/action - Benutzerdefinierte Aktion ausfuehren
+"""
+
+import logging
 from cbpi.api.dataclasses import Actor, Props
 from aiohttp import web
 from cbpi.api import *
@@ -232,7 +246,7 @@ class ActorHttpEndpoints():
         """
         actor_id = request.match_info['id']
         data = await request.json()
-        print(data)
+        logging.debug("Actor action request: %s", data)
         await self.controller.call_action(actor_id, data.get("action"), data.get("parameter"))
 
         return web.Response(status=204)

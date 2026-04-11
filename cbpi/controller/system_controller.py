@@ -1,3 +1,13 @@
+"""system_controller.py - Systemverwaltung (Backup/Restore, Systeminfo)
+
+Stellt Systemoperationen bereit:
+    - backup_config()/restore_config(): ZIP-Backup der Konfiguration
+    - systeminfo(): CPU, RAM, Temperatur, Netzwerk-Informationen
+    - restart()/shutdown(): System-Neustart/-Herunterfahren via systemctl
+    - download_log(): Debug-Paket mit allen Logdateien
+    - upload_svg(): Benutzerdefinierte Dashboard-Widgets hochladen
+"""
+
 import logging
 import os
 import shutil
@@ -127,7 +137,7 @@ class SystemController:
                     for content in required_content:
                         try:
                             check = zip_content_list.index(content)
-                        except:
+                        except ValueError:
                             zip_content = False
                     if zip_content == True:
                         self.cbpi.notify("Success", "Config backup has been uploaded", NotificationType.SUCCESS)
@@ -135,9 +145,9 @@ class SystemController:
                     else:
                         self.cbpi.notify("Error", "Wrong content type. Upload failed", NotificationType.ERROR)
                         os.remove(self.path)
-            except:
+            except Exception as e:
                 self.cbpi.notify("Error", "Config backup upload failed", NotificationType.ERROR)
-                pass
+                logging.error("Config backup upload failed: %s", e)
         else:
             self.cbpi.notify("Error", "Wrong content type. Upload failed", NotificationType.ERROR)
 
@@ -160,9 +170,9 @@ class SystemController:
                     f.write(content)
                     f.close()
                     self.cbpi.notify("Success", "SVG file ({}) has been uploaded.".format(filename), NotificationType.SUCCESS)
-            except:
+            except Exception as e:
                 self.cbpi.notify("Error", "SVG upload failed", NotificationType.ERROR)
-                pass
+                logging.error("SVG upload failed: %s", e)
         else:
             self.cbpi.notify("Error", "Wrong content type. Upload failed", NotificationType.ERROR)
 
@@ -209,7 +219,7 @@ class SystemController:
                         for entry in entries:
                             if name == "cpu_thermal":
                                 temp = round(float(entry.current),1)
-                except:
+                except Exception:
                     pass
             else:
                 temp = "N/A"
@@ -246,7 +256,7 @@ class SystemController:
                                     wlan0speed = "down"
                     except Exception as e:
                         logging.info(e)
-                except:
+                except Exception:
                     pass
 
             if system == "Windows":
@@ -280,10 +290,10 @@ class SystemController:
                                     wlan0speed = "down"                    
                     except Exception as e:
                         logging.info(e)
-                except:
+                except Exception:
                     pass
 
-        except:
+        except Exception:
             pass
 
         systeminfo =    {'system': system,

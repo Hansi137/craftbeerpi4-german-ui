@@ -1,3 +1,11 @@
+"""http_config.py - REST-API Endpunkte fuer Systemkonfiguration
+
+Routen:
+    GET    /config/       - Alle Konfigurationsparameter als JSON
+    PUT    /config/{name}/ - Einzelnen Parameter setzen
+    POST   /config/{name}/ - Einzelnen Parameter abrufen
+"""
+
 from aiohttp import web
 from cbpi.api import *
 

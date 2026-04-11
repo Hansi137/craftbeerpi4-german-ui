@@ -1,3 +1,13 @@
+"""mqtt_sensor - MQTT Sensor-Integration
+
+Liest Sensorwerte von MQTT-Topics mit optionalem JSON-Parsing.
+
+Konfiguration:
+    Topic: MQTT-Topic zum Abonnieren (z.B. 'sensors/temp1')
+    PayloadDictionary: JSON-Pfad zum Wert (z.B. 'data.temperature')
+                       Wird mit '.' getrennt fuer verschachtelte Objekte.
+"""
+
 # -*- coding: utf-8 -*-
 import asyncio
 

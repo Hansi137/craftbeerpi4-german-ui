@@ -1,3 +1,11 @@
+"""mqtt_util - Periodisches MQTT-Status-Update
+
+Sendet in konfigurierbaren Intervallen Status-Updates
+aller Kessel und Fermenter ueber MQTT.
+
+Konfiguration: MQTTUpdate (Sekunden, 0 = deaktiviert)
+"""
+
 import logging
 import asyncio
 from cbpi.api import *

@@ -1,3 +1,15 @@
+"""upload_controller.py - Rezept-Import aus externen Formaten
+
+Konvertiert Rezepte aus verschiedenen Quellen in das CraftBeerPi-Format:
+    - BeerXML (.xml): Standard-Brauformat
+    - MMuM-JSON (.json): MaischeMalzUndMehr Export
+    - Kleiner Brauhelfer (.db): SQLite-Datenbank
+    - Brewfather (API): Cloud-basierter Rezept-Import
+
+Der Import erzeugt automatisch Maisch-Schritte (MashIn, Mash, Boil)
+mit den entsprechenden Temperaturen, Zeiten und Hopfengaben.
+"""
+
 import os
 import pathlib
 import aiohttp
@@ -42,7 +54,7 @@ class UploadController:
                 element = {'value': str(row[0]), 'label': str(row[1])}
                 result.append(element)
             return result
-        except:
+        except Exception:
             return []
 
     async def get_xml_recipes(self):
@@ -56,7 +68,7 @@ class UploadController:
                 result.append(element)
                 counter +=1
             return result
-        except:
+        except Exception:
             return []
 
     async def get_json_recipes(self):
@@ -66,7 +78,7 @@ class UploadController:
             result =[] 
             result.append({'value': str(1), 'label': e['Name']})
             return result
-        except:
+        except Exception:
             return []
 
     async def get_brewfather_recipes(self,offset=0):
@@ -158,9 +170,9 @@ class UploadController:
                     f.close()
                     self.cbpi.notify("Success", "Kleiner Brauhelfer database has been uploaded", NotificationType.SUCCESS)
 
-            except:
+            except Exception as e:
                 self.cbpi.notify("Error", "Kleiner Brauhelfer database upload failed", NotificationType.ERROR)
-                pass
+                logging.error("KBH upload failed: %s", e)
         else:
             self.cbpi.notify("Error", "Wrong content type. Upload failed", NotificationType.ERROR)
 
@@ -189,7 +201,7 @@ class UploadController:
                         mashin_temp = str(int(row[0]))
                     else:
                         mashin_temp = str(round(9.0 / 5.0 * int(row[0]) + 32))
-                except:
+                except (TypeError, IndexError):
                     pass
 
                 # get the hop addition times
@@ -204,7 +216,7 @@ class UploadController:
                     c.execute('SELECT Zeit FROM Hopfengaben WHERE Vorderwuerze = 1 AND SudID = ?', (Recipe_ID,))
                     FW_Hops = c.fetchall()
                     FirstWort = self.getFirstWort(FW_Hops,"kbh")
-                except:
+                except Exception:
                     FirstWort = "No"
 
                 c.execute('SELECT Kochdauer FROM Sud WHERE ID = ?', (Recipe_ID,))
@@ -311,9 +323,9 @@ class UploadController:
  
                 self.cbpi.notify('KBH Recipe created', name, NotificationType.INFO)
 
-            except:
+            except Exception as e:
                 self.cbpi.notify('KBH Recipe creation failure', name, NotificationType.ERROR)
-                pass
+                logging.error("KBH recipe creation failed: %s", e)
         else:
             self.cbpi.notify('Recipe Upload', 'No default Kettle defined. Please specify default Kettle in settings', NotificationType.ERROR)
 
@@ -733,7 +745,7 @@ class UploadController:
             if bf_recipe !="":
                 try:
                     StrikeTemp=bf_recipe['data']['strikeTemp']
-                except:
+                except (KeyError, TypeError):
                     StrikeTemp = None
                 # BF is sending all Temeprature values in °C. If system is running in F, values need to be converted
                 if StrikeTemp is not None and self.TEMP_UNIT != "C":
@@ -745,7 +757,7 @@ class UploadController:
                 hops=bf_recipe['hops']
                 try:
                     miscs = bf_recipe['miscs']
-                except:
+                except KeyError:
                     miscs = None
 
                 FirstWort = self.getFirstWort(hops, "bf")
@@ -761,7 +773,7 @@ class UploadController:
                         step_name = step['name']
                         if step_name == "":
                             step_name = "MashStep"
-                    except:
+                    except (KeyError, TypeError):
                         step_name = "MashStep"
 
 
@@ -921,7 +933,7 @@ class UploadController:
         for i in range(0,6):
             try:
                 hop_alerts.append(str(int(alerts[i])))
-            except:
+            except IndexError:
                 hop_alerts.append(None)
         return hop_alerts
 
@@ -1013,11 +1025,11 @@ class UploadController:
 
         try:
             self.kettle = self.cbpi.kettle.find_by_id(self.id) 
-        except:
+        except Exception:
             self.cbpi.notify('Recipe Upload', 'No default Kettle defined. Please specify default Kettle in settings', NotificationType.ERROR)
         try:
             self.boilkettle = self.cbpi.kettle.find_by_id(self.boilid) 
-        except:
+        except Exception:
             self.boilkettle = self.kettle
 
         config_values = { "kettle": self.kettle,

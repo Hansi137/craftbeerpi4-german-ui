@@ -1,3 +1,21 @@
+"""step.py - Basisklassen fuer Maisch- und Gaerungsschritte
+
+Definiert die Schritttypen CBPiStep (Maischprozess) und CBPiFermentationStep
+(Gaerungsprozess) mit State-Machine-Logik.
+
+Zustandsuebergaenge (StepState):
+    INITIAL -> ACTIVE -> DONE|STOP|ERROR
+              ACTIVE -> next() -> naechster Schritt
+              STOP   -> start() -> Resume
+
+Plugin-Implementierung:
+    class MeinMaischSchritt(CBPiStep):
+        async def on_start(self): ...   # Initialisierung
+        async def run(self): ...        # Hauptlogik (Timer, Temperaturregelung)
+        async def on_stop(self): ...    # Aufraeumen
+        async def reset(self): ...      # Zuruecksetzen
+"""
+
 import asyncio
 import logging
 from abc import abstractmethod

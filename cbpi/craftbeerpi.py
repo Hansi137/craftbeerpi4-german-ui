@@ -1,7 +1,27 @@
 
+"""
+craftbeerpi.py - Hauptmodul des CraftBeerPi4-Servers
+
+Dieses Modul enthält die zentrale CraftBeerPi-Klasse, die als Kern der gesamten
+Brausteuerungsanwendung fungiert. Es initialisiert den aiohttp-Webserver,
+registriert alle Controller (Aktoren, Sensoren, Kessel, Schritte etc.),
+richtet Middleware für Fehlerbehandlung und Authentifizierung ein und
+startet das Plugin-System.
+
+Architektur-Überblick:
+    CraftBeerPi (Hauptklasse)
+    ├── EventBus       - Pub/Sub Event-System für interne Kommunikation
+    ├── WebSocket      - Echtzeit-Push-Updates an verbundene Clients
+    ├── Controller     - 17 Business-Logic-Module (Actor, Sensor, Kettle, Step, ...)
+    ├── HTTP-Endpoints - REST-API für Frontend und externe Systeme
+    ├── Plugin-System  - Dynamisches Laden von Erweiterungen
+    └── MQTT/Satellite - Optionale Anbindung externer Geräte via MQTT
+"""
+
 import asyncio
 import sys
 try:
+    # Windows benötigt eine spezielle Event-Loop-Policy für asyncio
     from asyncio import set_event_loop_policy, WindowsSelectorEventLoopPolicy
 except ImportError:
     pass
@@ -62,8 +82,19 @@ from cbpi.http_endpoints.http_fermentation import FermentationHttpEndpoints
 import shortuuid
 logger = logging.getLogger(__name__)
 
+
 @web.middleware
 async def error_middleware(request, handler):
+    """
+    Globale Fehlerbehandlungs-Middleware für alle HTTP-Anfragen.
+    
+    Fängt verschiedene Exception-Typen ab und wandelt sie in
+    einheitliche JSON-Fehlerantworten (HTTP 500) um:
+    - CBPiException: Anwendungsspezifische Fehler
+    - MultipleInvalid: Schema-Validierungsfehler (voluptuous)
+    - HTTPException: Standard-HTTP-Fehler (nur 404 wird abgefangen)
+    - Exception: Alle sonstigen unerwarteten Fehler
+    """
     try:
         response = await handler(request)
         if response.status != 404:
@@ -85,6 +116,31 @@ async def error_middleware(request, handler):
 
 
 class CraftBeerPi:
+    """
+    Zentrale Klasse der CraftBeerPi4-Brausteuerung.
+    
+    Verantwortlich für:
+    - Initialisierung aller Controller und HTTP-Endpoints
+    - Konfiguration des aiohttp-Webservers mit Middleware-Stack
+    - Plugin-Registrierung und -Lifecycle
+    - WebSocket und MQTT Event-Broadcasting
+    - Startup-/Shutdown-Orchestrierung aller Subsysteme
+    
+    Attribute:
+        version (str): Aktuelle CraftBeerPi-Version (z.B. "4.0.5.a12")
+        config_folder (ConfigFolder): Verwaltung des Konfigurationsverzeichnisses
+        static_config (dict): Statische YAML-Konfiguration (Port, MQTT, etc.)
+        app (web.Application): aiohttp-Webanwendungsinstanz
+        bus (CBPiEventBus): Internes Pub/Sub Event-System
+        actor (ActorController): Verwaltung von Aktoren (Heizer, Pumpen, Ventile)
+        sensor (SensorController): Verwaltung von Sensoren (Temperatur, Druck)
+        kettle (KettleController): Verwaltung von Kesseln mit Heizlogik
+        step (StepController): Orchestrierung des Maischprozesses
+        recipe (RecipeController): Rezeptverwaltung (YAML-basiert)
+        fermenter (FermentationController): Gärungssteuerung
+        satellite (SatelliteController|None): MQTT-Anbindung (optional)
+        ws (CBPiWebSocket): WebSocket-Handler für Echtzeit-Updates
+    """
 
     def __init__(self, configFolder):
 

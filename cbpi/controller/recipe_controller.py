@@ -1,3 +1,21 @@
+"""recipe_controller.py - Rezeptverwaltung (YAML-basiert)
+
+Verwaltet Braurezepte als YAML-Dateien im recipes/-Ordner.
+Jedes Rezept hat eine eindeutige ID (shortuuid) und enthaelt
+Grundinformationen (Name, Autor) sowie eine Liste von Maisch-Schritten.
+
+Rezept-Format (YAML):
+    basic:
+        name: Mein Pale Ale
+        author: Max Mustermann
+    steps:
+        - name: Einmaischen
+          type: MashInStep
+          props: {temp: 57, kettle: abc}
+        - name: Maltoserast
+          type: MashStep
+          props: {temp: 63, timer: 30}
+"""
 
 import logging
 import os.path

@@ -1,3 +1,16 @@
+"""http_recipe.py - REST-API Endpunkte fuer Rezeptverwaltung
+
+Routen:
+    GET    /recipe/              - Alle Rezepte auflisten
+    GET    /recipe/{name}        - Rezept-Details abrufen
+    POST   /recipe/create        - Neues leeres Rezept erstellen
+    PUT    /recipe/{name}        - Rezept speichern/aktualisieren
+    DELETE /recipe/{name}        - Rezept loeschen
+    POST   /recipe/{name}/brew   - Rezept in den Brauprozess laden
+    POST   /recipe/{id}/clone    - Rezept duplizieren
+"""
+
+import logging
 from cbpi.controller.recipe_controller import RecipeController
 from cbpi.api.dataclasses import Props, Step
 from aiohttp import web
@@ -57,7 +70,7 @@ class RecipeHttpEndpoints():
                 description: successful operation
         """
         data = await request.json()
-        print(data)
+        logging.debug("Create recipe: %s", data.get("name"))
         return web.json_response(dict(id=await self.controller.create(data.get("name"))))
        
     
@@ -89,7 +102,7 @@ class RecipeHttpEndpoints():
         data = await request.json()
         name = request.match_info['name']
         await self.controller.save(name, data)
-        print(data)
+        logging.debug("Recipe '%s' saved", name)
         return web.Response(status=204)
     
     @request_mapping(path="/{name}", method="DELETE", auth_required=False)
