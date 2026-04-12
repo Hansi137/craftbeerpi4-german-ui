@@ -1541,7 +1541,7 @@
   // ============================================================
   // ERSTEINRICHTUNGS-ASSISTENT (Onboarding)
   // ============================================================
-  var ONBOARDING_KEY = 'cbpi_onboarding_done';
+  var ONBOARDING_KEY = 'cbpi_onboarding_v4.1';
 
   function showOnboarding() {
     var old = document.getElementById('cbpi-onboarding');
@@ -1550,14 +1550,14 @@
     var steps = {
       de: [
         { icon: '', title: 'Willkommen bei CraftBeerPi!', text: 'Dieser kurze Assistent zeigt dir in 4 Schritten, wie du deine Brauanlage einrichtest und dein erstes Bier braust.' },
-        { icon: '', title: 'Schritt 1: Hardware einrichten', text: 'Öffne <b>Hardware</b> im Seitenmenü:<br><br>1. <b>Sensor anlegen</b> – Wähle „OneWire" als Typ. Dein DS18B20 wird automatisch erkannt.<br><br>2. <b>Aktoren anlegen</b> – Wähle „GPIOActor". Erstelle einen für die <b>Heizung</b> (GPIO 17) und einen für das <b>Rührwerk</b> (GPIO 27). Setze <b>Inverted = Yes</b>!<br><br>3. <b>Kessel anlegen</b> – Verknüpfe den Sensor mit Heizung und Rührwerk.' },
+        { icon: '', title: 'Schritt 1: Hardware einrichten', text: 'Öffne <b>Hardware</b> im Seitenmenü:<br><br>1. <b>Sensor anlegen</b> – Wähle „OneWire" als Typ. Dein DS18B20 wird automatisch erkannt.<br><br>2. <b>Aktoren anlegen</b> – Wähle „GPIOActor". Erstelle einen für die <b>Heizung</b> und einen für das <b>Rührwerk</b>. Gib jeweils den <b>GPIO-Pin</b> an, an dem dein Relais angeschlossen ist.<br>⚠️ Die meisten Relais-Boards sind <b>Active-Low</b> → setze <b>Inverted = Yes</b>!<br><br>3. <b>Kessel anlegen</b> – Verknüpfe den Sensor mit Heizung und Rührwerk.' },
         { icon: '', title: 'Schritt 2: Rezept erstellen', text: 'Öffne das <b>Rezeptbuch</b>:<br><br>• Erstelle ein neues Rezept (+ Button)<br>• Gib Name und Autor ein<br>• Füge Brau-Schritte hinzu:<br>&nbsp;&nbsp;– <b>Einmaischen</b> (z.B. 52°C)<br>&nbsp;&nbsp;– <b>Maisch-Schritt</b> (z.B. 63°C für 45 Min)<br>&nbsp;&nbsp;– <b>Kochschritt</b> (z.B. 100°C für 60 Min)<br>&nbsp;&nbsp;– <b>Abkühlschritt</b> (z.B. 20°C)' },
         { icon: '', title: 'Schritt 3: Brauen!', text: 'Lade dein Rezept ins <b>Maischprofil</b> und drücke <b>Start</b>!<br><br>CraftBeerPi regelt automatisch:<br>• Temperatur hochheizen<br>• Rasten einhalten<br>• Rührwerk steuern<br>• Benachrichtigungen bei jedem Schritt<br><br>Auf dem <b>Dashboard</b> siehst du alles live.' },
         { icon: '', title: 'Fertig! Viel Spass!', text: 'Deine Brauanlage ist bereit!<br><br><b>Tipps:</b><br>• Im <b>Dashboard</b> kannst du Widgets anordnen<br>• Unter <b>Einstellungen</b> kannst du CSV-Logging aktivieren<br>• Unter <b>System</b> findest du Logs und Neustart<br>• Klicke <b>?</b> oben rechts um diese Hilfe erneut anzuzeigen<br><br><b>Dashboard-Grafiken:</b> Auf <a href="https://github.com/craftbeerpi/craftbeerpi-ui-widgets" target="_blank" style="color:#f0a030;">github.com/craftbeerpi/craftbeerpi-ui-widgets</a> findest du eine umfangreiche SVG-Sammlung (Kessel, Rohre, Ventile, Flaschen u.v.m.) von kalausr. ZIP herunterladen und den Inhalt nach <code>~/config/widgets</code> kopieren.<br><br>Prost!' }
       ],
       en: [
         { icon: '', title: 'Welcome to CraftBeerPi!', text: 'This quick guide shows you how to set up your brewery and brew your first beer in 4 steps.' },
-        { icon: '', title: 'Step 1: Set up Hardware', text: 'Open <b>Hardware</b> in the sidebar:<br><br>1. <b>Add Sensor</b> – Select "OneWire" type. Your DS18B20 will be auto-detected.<br><br>2. <b>Add Actors</b> – Select "GPIOActor". Create one for <b>Heater</b> (GPIO 17) and one for <b>Agitator</b> (GPIO 27). Set <b>Inverted = Yes</b>!<br><br>3. <b>Add Kettle</b> – Link sensor with heater and agitator.' },
+        { icon: '', title: 'Step 1: Set up Hardware', text: 'Open <b>Hardware</b> in the sidebar:<br><br>1. <b>Add Sensor</b> – Select "OneWire" type. Your DS18B20 will be auto-detected.<br><br>2. <b>Add Actors</b> – Select "GPIOActor". Create one for <b>Heater</b> and one for <b>Agitator</b>. Enter the <b>GPIO pin</b> your relay is connected to.<br>⚠️ Most relay boards are <b>Active-Low</b> → set <b>Inverted = Yes</b>!<br><br>3. <b>Add Kettle</b> – Link sensor with heater and agitator.' },
         { icon: '', title: 'Step 2: Create a Recipe', text: 'Open the <b>Recipe Book</b>:<br><br>• Create a new recipe (+ button)<br>• Enter name and author<br>• Add brew steps:<br>&nbsp;&nbsp;– <b>MashIn</b> (e.g. 52°C)<br>&nbsp;&nbsp;– <b>MashStep</b> (e.g. 63°C for 45 min)<br>&nbsp;&nbsp;– <b>BoilStep</b> (e.g. 100°C for 60 min)<br>&nbsp;&nbsp;– <b>CooldownStep</b> (e.g. 20°C)' },
         { icon: '', title: 'Step 3: Start Brewing!', text: 'Load your recipe into the <b>Mash Profile</b> and press <b>Start</b>!<br><br>CraftBeerPi automatically controls:<br>• Heating to target temperature<br>• Holding rest temperatures<br>• Agitator control<br>• Notifications at each step<br><br>Watch everything live on the <b>Dashboard</b>.' },
         { icon: '', title: 'All set! Enjoy!', text: 'Your brewery is ready!<br><br><b>Tips:</b><br>• Arrange widgets on the <b>Dashboard</b><br>• Enable CSV logging in <b>Settings</b><br>• Find logs & restart in <b>System</b><br>• Click <b>?</b> in the top bar to show this guide again<br><br><b>Dashboard Graphics:</b> Find a comprehensive SVG collection (kettles, pipes, valves, bottles and more) by kalausr at <a href="https://github.com/craftbeerpi/craftbeerpi-ui-widgets" target="_blank" style="color:#f0a030;">github.com/craftbeerpi/craftbeerpi-ui-widgets</a>. Download the ZIP and copy contents to <code>~/config/widgets</code>.<br><br>Cheers!' }
@@ -2970,7 +2970,8 @@
       html += '<div class="cockpit-setup-item"><span class="icon">⚡</span><div class="info"><span class="label">' + (de ? 'Aktor' : 'Actor') + '</span><span class="value">' + (a.name || a.id) + '</span></div></div>';
     });
     if (sensors.length === 0 && actors.length === 0 && kettles.length === 0) {
-      html += '<div class="cockpit-setup-item"><span class="icon">⚠️</span><div class="info"><span class="label">' + (de ? 'Hinweis' : 'Note') + '</span><span class="value">' + (de ? 'Noch keine Hardware eingerichtet' : 'No hardware configured yet') + '</span></div></div>';
+      html += '<div class="cockpit-setup-item cockpit-setup-empty"><span class="icon">⚠️</span><div class="info"><span class="label">' + (de ? 'Hinweis' : 'Note') + '</span><span class="value">' + (de ? 'Noch keine Hardware eingerichtet' : 'No hardware configured yet') + '</span></div></div>';
+      html += '<a href="#/hardware" class="cockpit-hw-btn">🔧 ' + (de ? 'Hardware einrichten' : 'Set up Hardware') + '</a>';
     }
     html += '</div></div>';
 
@@ -8107,15 +8108,41 @@
           return;
         }
         var localPlugins = plugins.filter(function(p) { return p.Name || p.name; });
-        listEl.innerHTML = localPlugins.map(function(p) {
+        listEl.innerHTML = localPlugins.map(function(p, pi) {
           var name = p.Name || p.name || 'Unknown';
           var version = p.Version || p.version || '';
           var desc = p.Description || p.description || '';
+          var shortDesc = '';
+          var hasMore = false;
+          if (desc) {
+            // Ersten Satz extrahieren oder bei 120 Zeichen abschneiden
+            var firstSentence = desc.match(/^[^.!?\n]+[.!?]/);
+            if (firstSentence && firstSentence[0].length < 200) {
+              shortDesc = firstSentence[0];
+            } else {
+              shortDesc = desc.substring(0, 120);
+            }
+            hasMore = desc.length > shortDesc.length + 10;
+          }
           return '<div class="plugin-item">' +
             '<div class="plugin-item-name">' + name + (version ? ' <span class="plugin-version">v' + version + '</span>' : '') + '</div>' +
-            (desc ? '<div class="plugin-item-desc">' + desc + '</div>' : '') +
+            (shortDesc ? '<div class="plugin-item-desc">' + shortDesc + (hasMore ? '… <button class="plugin-more-btn" data-idx="' + pi + '">' + (de ? 'mehr' : 'more') + '</button>' : '') + '</div>' : '') +
+            (hasMore ? '<div class="plugin-item-full" id="plugin-full-' + pi + '" style="display:none"><div class="plugin-item-desc">' + desc + '</div></div>' : '') +
           '</div>';
         }).join('');
+
+        // "mehr" Buttons
+        listEl.addEventListener('click', function(e) {
+          var btn = e.target.closest('.plugin-more-btn');
+          if (!btn) return;
+          var idx = btn.getAttribute('data-idx');
+          var full = document.getElementById('plugin-full-' + idx);
+          if (full) {
+            var visible = full.style.display !== 'none';
+            full.style.display = visible ? 'none' : 'block';
+            btn.textContent = visible ? (de ? 'mehr' : 'more') : (de ? 'weniger' : 'less');
+          }
+        });
       })
       .catch(function() {
         listEl.innerHTML = '<div class="plugin-error">' + (de ? 'Fehler beim Laden' : 'Error loading') + '</div>';

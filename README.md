@@ -138,7 +138,7 @@ Nach dem ersten Start erscheint der Onboarding-Assistent. Falls nicht, klicke au
 
 1. Navigiere zu **Hardware → Aktoren → Neu**
 2. Wähle Typ: `GPIOActor`
-3. GPIO-Pin angeben (z.B. `17` für Heizung, `27` für Rührwerk)
+3. GPIO-Pin angeben — den Pin, an dem dein Relais angeschlossen ist
 4. Prüfe dein Relais-Board: **Inverted = Ja** falls Active-Low (die meisten 5V-Relais)
 
 ### 3. Kessel anlegen
