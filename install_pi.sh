@@ -66,8 +66,13 @@ echo ""
 # ──────────────────────────────────────────────
 echo -e "${BLUE}[1/8] Systempakete installieren...${NC}"
 
+# needrestart-Dialog unterdrücken (blockiert sonst non-interaktive Installation)
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=a
+export NEEDRESTART_SUSPEND=1
+
 apt-get update -y
-apt-get install -y \
+apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" install \
     python3 python3-pip python3-venv python3-dev \
     git build-essential libssl-dev libffi-dev \
     libatlas-base-dev
