@@ -443,6 +443,107 @@
     'Ramp to this temp': {
       de: 'Aufheizen bis zu dieser Temperatur',
       en: 'Ramp to this temp'
+    },
+    // --- GPIOActor ---
+    'No: Active on high; Yes: Active on low': {
+      de: 'Nein: Aktiv bei HIGH; Ja: Aktiv bei LOW (invertiert)',
+      en: 'No: Active on high; Yes: Active on low'
+    },
+    'No. Active on high; Yes: Active on low': {
+      de: 'Nein: Aktiv bei HIGH; Ja: Aktiv bei LOW (invertiert)',
+      en: 'No. Active on high; Yes: Active on low'
+    },
+    'Time in seconds for power base interval (Default:5)': {
+      de: 'PWM-Zykluszeit in Sekunden (Standard: 5)',
+      en: 'Time in seconds for power base interval (Default:5)'
+    },
+    'Power Setting [0-100]': {
+      de: 'Leistung [0-100]',
+      en: 'Power Setting [0-100]'
+    },
+    // --- OneWire Sensor ---
+    'Sensor Offset (Default is 0)': {
+      de: 'Sensor-Offset zur Kalibrierung (Standard: 0)',
+      en: 'Sensor Offset (Default is 0)'
+    },
+    'Interval in Seconds': {
+      de: 'Abtastintervall in Sekunden',
+      en: 'Interval in Seconds'
+    },
+    // --- Hysteresis Kessel-Logik ---
+    'Offset below target temp when heater should switched on': {
+      de: 'Offset unter Zieltemp. zum Einschalten des Heizers',
+      en: 'Offset below target temp when heater should switched on'
+    },
+    'Offset below target temp when heater should switched off': {
+      de: 'Offset unter Zieltemp. zum Ausschalten des Heizers',
+      en: 'Offset below target temp when heater should switched off'
+    },
+    // --- PIDBoil Kessel-Logik ---
+    'P Value of PID': {
+      de: 'P-Wert des PID-Reglers',
+      en: 'P Value of PID'
+    },
+    'I Value of PID': {
+      de: 'I-Wert des PID-Reglers',
+      en: 'I Value of PID'
+    },
+    'D Value of PID': {
+      de: 'D-Wert des PID-Reglers',
+      en: 'D Value of PID'
+    },
+    'PID Sample time in seconds. Default: 5 (How often is the output calculation done)': {
+      de: 'PID-Abtastzeit in Sekunden. Standard: 5 (Berechnungsintervall)',
+      en: 'PID Sample time in seconds. Default: 5 (How often is the output calculation done)'
+    },
+    'Power before Boil threshold is reached.': {
+      de: 'Leistung bevor die Kochschwelle erreicht wird',
+      en: 'Power before Boil threshold is reached.'
+    },
+    'When this temperature is reached, power will be set to Max Boil Output (default: 98 °C/208 F)': {
+      de: 'Bei dieser Temperatur wird auf Koch-Leistung umgeschaltet (Standard: 98°C)',
+      en: 'When this temperature is reached, power will be set to Max Boil Output (default: 98 °C/208 F)'
+    },
+    'Power when Boil Threshold is reached.': {
+      de: 'Leistung wenn die Kochschwelle erreicht ist',
+      en: 'Power when Boil Threshold is reached.'
+    },
+    // --- FermenterHysteresis ---
+    "Offset as decimal number when the heater is switched on. Should be greater then 'HeaterOffsetOff'. For example a value of 2 switches on the heater if the current temperature is 2 degrees below the target temperature": {
+      de: "Offset zum Einschalten des Heizers (Dezimalzahl). Sollte größer als 'HeaterOffsetOff' sein. Beispiel: Bei Wert 2 schaltet der Heizer ein, wenn die Temperatur 2°C unter der Zieltemperatur liegt",
+      en: "Offset as decimal number when the heater is switched on. Should be greater then 'HeaterOffsetOff'. For example a value of 2 switches on the heater if the current temperature is 2 degrees below the target temperature"
+    },
+    "Offset as decimal number when the heater is switched off. Should be smaller then 'HeaterOffsetOn'. For example a value of 1 switches off the heater if the current temperature is 1 degree below the target temperature": {
+      de: "Offset zum Ausschalten des Heizers (Dezimalzahl). Sollte kleiner als 'HeaterOffsetOn' sein. Beispiel: Bei Wert 1 schaltet der Heizer aus, wenn die Temperatur 1°C unter der Zieltemperatur liegt",
+      en: "Offset as decimal number when the heater is switched off. Should be smaller then 'HeaterOffsetOn'. For example a value of 1 switches off the heater if the current temperature is 1 degree below the target temperature"
+    },
+    "Offset as decimal number when the cooler is switched on. Should be greater then 'CoolerOffsetOff'. For example a value of 2 switches on the cooler if the current temperature is 2 degrees below the target temperature": {
+      de: "Offset zum Einschalten der Kühlung (Dezimalzahl). Sollte größer als 'CoolerOffsetOff' sein. Beispiel: Bei Wert 2 schaltet die Kühlung ein, wenn die Temperatur 2°C über der Zieltemperatur liegt",
+      en: "Offset as decimal number when the cooler is switched on. Should be greater then 'CoolerOffsetOff'. For example a value of 2 switches on the cooler if the current temperature is 2 degrees below the target temperature"
+    },
+    "Offset as decimal number when the cooler is switched off. Should be smaller then 'CoolerOffsetOn'. For example a value of 1 switches off the cooler if the current temperature is 1 degree below the target temperature": {
+      de: "Offset zum Ausschalten der Kühlung (Dezimalzahl). Sollte kleiner als 'CoolerOffsetOn' sein. Beispiel: Bei Wert 1 schaltet die Kühlung aus, wenn die Temperatur 1°C über der Zieltemperatur liegt",
+      en: "Offset as decimal number when the cooler is switched off. Should be smaller then 'CoolerOffsetOn'. For example a value of 1 switches off the cooler if the current temperature is 1 degree below the target temperature"
+    },
+    'Autostart Fermenter on cbpi start': {
+      de: 'Gärbehälter beim Systemstart automatisch starten',
+      en: 'Autostart Fermenter on cbpi start'
+    },
+    'Optional Sensor for LCDisplay(e.g. iSpindle)': {
+      de: 'Optionaler Sensor für LC-Display (z.B. iSpindle)',
+      en: 'Optional Sensor for LCDisplay(e.g. iSpindle)'
+    },
+    'Offset above target pressure as decimal number when the valve is opened': {
+      de: 'Offset über Zieldruck (Dezimalzahl) zum Öffnen des Ventils',
+      en: 'Offset above target pressure as decimal number when the valve is opened'
+    },
+    'Valve Release time in seconds': {
+      de: 'Ventil-Öffnungszeit in Sekunden',
+      en: 'Valve Release time in seconds'
+    },
+    'Pause time in seconds between valve release': {
+      de: 'Pausenzeit in Sekunden zwischen Ventilöffnungen',
+      en: 'Pause time in seconds between valve release'
     }
   };
 
@@ -7133,11 +7234,11 @@
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-kettle-delete="' + k.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
           html += '</button>';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-kettle-view="' + k.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
           html += '</button>';
           html += '</td></tr>';
         });
@@ -7243,11 +7344,11 @@
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-sensor-delete="' + s.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
           html += '</button>';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-sensor-view="' + s.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
           html += '</button>';
           html += '</td></tr>';
         });
@@ -7383,11 +7484,11 @@
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-actor-delete="' + act.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
           html += '</button>';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-actor-view="' + act.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
           html += '</button>';
           html += '</td></tr>';
         });
@@ -7880,7 +7981,7 @@
         '<div><span class="MuiTypography-root MuiTypography-h6" style="color:#00FF00">' + (de ? 'Gärbehälter' : 'Fermenter') + '</span></div>' +
         '<div><button class="MuiButtonBase-root MuiIconButton-root" id="fermenter-hw-add-hdr" style="display:flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px" title="' + (de ? 'Hinzufügen' : 'Add') + '">' +
           '<span style="font-size:1.5rem;line-height:1">+</span>' +
-          '<span style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'HINZUFÜGEN' : 'ADD') + '</span>' +
+          '<span class="cbpi-icon-label" style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'HINZUFÜGEN' : 'ADD') + '</span>' +
         '</button></div>' +
       '</div>' +
       '<div class="fermenter-hw-content" id="fermenter-hw-content">' +
@@ -7945,15 +8046,15 @@
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-delete="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
           html += '</button>';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-edit="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
-          html += '<span style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
           html += '</button>';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-view="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Anzeigen' : 'View') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
-          html += '<span style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'ANZEIGEN' : 'VIEW') + '</span>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'ANZEIGEN' : 'VIEW') + '</span>';
           html += '</button>';
           html += '</td>';
           html += '</tr>';

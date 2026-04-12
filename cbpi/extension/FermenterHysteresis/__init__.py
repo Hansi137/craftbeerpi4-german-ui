@@ -83,10 +83,12 @@ class FermenterHysteresis(CBPiFermenterLogic):
 
                 try:
                     heater_state = heater.instance.state
-                except (AttributeError, TypeError):`n                    heater_state= False
+                except (AttributeError, TypeError):
+                    heater_state = False
                 try:
                     cooler_state = cooler.instance.state
-                except (AttributeError, TypeError):`n                    cooler_state= False
+                except (AttributeError, TypeError):
+                    cooler_state = False
 
                 if sensor_value + self.heater_offset_min <= target_temp:
                     if self.heater and (heater_state == False):
@@ -173,10 +175,12 @@ class FermenterSpundingHysteresis(CBPiFermenterLogic):
 
                 try:
                     heater_state = heater.instance.state
-                except (AttributeError, TypeError):`n                    heater_state= False
+                except (AttributeError, TypeError):
+                    heater_state = False
                 try:
                     cooler_state = cooler.instance.state
-                except (AttributeError, TypeError):`n                    cooler_state= False
+                except (AttributeError, TypeError):
+                    cooler_state = False
 
                 if sensor_value + self.heater_offset_min <= target_temp:
                     if self.heater and (heater_state == False):
