@@ -87,6 +87,7 @@ class MashInStep(CBPiStep):
         await self.next()
 
     async def on_timer_done(self,timer):
+        logging.info("MashInStep on_timer_done aufgerufen - Heizung wird abgeschaltet")
         self.summary = ""
         self.kettle.target_temp = 0
         if self.agitator:
@@ -94,7 +95,9 @@ class MashInStep(CBPiStep):
         await self.push_update()
         if self.AutoMode == True:
             await self.setAutoMode(False)
-        self.cbpi.notify(self.name, self.props.get("Notification","Target Temp reached. Please add malt and klick next to move on."), action=[NotificationAction("Next Step", self.NextStep)])
+        notification_text = self.props.get("Notification","Target Temp reached. Please add malt and klick next to move on.")
+        logging.info("MashInStep Benachrichtigung: '{}'".format(notification_text))
+        self.cbpi.notify(self.name, notification_text, action=[NotificationAction("Next Step", self.NextStep)])
 
     async def on_timer_update(self,timer, seconds):
         await self.push_update()
@@ -102,8 +105,10 @@ class MashInStep(CBPiStep):
     async def on_start(self):
         self.AutoMode = True if self.props.get("AutoMode","No") == "Yes" else False
         self.kettle=self.get_kettle(self.props.get("Kettle", None))
+        self.target_temp = int(float(self.props.get("Temp", 0)))
+        self._timer_started = False
         if self.kettle is not None:
-            self.kettle.target_temp = int(self.props.get("Temp", 0))
+            self.kettle.target_temp = self.target_temp
         if self.AutoMode == True:
             await self.setAutoMode(True)
         self.agitator = self.props.get("Agitator", None)
@@ -112,6 +117,8 @@ class MashInStep(CBPiStep):
         self.summary = "Waiting for Target Temp"
         if self.cbpi.kettle is not None and self.timer is None:
             self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
+        logging.info("MashInStep gestartet: Ziel={}°C, Sensor={}, Timer={}".format(
+            self.target_temp, self.props.get("Sensor", None), self.timer is not None))
         await self.push_update()
 
     async def on_stop(self):
@@ -124,17 +131,29 @@ class MashInStep(CBPiStep):
         await self.push_update()
 
     async def run(self):
+        logging.info("MashInStep run() gestartet, running={}, target={}".format(self.running, self.target_temp))
+        _iter = 0
         while self.running == True:
            await asyncio.sleep(1)
-           sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
-           if sensor_value >= int(self.props.get("Temp",0)) and self.timer.is_running is not True:
-               self.timer.start()
-               self.timer.is_running = True
+           _iter += 1
+           try:
+               sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
+               if _iter <= 3 or _iter % 30 == 0:
+                   logging.info("MashInStep iter {}: sensor={}, target={}, timer_started={}".format(
+                       _iter, sensor_value, self.target_temp, self._timer_started))
+               if sensor_value is not None and sensor_value >= self.target_temp and not self._timer_started:
+                   logging.info("MashInStep: Zieltemperatur erreicht ({}°C >= {}°C), Timer startet".format(sensor_value, self.target_temp))
+                   self._timer_started = True
+                   self.timer.start()
+                   self.timer.is_running = True
+           except Exception as e:
+               logging.error("MashInStep Fehler in run() iter {}: {} ({})".format(_iter, e, type(e).__name__))
         await self.push_update()
         return StepResult.DONE
 
     async def reset(self):
         self.agitator = self.props.get("Agitator", None)
+        self._timer_started = False
         self.timer = Timer(1 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
     async def setAutoMode(self, auto_state):
@@ -194,8 +213,10 @@ class MashStep(CBPiStep):
         self.AutoMode = True if self.props.get("AutoMode", "No") == "Yes" else False
         self.agitator = self.props.get("Agitator", None)
         self.kettle=self.get_kettle(self.props.Kettle)
+        self.target_temp = int(float(self.props.get("Temp", 0)))
+        self._timer_started = False
         if self.kettle is not None:
-            self.kettle.target_temp = int(self.props.get("Temp", 0))
+            self.kettle.target_temp = self.target_temp
         if self.AutoMode == True:
             await self.setAutoMode(True)
         if self.agitator:
@@ -203,15 +224,18 @@ class MashStep(CBPiStep):
         await self.push_update()
 
         if self.cbpi.kettle is not None and self.timer is None:
-            self.timer = Timer(int(self.props.get("Timer",0)) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
+            self.timer = Timer(int(float(self.props.get("Timer",0))) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
         elif self.cbpi.kettle is not None:
             try:
                 if self.timer.is_running == True:
+                    self._timer_started = True
                     self.timer.start()
             except Exception:
                 pass
 
         self.summary = "Waiting for Target Temp"
+        logging.info("MashStep gestartet: {}, Ziel={}°C, Timer={}min".format(
+            self.name, self.target_temp, self.props.get("Timer", 0)))
         await self.push_update()
 
     async def on_stop(self):
@@ -225,17 +249,25 @@ class MashStep(CBPiStep):
 
     async def reset(self):
         self.agitator = self.props.get("Agitator", None)
-        self.timer = Timer(int(self.props.get("Timer",0)) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
+        self._timer_started = False
+        self.timer = Timer(int(float(self.props.get("Timer",0))) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
     async def run(self):
+        logging.info("MashStep run() gestartet: {}, running={}, target={}".format(self.name, self.running, self.target_temp))
         while self.running == True:
             await asyncio.sleep(1)
-            sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
-            if sensor_value >= int(self.props.get("Temp",0)) and self.timer.is_running is not True:
-                self.timer.start()
-                self.timer.is_running = True
-                estimated_completion_time = datetime.fromtimestamp(time.time()+ (int(self.props.get("Timer",0)))*60)
-                self.cbpi.notify(self.name, 'Timer started. Estimated completion: {}'.format(estimated_completion_time.strftime("%H:%M")), NotificationType.INFO)
+            try:
+                sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
+                if sensor_value is not None and sensor_value >= self.target_temp and not self._timer_started:
+                    self._timer_started = True
+                    self.timer.start()
+                    self.timer.is_running = True
+                    estimated_completion_time = datetime.fromtimestamp(time.time()+ (int(float(self.props.get("Timer",0))))*60)
+                    logging.info("MashStep {}: Zieltemperatur erreicht ({}°C >= {}°C), Timer startet bis {}".format(
+                        self.name, sensor_value, self.target_temp, estimated_completion_time.strftime("%H:%M")))
+                    self.cbpi.notify(self.name, 'Timer started. Estimated completion: {}'.format(estimated_completion_time.strftime("%H:%M")), NotificationType.INFO)
+            except Exception as e:
+                logging.error("MashStep {} Fehler in run(): {} ({})".format(self.name, e, type(e).__name__))
         return StepResult.DONE
 
     async def setAutoMode(self, auto_state):
@@ -365,8 +397,9 @@ class BoilStep(CBPiStep):
 
     @action("Start Timer", [])
     async def start_timer(self):
-        if self.timer.is_running is not True:
+        if not self._timer_started:
             self.cbpi.notify(self.name, 'Timer started', NotificationType.INFO)
+            self._timer_started = True
             self.timer.start()
             self.timer.is_running = True
         else:
@@ -402,17 +435,20 @@ class BoilStep(CBPiStep):
         self.first_wort_hop=self.props.get("First_Wort", "No")
         self.hops_added=["","","","","",""]
         self.remaining_seconds = None
+        self._timer_started = False
 
         self.kettle=self.get_kettle(self.props.get("Kettle", None))
+        self.target_temp = int(float(self.props.get("Temp", 0)))
         if self.kettle is not None:
-            self.kettle.target_temp = int(self.props.get("Temp", 0))
+            self.kettle.target_temp = self.target_temp
 
         if self.cbpi.kettle is not None and self.timer is None:
-            self.timer = Timer(int(self.props.get("Timer", 0)) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
+            self.timer = Timer(int(float(self.props.get("Timer", 0))) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
         elif self.cbpi.kettle is not None:
             try:
                 if self.timer.is_running == True:
+                    self._timer_started = True
                     self.timer.start()
             except Exception:
                 pass
@@ -437,7 +473,8 @@ class BoilStep(CBPiStep):
         await self.push_update()
 
     async def reset(self):
-        self.timer = Timer(int(self.props.get("Timer", 0)) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
+        self._timer_started = False
+        self.timer = Timer(int(float(self.props.get("Timer", 0))) *60 ,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
     async def run(self):
         if self.first_wort_hop_flag == False and self.first_wort_hop == "Yes":
@@ -446,20 +483,24 @@ class BoilStep(CBPiStep):
 
         while self.running == True:
             await asyncio.sleep(1)
-            sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
-            
-            if self.lid_flag == True and sensor_value >= self.lid_temp:
-                self.cbpi.notify("Please remove lid!", "Reached temp close to boiling", NotificationType.INFO)
-                self.lid_flag = False
+            try:
+                sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
+                
+                if self.lid_flag == True and sensor_value is not None and sensor_value >= self.lid_temp:
+                    self.cbpi.notify("Please remove lid!", "Reached temp close to boiling", NotificationType.INFO)
+                    self.lid_flag = False
 
-            if sensor_value >= int(self.props.get("Temp", 0)) and self.timer.is_running is not True:
-                self.timer.start()
-                self.timer.is_running = True
-                estimated_completion_time = datetime.fromtimestamp(time.time()+ (int(self.props.get("Timer", 0)))*60)
-                self.cbpi.notify(self.name, 'Timer started. Estimated completion: {}'.format(estimated_completion_time.strftime("%H:%M")), NotificationType.INFO)
-            else:
-                for x in range(1, 6):
-                    await self.check_hop_timer(x, self.props.get("Hop_%s" % x, None))
+                if sensor_value is not None and sensor_value >= self.target_temp and not self._timer_started:
+                    self._timer_started = True
+                    self.timer.start()
+                    self.timer.is_running = True
+                    estimated_completion_time = datetime.fromtimestamp(time.time()+ (int(float(self.props.get("Timer", 0))))*60)
+                    self.cbpi.notify(self.name, 'Timer started. Estimated completion: {}'.format(estimated_completion_time.strftime("%H:%M")), NotificationType.INFO)
+                else:
+                    for x in range(1, 6):
+                        await self.check_hop_timer(x, self.props.get("Hop_%s" % x, None))
+            except Exception as e:
+                logging.error("BoilStep Fehler in run(): {}".format(e))
 
         return StepResult.DONE
 
@@ -497,7 +538,8 @@ class CooldownStep(CBPiStep):
         self.time_array = []
         self.kettle = self.get_kettle(self.props.get("Kettle", None))
         self.actor = self.props.get("Actor", None)
-        self.target_temp = int(self.props.get("Temp",0))
+        self.target_temp = int(float(self.props.get("Temp",0)))
+        self._timer_started = False
         self.Interval = 15 # Interval in minutes on how often cooldwon end time is calculated
 
         self.cbpi.notify(self.name, 'Cool down to {}°'.format(self.target_temp), NotificationType.INFO)
@@ -518,6 +560,7 @@ class CooldownStep(CBPiStep):
         await self.push_update()
 
     async def reset(self):
+        self._timer_started = False
         self.timer = Timer(1,on_update=self.on_timer_update, on_done=self.on_timer_done)
 
     async def run(self):
@@ -545,7 +588,8 @@ class CooldownStep(CBPiStep):
                 self.cbpi.notify("Cooldown Step","Current: {}°, reaching {}° at {}".format(round(current_temp,1), self.target_temp, target_timestring.strftime("%d.%m %H:%M")), NotificationType.INFO)
                 await self.push_update()
 
-            if current_temp <= self.target_temp and self.timer.is_running is not True:
+            if current_temp <= self.target_temp and not self._timer_started:
+                self._timer_started = True
                 self.timer.start()
                 self.timer.is_running = True
 

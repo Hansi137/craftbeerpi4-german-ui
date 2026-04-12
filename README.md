@@ -113,6 +113,8 @@ Nach dem Reboot startet CraftBeerPi automatisch. Öffne im Browser:
 http://<IP-ADRESSE>:8000
 ```
 
+> **Wichtig:** Lade die Seite beim ersten Aufruf (und nach jedem Update) mit **`Strg+F5`** (Hard Reload), damit der Browser-Cache geleert wird. Sonst werden eventuell alte Dateien angezeigt und nicht alle Funktionen sind sichtbar.
+
 Der **Onboarding-Assistent** führt dich durch die Ersteinrichtung.
 
 ---
@@ -198,6 +200,8 @@ SVG-Dateien in `~/config/widgets/` ablegen, dann sind sie im Dashboard unter „
 ## 🔧 Service-Verwaltung
 
 CraftBeerPi läuft als Systemd-Service und startet automatisch beim Booten.
+
+> **Nach jedem Neustart/Update:** Browser-Cache leeren mit **`Strg+F5`** (Windows/Linux) oder **`Cmd+Shift+R`** (Mac).
 
 ```bash
 # Status prüfen

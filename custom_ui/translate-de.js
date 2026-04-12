@@ -2530,6 +2530,43 @@
         }
       }
     });
+
+    // 7. User-Action-Box (Zieltemperatur erreicht) dynamisch ein-/ausblenden
+    if (activeStep) {
+      var sensorId = activeStep.props ? activeStep.props.Sensor : null;
+      var curTemp = getSensorValue(sensorValueMap, sensorId);
+      var tarTemp = (activeStep.props && activeStep.props.Temp) ? parseFloat(activeStep.props.Temp) : null;
+      var stepType = (activeStep.type || '').toLowerCase();
+      var shouldShow = (stepType === 'mashinstep' && curTemp !== null && tarTemp !== null && curTemp >= tarTemp);
+      var actionBox = cockpit.querySelector('.cockpit-user-action');
+      var nextBtn = cockpit.querySelector('.cockpit-ctrl-btn.next');
+      if (shouldShow && !actionBox) {
+        // Box einfügen vor dem "Nächster"-Hinweis
+        var de = currentLang === 'de';
+        var notifText = (activeStep.props && activeStep.props.Notification) || (de ? 'Zieltemperatur erreicht' : 'Target temp reached');
+        var boxHtml = '<div class="cockpit-user-action">';
+        boxHtml += '<div class="cockpit-user-action-icon">⚠️</div>';
+        boxHtml += '<div class="cockpit-user-action-text">';
+        boxHtml += '<strong>' + notifText + '</strong><br>';
+        boxHtml += (de ? 'Malz zugeben und dann <b>⏭ Weiter</b> klicken' : 'Add malt, then click <b>⏭ Next</b>');
+        boxHtml += '</div></div>';
+        var nextHint = cockpit.querySelector('.cockpit-step-next');
+        if (nextHint) {
+          nextHint.insertAdjacentHTML('beforebegin', boxHtml);
+        } else {
+          // Fallback: an das Step-Card anhängen
+          var stepCard = cockpit.querySelector('.cockpit-step-name');
+          if (stepCard && stepCard.parentNode) stepCard.parentNode.insertAdjacentHTML('beforeend', boxHtml);
+        }
+        // Weiter-Button pulsieren lassen
+        if (nextBtn && !nextBtn.classList.contains('pulse')) nextBtn.classList.add('pulse');
+      } else if (!shouldShow && actionBox) {
+        actionBox.remove();
+        if (nextBtn) nextBtn.classList.remove('pulse');
+      }
+      // Pulse-Klasse synchron halten
+      if (shouldShow && nextBtn && !nextBtn.classList.contains('pulse')) nextBtn.classList.add('pulse');
+    }
   }
 
   // Lightgewicht-Update: Nur Temperaturwerte im DOM aktualisieren (kein innerHTML-Replace)
@@ -4048,8 +4085,52 @@
       if (!file) return;
       var reader = new FileReader();
       reader.onload = function (ev) {
+        var fileContent = ev.target.result;
+        var fileName = file.name.toLowerCase();
+
+        // BeerXML-Datei? → via Upload-API
+        if (fileName.endsWith('.xml') || fileName.endsWith('.beerxml')) {
+          var xmlBlob = new Blob([fileContent], { type: 'text/xml' });
+          var xmlFormData = new FormData();
+          xmlFormData.append('File', xmlBlob, file.name);
+          fetch('/upload/', {
+            method: 'POST',
+            body: xmlFormData
+          })
+            .then(function () { return fetch('/upload/xml'); })
+            .then(function (r) { return r.json(); })
+            .then(function (list) {
+              if (!list || list.length === 0) {
+                showToast(de ? 'Keine Rezepte in der XML-Datei gefunden' : 'No recipes found in XML file', 'error');
+                return;
+              }
+              // Alle Rezepte importieren
+              var imported = 0;
+              list.forEach(function (item) {
+                fetch('/upload/xml', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: item.value })
+                })
+                  .then(function () {
+                    imported++;
+                    if (imported === list.length) {
+                      showToast(de ? imported + ' BeerXML-Rezept(e) importiert!' : imported + ' BeerXML recipe(s) imported!', 'success');
+                      window.location.hash = '#/';
+                      setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
+                    }
+                  })
+                  .catch(function (err) { console.error('[CBPI] BeerXML import error:', err); });
+              });
+            })
+            .catch(function (err) {
+              showToast(de ? 'Fehler beim BeerXML-Import: ' + err.message : 'BeerXML import error: ' + err.message, 'error');
+            });
+          return;
+        }
+
         try {
-          var data = JSON.parse(ev.target.result);
+          var data = JSON.parse(fileContent);
           var recipes = [];
 
           // Format erkennen
@@ -4059,8 +4140,44 @@
           } else if (data.basic && data.steps) {
             // Einzelnes Rezept (CBPi4-Format)
             recipes = [{ name: data.basic.name || 'Import', detail: data }];
+          } else if (data.Name && (data.Rasten || data.Infusion_Rasttemperatur1 !== undefined || data.Maischform)) {
+            // MaischeMalzUndMehr (MMuM) JSON-Format
+            var blob = new Blob([fileContent], { type: 'application/json' });
+            var formData = new FormData();
+            formData.append('File', blob, 'mmum.json');
+            fetch('/upload/', {
+              method: 'POST',
+              body: formData
+            })
+              .then(function () { return fetch('/upload/json'); })
+              .then(function (r) { return r.json(); })
+              .then(function (list) {
+                if (!list || list.length === 0) {
+                  showToast(de ? 'Keine Rezepte in der MMuM-Datei gefunden' : 'No recipes found in MMuM file', 'error');
+                  return;
+                }
+                // Rezept importieren (das zuletzt hochgeladene = letzter Eintrag oder Namens-Match)
+                var target = list[list.length - 1];
+                for (var li = 0; li < list.length; li++) {
+                  if (list[li].label === data.Name) { target = list[li]; break; }
+                }
+                return fetch('/upload/json', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: target.value })
+                });
+              })
+              .then(function () {
+                showToast(de ? 'MMuM-Rezept "' + data.Name + '" importiert!' : 'MMuM recipe "' + data.Name + '" imported!', 'success');
+                window.location.hash = '#/';
+                setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
+              })
+              .catch(function (err) {
+                showToast(de ? 'Fehler beim MMuM-Import: ' + err.message : 'MMuM import error: ' + err.message, 'error');
+              });
+            return;
           } else {
-            alert(de ? 'Unbekanntes Dateiformat. Nutze CBPi4 JSON-Exporte.' : 'Unknown file format. Use CBPi4 JSON exports.');
+            showToast(de ? 'Unbekanntes Dateiformat. Unterstützt: CBPi4-JSON, MMuM-JSON, BeerXML' : 'Unknown format. Supported: CBPi4 JSON, MMuM JSON, BeerXML', 'error');
             return;
           }
 
@@ -4070,32 +4187,42 @@
           recipes.forEach(function (r) {
             var detail = r.detail || r;
             var recipeName = (detail.basic && detail.basic.name) || r.name || 'Import';
-            var body = {
-              name: recipeName,
-              author: (detail.basic && detail.basic.author) || r.author || '',
-              desc: (detail.basic && detail.basic.desc) || r.desc || '',
+            var recipeData = {
+              basic: {
+                name: recipeName,
+                author: (detail.basic && detail.basic.author) || r.author || '',
+                desc: (detail.basic && detail.basic.desc) || r.desc || ''
+              },
               steps: detail.steps || []
             };
 
-            // Neues Rezept erstellen via API
+            // 1. Rezept erstellen (POST → ID), 2. Steps speichern (PUT)
             fetch('/recipe/', {
-              method: 'PUT',
+              method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body)
+              body: JSON.stringify({ name: recipeName })
             })
+              .then(function (resp) { return resp.json(); })
+              .then(function (created) {
+                var recipeId = created.id;
+                return fetch('/recipe/' + recipeId, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(recipeData)
+                });
+              })
               .then(function () {
                 imported++;
                 if (imported === total) {
-                  alert((de ? 'Erfolgreich importiert: ' : 'Successfully imported: ') + imported + (de ? ' Rezept(e)' : ' recipe(s)'));
-                  // Seite neu laden um Rezepte anzuzeigen
+                  showToast((de ? 'Erfolgreich importiert: ' : 'Successfully imported: ') + imported + (de ? ' Rezept(e)' : ' recipe(s)'), 'success');
                   window.location.hash = '#/';
-                  setTimeout(function () { window.location.hash = '#/recipes'; }, 100);
+                  setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
                 }
               })
               .catch(function (err) { console.error('[CBPI] Import error:', err); });
           });
         } catch (err) {
-          alert((de ? 'Fehler beim Lesen der Datei: ' : 'Error reading file: ') + err.message);
+          showToast((de ? 'Fehler beim Lesen der Datei: ' : 'Error reading file: ') + err.message, 'error');
         }
       };
       reader.readAsText(file);
@@ -7085,9 +7212,13 @@
           '<th class="MuiTableCell-root MuiTableCell-head">GPIO</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Adresse / ID' : 'Address / ID') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">Interval</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:center">' + (de ? 'Wert' : 'Value') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
           '</tr>';
       }
+
+      // Sensor-IDs sammeln für Live-Werte
+      var sensorIds = sensors.map(function(s) { return s.id; });
 
       var tbody = table.querySelector('tbody');
       if (tbody) {
@@ -7106,6 +7237,9 @@
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace">' + gpio + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace;font-size:0.8rem">' + address + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + interval + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body hw-sensor-value-cell" data-hw-sensor-id="' + s.id + '" style="text-align:center;font-family:monospace;font-weight:bold">';
+          html += '<span class="hw-sensor-loading">…</span>';
+          html += '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-sensor-delete="' + s.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
@@ -7144,12 +7278,49 @@
         });
       }
 
+      // Live-Werte laden
+      fetchSensorValues(sensorIds).then(function(valMap) {
+        tbody.querySelectorAll('[data-hw-sensor-id]').forEach(function(cell) {
+          var sid = cell.getAttribute('data-hw-sensor-id');
+          var val = valMap[sid];
+          if (val !== null && val !== undefined) {
+            var numVal = parseFloat(val);
+            var display = isNaN(numVal) ? String(val) : numVal.toFixed(2) + ' °C';
+            cell.innerHTML = '<span class="hw-sensor-val">' + display + '</span>';
+          } else {
+            cell.innerHTML = '<span class="hw-sensor-noval">' + (de ? 'kein Wert' : 'no value') + '</span>';
+          }
+        });
+      });
+
+      // Auto-Refresh alle 5 Sekunden
+      if (sensorPaper._sensorInterval) clearInterval(sensorPaper._sensorInterval);
+      sensorPaper._sensorInterval = setInterval(function() {
+        if (!document.body.contains(sensorPaper)) {
+          clearInterval(sensorPaper._sensorInterval);
+          return;
+        }
+        fetchSensorValues(sensorIds).then(function(valMap) {
+          tbody.querySelectorAll('[data-hw-sensor-id]').forEach(function(cell) {
+            var sid = cell.getAttribute('data-hw-sensor-id');
+            var val = valMap[sid];
+            if (val !== null && val !== undefined) {
+              var numVal = parseFloat(val);
+              var display = isNaN(numVal) ? String(val) : numVal.toFixed(2) + ' °C';
+              cell.innerHTML = '<span class="hw-sensor-val">' + display + '</span>';
+            } else {
+              cell.innerHTML = '<span class="hw-sensor-noval">' + (de ? 'kein Wert' : 'no value') + '</span>';
+            }
+          });
+        });
+      }, 5000);
+
       sensorPaper.setAttribute('data-patched', 'true');
       _isOurDomChange = false;
     });
   }
 
-  // --- Aktor-Tabelle: GPIO + Invertiert hinzufügen, Toggle entfernen ---
+  // --- Aktor-Tabelle: GPIO + Invertiert hinzufügen ---
   function patchActorTable() {
     var papers = document.querySelectorAll('.MuiPaper-root');
     var actorPaper = null;
@@ -7184,6 +7355,7 @@
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Typ' : 'Type') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">GPIO</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Invertiert' : 'Inverted') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:center">' + (de ? 'Test' : 'Test') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
           '</tr>';
       }
@@ -7195,12 +7367,19 @@
           var props = act.props || {};
           var gpio = props.GPIO !== undefined ? 'GPIO ' + props.GPIO : '—';
           var inverted = props.Inverted || '—';
+          var actorState = act.state ? 1 : 0;
 
           html += '<tr class="MuiTableRow-root">';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (act.name || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (act.type || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace">' + gpio + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + inverted + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:center">';
+          html += '<label class="hw-actor-switch" data-hw-actor-toggle="' + act.id + '" data-hw-actor-state="' + actorState + '" title="' + (de ? 'Aktor ein-/ausschalten' : 'Toggle actor on/off') + '">';
+          html += '<input type="checkbox"' + (actorState ? ' checked' : '') + '>';
+          html += '<span class="hw-actor-slider"></span>';
+          html += '</label>';
+          html += '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-actor-delete="' + act.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
@@ -7235,6 +7414,43 @@
           btn.addEventListener('click', function() {
             var id = btn.getAttribute('data-actor-view');
             window.location.hash = '#/actor/' + id;
+          });
+        });
+
+        // Actor Toggle-Switch Event-Handler
+        tbody.querySelectorAll('[data-hw-actor-toggle]').forEach(function(sw) {
+          sw.addEventListener('click', function(e) {
+            e.preventDefault();
+            var id = sw.getAttribute('data-hw-actor-toggle');
+            if (sw.getAttribute('data-busy') === '1') return;
+            sw.setAttribute('data-busy', '1');
+            var isOn = sw.getAttribute('data-hw-actor-state') === '1';
+            var checkbox = sw.querySelector('input');
+            // Optimistisches UI-Update
+            if (isOn) {
+              sw.setAttribute('data-hw-actor-state', '0');
+              if (checkbox) checkbox.checked = false;
+            } else {
+              sw.setAttribute('data-hw-actor-state', '1');
+              if (checkbox) checkbox.checked = true;
+            }
+            fetch('/actor/' + encodeURIComponent(id) + '/' + (isOn ? 'off' : 'on'), { method: 'POST' })
+              .then(function() {
+                showToast(de ? 'Aktor ' + (isOn ? 'ausgeschaltet' : 'eingeschaltet') : 'Actor turned ' + (isOn ? 'off' : 'on'), 'success');
+                setTimeout(function() { sw.setAttribute('data-busy', '0'); }, 600);
+              })
+              .catch(function() {
+                // Revert
+                if (isOn) {
+                  sw.setAttribute('data-hw-actor-state', '1');
+                  if (checkbox) checkbox.checked = true;
+                } else {
+                  sw.setAttribute('data-hw-actor-state', '0');
+                  if (checkbox) checkbox.checked = false;
+                }
+                sw.setAttribute('data-busy', '0');
+                showToast(de ? 'Fehler beim Schalten' : 'Toggle failed', 'error');
+              });
           });
         });
       }

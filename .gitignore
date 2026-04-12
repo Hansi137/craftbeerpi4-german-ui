@@ -16,4 +16,7 @@ node_modules
 .DS_Store 
 config/*
 logs/
-.coveragepi_backup/
+.coverage
+pi_backup/
+craftbeerpi-ui-widgets-master/
+Dry_Hopped_Pilsener.json

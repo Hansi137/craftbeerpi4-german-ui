@@ -83,8 +83,9 @@ class StepController:
         # Start step after start up
         self.profile = list(map(lambda item: self.create(item), self.profile))
         if startActive is True:
-            active_step = self.find_by_status("A")
+            active_step = self.find_by_status(StepState.ACTIVE)
             if active_step is not None:
+                logging.info("Aktiven Step gefunden nach Neustart: %s" % active_step.name)
                 asyncio.get_event_loop().create_task(self.start_step(active_step))
                 #self._loop.create_task(self.start_step(active_step))
 
