@@ -480,7 +480,7 @@
 
   function translatePage() {
     translateNode(document.body);
-    document.title = 'CraftBeerPi 4.0 - ' + (currentLang === 'de' ? 'Brausteuerung' : 'Brew Controller');
+    document.title = 'CraftBeerPi 4.1 – ' + (currentLang === 'de' ? 'Brausteuerung' : 'Brew Controller');
     addMenuDescriptions();
     addIconLabels();
     addMashControlLabels();
@@ -800,8 +800,16 @@
         '&nbsp;&nbsp;• Create system backup'
     },
     '/about': {
-      de: 'CraftBeerPi – Open-Source Brausteuerung, gegründet 2015 von Manuel Fritsch. Verwendet von über 7.000 Brauern weltweit.',
-      en: 'CraftBeerPi – Open source brew controller, founded in 2015 by Manuel Fritsch. Used by over 7,000 brewers worldwide.'
+      de: '<b>CraftBeerPi4 – German UI Edition</b> v' + (window.__cbpi_version || '4.1.0') + ' „Braumeister"<br><br>' +
+        'Fork von <a href="https://github.com/Hansi137/craftbeerpi4-german-ui" target="_blank" style="color:#f0a030;">Hansi137</a> – Deutsche Oberfläche, Themes, Onboarding-Assistent, UX-Verbesserungen & Bugfixes.<br><br>' +
+        'Basiert auf <b>CraftBeerPi</b> – Open-Source Brausteuerung, gegründet 2015 von <b>Manuel Fritsch</b>.<br>' +
+        'Verwendet von über 7.000 Hobbybrauern weltweit.<br><br>' +
+        'Lizenz: <b>GPL v3</b> – Quellcode frei verfügbar.',
+      en: '<b>CraftBeerPi4 – German UI Edition</b> v' + (window.__cbpi_version || '4.1.0') + ' "Braumeister"<br><br>' +
+        'Fork by <a href="https://github.com/Hansi137/craftbeerpi4-german-ui" target="_blank" style="color:#f0a030;">Hansi137</a> – German UI, themes, onboarding wizard, UX improvements & bugfixes.<br><br>' +
+        'Based on <b>CraftBeerPi</b> – Open source brew controller, founded in 2015 by <b>Manuel Fritsch</b>.<br>' +
+        'Used by over 7,000 home brewers worldwide.<br><br>' +
+        'License: <b>GPL v3</b> – Source code freely available.'
     },
     '/actor': {
       de: '<b>Aktor anlegen</b> – Aktoren sind Schaltausgänge (Relais):<br>' +

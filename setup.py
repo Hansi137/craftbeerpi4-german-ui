@@ -16,10 +16,12 @@ if localsystem == "Linux":
 
 setup(name='cbpi',
       version=__version__,
-      description='CraftBeerPi',
+      description='CraftBeerPi4 German UI Edition – Deutsche Oberfläche, Themes, Onboarding & UX-Verbesserungen',
       author='Manuel Fritsch',
       author_email='manuel@craftbeerpi.com',
-      url='http://web.craftbeerpi.com',
+      maintainer='Hansi137',
+      url='https://github.com/Hansi137/craftbeerpi4-german-ui',
+      license='GPL-3.0',
       packages=find_packages(),
       include_package_data=True,
       package_data={
