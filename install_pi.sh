@@ -182,6 +182,26 @@ else
     fail "custom.css nicht gefunden in $CUSTOM_UI_DIR!"
 fi
 
+# index.html patchen: Custom JS + CSS einbinden
+INDEX_HTML="$(dirname "$CBPI4UI_DIR")/index.html"
+if [ -f "$INDEX_HTML" ]; then
+    # Nur patchen wenn noch nicht vorhanden
+    if ! grep -q "translate-de.js" "$INDEX_HTML"; then
+        sed -i 's|</body>|<script src="./static/js/translate-de.js"></script></body>|' "$INDEX_HTML"
+        ok "index.html: translate-de.js eingebunden"
+    else
+        ok "index.html: translate-de.js bereits vorhanden"
+    fi
+    if ! grep -q "custom.css" "$INDEX_HTML"; then
+        sed -i 's|</head>|<link href="./static/css/custom.css" rel="stylesheet"></head>|' "$INDEX_HTML"
+        ok "index.html: custom.css eingebunden"
+    else
+        ok "index.html: custom.css bereits vorhanden"
+    fi
+else
+    fail "index.html nicht gefunden: $INDEX_HTML"
+fi
+
 # Auch in den Source-Ordner kopieren (für Backup)
 if [ "$CBPI_SOURCE_DIR" != "$REAL_HOME/Craftbeerpi4" ] && [ -d "$REAL_HOME/Craftbeerpi4/custom_ui" ]; then
     cp "$CUSTOM_UI_DIR/translate-de.js" "$REAL_HOME/Craftbeerpi4/custom_ui/translate-de.js" 2>/dev/null || true
