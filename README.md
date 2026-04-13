@@ -30,6 +30,17 @@ Ein Fork von [CraftBeerPi 4](https://github.com/craftbeerpi/craftbeerpi4) (Manue
 - **Rezept Import/Export** als JSON-Dateien
 - **Toast-Benachrichtigungen** statt Browser-Alerts
 
+### 🧪 Brauwasser-Aufbereitung
+- **Integrierter Wasserrechner** — Salzberechnung (Braugips, CaCl₂, NaCl, Bittersalz, Natron, Milchsäure) auf Basis von Quell- und Zielprofil
+- **9 Zielprofile** — Pilsner, Helles, Pale Ale, IPA, Stout, Weizen, Amber, Dortmunder, Eigenes Profil
+- **Quellwasser-Profilverwaltung** — eigene Wasserprofile speichern, laden, bearbeiten und löschen (z.B. pro Wasserwerk/Jahr)
+- Automatische Berechnung von Gesamthärte (°dH), Restalkalität und SO₄/Cl-Verhältnis
+- Erreichbar über den Sidebar-Eintrag **„Brauwasser"**
+
+### 📖 Rezeptquellen
+- **Links zu externen Rezeptdatenbanken** direkt in der Rezept-Ansicht:
+  Maische Malz und Mehr, Kleiner Brauhelfer, Brewfather, BeerXML-Standard
+
 ### 🔧 Technische Verbesserungen
 - **PIDBoil-Support** im Frontend — PID-Parameter direkt in den Kesseleinstellungen, mit 3 Presets
 - **Automatisches Rührwerk** — MashStep und MashInStep starten/stoppen den Agitator automatisch
@@ -339,7 +350,7 @@ craftbeerpi4-german-ui/
 │   ├── __init__.py                # Version 4.1.0+de1 "Braumeister"
 │   └── extension/mashstep/        # Agitator-Patch (autom. Rührwerk)
 ├── custom_ui/                     # UI-Customization Dateien
-│   ├── translate-de.js            # Deutsche Übersetzung + alle UI-Features
+│   ├── translate-de.js            # Deutsche Übersetzung + alle UI-Features + Wasserrechner
 │   ├── custom.css                 # Dark Theme + modernes Styling
 │   └── install_ui.sh              # Manueller UI-Installer (alternativ)
 ├── requirements.txt               # Python-Abhängigkeiten
