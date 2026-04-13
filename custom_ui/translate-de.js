@@ -4420,6 +4420,68 @@
   var WATER_KEY = 'cbpi_water_source';
   var WATER_VOL_KEY = 'cbpi_water_volume';
   var WATER_PROFILE_KEY = 'cbpi_water_profile';
+  var WATER_SRC_PROFILES_KEY = 'cbpi_water_src_profiles';
+  var WATER_SRC_ACTIVE_KEY = 'cbpi_water_src_active';
+
+  // Vordefinierte Quellwasser-Profile (Beispiele)
+  var DEFAULT_SRC_PROFILES = [
+    { id: 'zoerbig_ostharz', name: 'Zörbig – Ostharzwasser', year: 2024, source: 'azv-raguhn-zoerbig.de', Ca: 0, Mg: 0, Na: 10.2, SO4: 24, Cl: 15, HCO3: 0, pH: 8.62, note: 'Ca/Mg/HCO₃ beim Wasserwerk erfragen oder selbst messen. Gesamthärte: 4.1 °dH' },
+    { id: 'zoerbig_elbaue', name: 'Zörbig/Löberitz – Elbauewasser', year: 2024, source: 'azv-raguhn-zoerbig.de', Ca: 0, Mg: 0, Na: 20.8, SO4: 175, Cl: 45, HCO3: 0, pH: 7.68, note: 'Ca/Mg/HCO₃ beim Wasserwerk erfragen oder selbst messen. Gesamthärte: 15.9 °dH' }
+  ];
+
+  function loadSrcProfiles() {
+    try {
+      var data = JSON.parse(localStorage.getItem(WATER_SRC_PROFILES_KEY));
+      if (data && data.length) return data;
+    } catch(e) {}
+    // Erstmalig: Defaults kopieren
+    var profiles = JSON.parse(JSON.stringify(DEFAULT_SRC_PROFILES));
+    localStorage.setItem(WATER_SRC_PROFILES_KEY, JSON.stringify(profiles));
+    return profiles;
+  }
+
+  function saveSrcProfiles(profiles) {
+    localStorage.setItem(WATER_SRC_PROFILES_KEY, JSON.stringify(profiles));
+  }
+
+  function getActiveSrcProfileId() {
+    return localStorage.getItem(WATER_SRC_ACTIVE_KEY) || '';
+  }
+
+  function setActiveSrcProfileId(id) {
+    localStorage.setItem(WATER_SRC_ACTIVE_KEY, id || '');
+  }
+  var WATER_SRC_PROFILES_KEY = 'cbpi_water_src_profiles';
+  var WATER_SRC_ACTIVE_KEY = 'cbpi_water_src_active';
+
+  // Vordefinierte Quellwasser-Profile (Beispiele)
+  var DEFAULT_SRC_PROFILES = [
+    { id: 'zoerbig_ostharz', name: 'Zörbig – Ostharzwasser', year: 2024, source: 'azv-raguhn-zoerbig.de', Ca: 0, Mg: 0, Na: 10.2, SO4: 24, Cl: 15, HCO3: 0, pH: 8.62, note: 'Ca/Mg/HCO₃ beim Wasserwerk erfragen oder selbst messen. Gesamthärte: 4.1 °dH' },
+    { id: 'zoerbig_elbaue', name: 'Zörbig/Löberitz – Elbauewasser', year: 2024, source: 'azv-raguhn-zoerbig.de', Ca: 0, Mg: 0, Na: 20.8, SO4: 175, Cl: 45, HCO3: 0, pH: 7.68, note: 'Ca/Mg/HCO₃ beim Wasserwerk erfragen oder selbst messen. Gesamthärte: 15.9 °dH' }
+  ];
+
+  function loadSrcProfiles() {
+    try {
+      var data = JSON.parse(localStorage.getItem(WATER_SRC_PROFILES_KEY));
+      if (data && data.length) return data;
+    } catch(e) {}
+    // Erstmalig: Defaults kopieren
+    var profiles = JSON.parse(JSON.stringify(DEFAULT_SRC_PROFILES));
+    localStorage.setItem(WATER_SRC_PROFILES_KEY, JSON.stringify(profiles));
+    return profiles;
+  }
+
+  function saveSrcProfiles(profiles) {
+    localStorage.setItem(WATER_SRC_PROFILES_KEY, JSON.stringify(profiles));
+  }
+
+  function getActiveSrcProfileId() {
+    return localStorage.getItem(WATER_SRC_ACTIVE_KEY) || '';
+  }
+
+  function setActiveSrcProfileId(id) {
+    localStorage.setItem(WATER_SRC_ACTIVE_KEY, id || '');
+  }
 
   // Salz-Beiträge pro Gramm pro Liter (mg/L)
   var SALTS = {
@@ -4523,6 +4585,24 @@
       additions.nahco3 = gPerL * volumeL;
       contrib.Na += gPerL * SALTS.nahco3.Na;
       contrib.HCO3 += delta.HCO3;
+    // Quellwasser-Profile laden
+    var srcProfiles = loadSrcProfiles();
+    var activeSrcId = getActiveSrcProfileId();
+    // Wenn aktives Profil existiert, dessen Werte laden
+    var activeSrcProfile = null;
+    srcProfiles.forEach(function(p) { if (p.id === activeSrcId) activeSrcProfile = p; });
+    if (activeSrcProfile) {
+      ION_LABELS.forEach(function(ion) { saved[ion] = activeSrcProfile[ion]; });
+      saved.pH = activeSrcProfile.pH;
+    }
+
+    var srcProfileOptions = '<option value="">' + (lang === 'de' ? '– Manuell eingeben –' : '– Enter manually –') + '</option>';
+    srcProfiles.forEach(function(p) {
+      var sel = p.id === activeSrcId ? ' selected' : '';
+      var label = p.name + (p.year ? ' (' + p.year + ')' : '');
+      srcProfileOptions += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
+    });
+
     }
 
     // Resultierendes Wasser berechnen
@@ -4552,7 +4632,29 @@
       var p = WATER_PROFILES[key];
       var sel = key === savedProfile ? ' selected' : '';
       return '<option value="' + key + '"' + sel + '>' + p[lang] + '</option>';
-    }).join('');
+    }).join('');profile-select">' +
+                '<select id="water-src-profile">' + srcProfileOptions + '</select>' +
+              '</div>' +
+              '<div id="water-src-note" class="water-hint" style="margin-bottom:8px;color:#f0a030;"></div>' +
+              '<div class="water-
+
+    // Quellwasser-Profile laden
+    var srcProfiles = loadSrcProfiles();
+    var activeSrcId = getActiveSrcProfileId();
+    // Wenn aktives Profil existiert, dessen Werte laden
+    var activeSrcProfile = null;
+    srcProfiles.forEach(function(p) { if (p.id === activeSrcId) activeSrcProfile = p; });
+    if (activeSrcProfile) {
+      ION_LABELS.forEach(function(ion) { saved[ion] = activeSrcProfile[ion]; });
+      saved.pH = activeSrcProfile.pH;
+    }
+
+    var srcProfileOptions = '<option value="">' + (lang === 'de' ? '– Manuell eingeben –' : '– Enter manually –') + '</option>';
+    srcProfiles.forEach(function(p) {
+      var sel = p.id === activeSrcId ? ' selected' : '';
+      var label = p.name + (p.year ? ' (' + p.year + ')' : '');
+      srcProfileOptions += '<option value="' + p.id + '"' + sel + '>' + label + '</option>';
+    });
 
     var ionInputs = ION_LABELS.map(function(ion) {
       var val = saved[ion] !== undefined ? saved[ion] : '';
@@ -4578,19 +4680,139 @@
           '<button class="water-close-btn" id="water-close">\u00d7</button>' +
         '</div>' +
         '<div class="water-calc-body">' +
-          // Zeile 1: Quellwasser + Zielprofil
-          '<div class="water-row">' +
-            '<div class="water-card">' +
-              '<h3>' + (lang === 'de' ? 'Dein Leitungswasser' : 'Your Tap Water') + '</h3>' +
-              '<p class="water-hint">' + (lang === 'de' ? 'Werte vom Wasserwerk oder eigener Messung' : 'Values from water utility or own measurement') + '</p>' +
-              '<div class="water-ion-grid">' + ionInputs + '</div>' +
-              '<div class="water-ion-input water-ph-input">' +
-                '<label>pH</label>' +
-                '<input type="number" id="water-src-ph" value="' + (saved.pH || '') + '" min="0" max="14" step="0.1" placeholder="7.0">' +
-              '</div>' +
-              '<div class="water-info-row" id="water-src-info"></div>' +
-              '<div class="water-actions">' +
-                '<button class="water-btn water-btn-primary" id="water-save">' + (lang === 'de' ? 'Speichern' : 'Save') + '</button>' +
+    // Quellwasser-Profil-Dropdown Handler
+    var srcProfileSelect = document.getElementById('water-src-profile');
+    var deleteBtn = document.getElementById('water-delete-profile');
+
+    function updateSrcFromProfile() {
+      var id = srcProfileSelect.value;
+      setActiveSrcProfileId(id);
+      var profiles = loadSrcProfiles();
+      var profile = null;
+      profiles.forEach(function(p) { if (p.id === id) profile = p; });
+      if (profile) {
+        ION_LABELS.forEach(function(ion) {
+          document.getElementById('water-src-' + ion).value = profile[ion] || '';
+        });
+        document.getElementById('water-src-ph').value = profile.pH || '';
+        var noteEl = document.getElementById('water-src-note');
+        noteEl.textContent = profile.note || '';
+        deleteBtn.style.display = '';
+      } else {
+        document.getElementById('water-src-note').textContent = '';
+        deleteBtn.style.display = 'none';
+      }
+      updateSourceInfo();
+    }
+    srcProfileSelect.onchange = updateSrcFromProfile;
+
+    // Initial: Notiz anzeigen falls Profil aktiv
+    if (activeSrcProfile && activeSrcProfile.note) {
+      document.getElementById('water-src-note').textContent = activeSrcProfile.note;
+      deleteBtn.style.display = '';
+    }
+
+    function getCurrentSrcValues() {
+      var vals = {};
+      ION_LABELS.forEach(function(ion) {
+        vals[ion] = parseFloat(document.getElementById('water-src-' + ion).value) || 0;
+      });
+      vals.pH = parseFloat(document.getElementById('water-src-ph').value) || 7.0;
+      return vals;
+    }
+
+    // Bestehendes Profil aktualisieren
+    document.getElementById('water-save').onclick = function() {
+      var id = srcProfileSelect.value;
+      var vals = getCurrentSrcValues();
+      saveWaterSource(vals);
+
+      if (id) {
+        // Bestehendes Profil updaten
+        var profiles = loadSrcProfiles();
+        profiles.forEach(function(p) {
+          if (p.id === id) {
+            ION_LABELS.forEach(function(ion) { p[ion] = vals[ion]; });
+            p.pH = vals.pH;
+          }
+        });
+        saveSrcProfiles(profiles);
+        var btn = document.getElementById('water-save');
+        btn.textContent = lang === 'de' ? 'Aktualisiert!' : 'Updated!';
+        setTimeout(function() { btn.textContent = lang === 'de' ? 'Profil speichern' : 'Save Profile'; }, 1500);
+      } else {
+        // Kein Profil ausgewählt → nur localStorage
+        var btn = document.getElementById('water-save');
+        btn.textContent = lang === 'de' ? 'Gespeichert!' : 'Saved!';
+        setTimeout(function() { btn.textContent = lang === 'de' ? 'Profil speichern' : 'Save Profile'; }, 1500);
+      }
+    };
+
+    // Neues Profil anlegen
+    document.getElementById('water-save-new').onclick = function() {
+      var name = prompt(lang === 'de' ? 'Name für das neue Wasserprofil:' : 'Name for the new water profile:');
+      if (!name || !name.trim()) return;
+      name = name.trim();
+      var id = name.toLowerCase().replace(/[^a-z0-9äöüß]/g, '_').replace(/_+/g, '_');
+      var profiles = loadSrcProfiles();
+      // ID-Kollision vermeiden
+      var baseId = id;
+      var counter = 1;
+      while (profiles.some(function(p) { return p.id === id; })) {
+        id = baseId + '_' + counter;
+        counter++;
+      }
+      var vals = getCurrentSrcValues();
+      var yearStr = prompt(lang === 'de' ? 'Jahr der Messwerte (optional):' : 'Year of measurement (optional):');
+      var year = yearStr ? parseInt(yearStr) : null;
+      var profile = { id: id, name: name, year: year, source: '', Ca: vals.Ca, Mg: vals.Mg, Na: vals.Na, SO4: vals.SO4, Cl: vals.Cl, HCO3: vals.HCO3, pH: vals.pH, note: '' };
+      profiles.push(profile);
+      saveSrcProfiles(profiles);
+      setActiveSrcProfileId(id);
+      // Dropdown aktualisieren
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = name + (year ? ' (' + year + ')' : '');
+      opt.selected = true;
+      srcProfileSelect.appendChild(opt);
+      deleteBtn.style.display = '';
+      var btn = document.getElementById('water-save-new');
+      btn.textContent = lang === 'de' ? 'Angelegt!' : 'Created!';
+      setTimeout(function() { btn.textContent = lang === 'de' ? 'Neues Profil' : 'New Profile'; }, 1500);
+    };
+
+    // Profil löschen
+    deleteBtn.onclick = function() {
+      var id = srcProfileSelect.value;
+      if (!id) return;
+      var profiles = loadSrcProfiles();
+      var profile = null;
+      profiles.forEach(function(p) { if (p.id === id) profile = p; });
+      if (!profile) return;
+      var msg = lang === 'de' ? 'Profil "' + profile.name + '" wirklich löschen?' : 'Delete profile "' + profile.name + '"?';
+      if (!confirm(msg)) return;
+      profiles = profiles.filter(function(p) { return p.id !== id; });
+      saveSrcProfiles(profiles);
+      setActiveSrcProfileId('');
+      // Option entfernen
+      var opt = srcProfileSelect.querySelector('option[value="' + id + '"]');
+      if (opt) opt.remove();
+      srcProfileSelect.value = '';
+      deleteBtn.style.display = 'none';
+      document.getElementById('water-src-note').textContent = '';
+    };
+
+    document.getElementById('water-reset').onclick = function() {
+      ION_LABELS.forEach(function(ion) {
+        document.getElementById('water-src-' + ion).value = '';
+      });
+      document.getElementById('water-src-ph').value = '';
+      srcProfileSelect.value = '';
+      setActiveSrcProfileId('');
+      deleteBtn.style.display = 'none';
+      document.getElementById('water-src-note').textContent-primary" id="water-save">' + (lang === 'de' ? 'Profil speichern' : 'Save Profile') + '</button>' +
+                '<button class="water-btn water-btn-secondary" id="water-save-new">' + (lang === 'de' ? 'Neues Profil' : 'New Profile') + '</button>' +
+                '<button class="water-btn water-btn-secondary" id="water-delete-profile" style="display:none;">' + (lang === 'de' ? 'L\u00f6schen' : 'Delete') + '</button>' +
                 '<button class="water-btn water-btn-secondary" id="water-reset">' + (lang === 'de' ? 'Zur\u00fccksetzen' : 'Reset') + '</button>' +
               '</div>' +
             '</div>' +
@@ -4627,16 +4849,126 @@
       if (e.target === overlay) overlay.remove();
     };
 
-    document.getElementById('water-save').onclick = function() {
+    // Quellwasser-Profil-Dropdown Handler
+    var srcProfileSelect = document.getElementById('water-src-profile');
+    var deleteBtn = document.getElementById('water-delete-profile');
+
+    function updateSrcFromProfile() {
+      var id = srcProfileSelect.value;
+      setActiveSrcProfileId(id);
+      var profiles = loadSrcProfiles();
+      var profile = null;
+      profiles.forEach(function(p) { if (p.id === id) profile = p; });
+      if (profile) {
+        ION_LABELS.forEach(function(ion) {
+          document.getElementById('water-src-' + ion).value = profile[ion] || '';
+        });
+        document.getElementById('water-src-ph').value = profile.pH || '';
+        var noteEl = document.getElementById('water-src-note');
+        noteEl.textContent = profile.note || '';
+        deleteBtn.style.display = '';
+      } else {
+        document.getElementById('water-src-note').textContent = '';
+        deleteBtn.style.display = 'none';
+      }
+      updateSourceInfo();
+    }
+    srcProfileSelect.onchange = updateSrcFromProfile;
+
+    // Initial: Notiz anzeigen falls Profil aktiv
+    if (activeSrcProfile && activeSrcProfile.note) {
+      document.getElementById('water-src-note').textContent = activeSrcProfile.note;
+      deleteBtn.style.display = '';
+    }
+
+    function getCurrentSrcValues() {
       var vals = {};
       ION_LABELS.forEach(function(ion) {
         vals[ion] = parseFloat(document.getElementById('water-src-' + ion).value) || 0;
       });
       vals.pH = parseFloat(document.getElementById('water-src-ph').value) || 7.0;
+      return vals;
+    }
+
+    // Bestehendes Profil aktualisieren
+    document.getElementById('water-save').onclick = function() {
+      var id = srcProfileSelect.value;
+      var vals = getCurrentSrcValues();
       saveWaterSource(vals);
-      var btn = document.getElementById('water-save');
-      btn.textContent = lang === 'de' ? 'Gespeichert!' : 'Saved!';
-      setTimeout(function() { btn.textContent = lang === 'de' ? 'Speichern' : 'Save'; }, 1500);
+
+      if (id) {
+        // Bestehendes Profil updaten
+        var profiles = loadSrcProfiles();
+        profiles.forEach(function(p) {
+          if (p.id === id) {
+            ION_LABELS.forEach(function(ion) { p[ion] = vals[ion]; });
+            p.pH = vals.pH;
+          }
+        });
+        saveSrcProfiles(profiles);
+        var btn = document.getElementById('water-save');
+        btn.textContent = lang === 'de' ? 'Aktualisiert!' : 'Updated!';
+        setTimeout(function() { btn.textContent = lang === 'de' ? 'Profil speichern' : 'Save Profile'; }, 1500);
+      } else {
+        // Kein Profil ausgewählt → nur localStorage
+        var btn = document.getElementById('water-save');
+        btn.textContent = lang === 'de' ? 'Gespeichert!' : 'Saved!';
+        setTimeout(function() { btn.textContent = lang === 'de' ? 'Profil speichern' : 'Save Profile'; }, 1500);
+      }
+    };
+
+    // Neues Profil anlegen
+    document.getElementById('water-save-new').onclick = function() {
+      var name = prompt(lang === 'de' ? 'Name für das neue Wasserprofil:' : 'Name for the new water profile:');
+      if (!name || !name.trim()) return;
+      name = name.trim();
+      var id = name.toLowerCase().replace(/[^a-z0-9äöüß]/g, '_').replace(/_+/g, '_');
+      var profiles = loadSrcProfiles();
+      // ID-Kollision vermeiden
+      var baseId = id;
+      var counter = 1;
+      while (profiles.some(function(p) { return p.id === id; })) {
+        id = baseId + '_' + counter;
+        counter++;
+      }
+      var vals = getCurrentSrcValues();
+      var yearStr = prompt(lang === 'de' ? 'Jahr der Messwerte (optional):' : 'Year of measurement (optional):');
+      var year = yearStr ? parseInt(yearStr) : null;
+      var profile = { id: id, name: name, year: year, source: '', Ca: vals.Ca, Mg: vals.Mg, Na: vals.Na, SO4: vals.SO4, Cl: vals.Cl, HCO3: vals.HCO3, pH: vals.pH, note: '' };
+      profiles.push(profile);
+      saveSrcProfiles(profiles);
+      setActiveSrcProfileId(id);
+      // Dropdown aktualisieren
+      var opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = name + (year ? ' (' + year + ')' : '');
+      opt.selected = true;
+      srcProfileSelect.appendChild(opt);
+      deleteBtn.style.display = '';
+      var btn = document.getElementById('water-save-new');
+      btn.textContent = lang === 'de' ? 'Angelegt!' : 'Created!';
+      setTimeout(function() { btn.textContent = lang === 'de' ? 'Neues Profil' : 'New Profile'; }, 1500);
+    };
+
+    // Profil löschen
+    deleteBtn.onclick = function() {
+      var id = srcProfileSelect.value;
+      if (!id) return;
+      var profiles = loadSrcProfiles();
+      var profile = null;
+      profiles.forEach(function(p) { if (p.id === id) profile = p; });
+      if (!profile) return;
+      var msg = lang === 'de' ? 'Profil "' + profile.name + '" wirklich löschen?' : 'Delete profile "' + profile.name + '"?';
+      if (!confirm(msg)) return;
+      profiles = profiles.filter(function(p) { return p.id !== id; });
+      saveSrcProfiles(profiles);
+      setActiveSrcProfileId('');
+      // Option entfernen
+      var opt = srcProfileSelect.querySelector('option[value="' + id + '"]');
+      if (opt) opt.remove();
+      srcProfileSelect.value = '';
+      deleteBtn.style.display = 'none';
+      document.getElementById('water-src-note').textContent = '';
     };
 
     document.getElementById('water-reset').onclick = function() {
@@ -4644,6 +4976,10 @@
         document.getElementById('water-src-' + ion).value = '';
       });
       document.getElementById('water-src-ph').value = '';
+      srcProfileSelect.value = '';
+      setActiveSrcProfileId('');
+      deleteBtn.style.display = 'none';
+      document.getElementById('water-src-note').textContent = '';
       localStorage.removeItem(WATER_KEY);
       updateSourceInfo();
     };
