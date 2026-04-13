@@ -868,7 +868,12 @@
         '&nbsp;&nbsp;3. Füge <b>Brau-Schritte</b> hinzu (Einmaischen → Maisch-Schritt → Kochschritt → Abkühlen)<br>' +
         '&nbsp;&nbsp;4. Klicke oben auf den Breadcrumb <b>"Aktives Rezept"</b> – das lädt das Rezept in den Brauplan<br>' +
         '&nbsp;&nbsp;5. Wechsle zum <b>Brauplan</b> und drücke <b>Start</b>!<br><br>' +
-        'Du kannst Rezepte auch <b>klonen</b> um Varianten zu erstellen.',
+        'Du kannst Rezepte auch <b>klonen</b> um Varianten zu erstellen.<br><br>' +
+        '<b>Rezepte herunterladen & importieren:</b><br>' +
+        '&nbsp;&nbsp;• <a href="https://www.maischemalzundmehr.de/" target="_blank" style="color:#f0a030;">Maische Malz und Mehr</a> – Große deutsche Rezeptdatenbank (JSON-Export → Import)<br>' +
+        '&nbsp;&nbsp;• <a href="https://kleiner-brauhelfer.de/" target="_blank" style="color:#f0a030;">Kleiner Brauhelfer</a> – Brau-Software mit Rezeptexport (KBH-Format)<br>' +
+        '&nbsp;&nbsp;• <a href="https://brewfather.app/" target="_blank" style="color:#f0a030;">Brewfather</a> – Cloud-Brau-Plattform (API-Integration in den Einstellungen)<br>' +
+        '&nbsp;&nbsp;• <a href="https://beerxml.com/" target="_blank" style="color:#f0a030;">BeerXML</a> – Universelles Rezeptformat (.xml)',
       en: '<b>Recipe Book</b> – Manage your beer recipes here.<br><br>' +
         '<b>How to create a recipe & start brewing:</b><br>' +
         '&nbsp;&nbsp;1. Click <b>+</b> to create a new recipe<br>' +
@@ -876,7 +881,12 @@
         '&nbsp;&nbsp;3. Add <b>brew steps</b> (MashIn → MashStep → BoilStep → Cooldown)<br>' +
         '&nbsp;&nbsp;4. Click the breadcrumb <b>"Active Recipe"</b> at the top – this loads the recipe into the Brew Plan<br>' +
         '&nbsp;&nbsp;5. Switch to <b>Brew Plan</b> and press <b>Start</b>!<br><br>' +
-        'You can also <b>clone</b> recipes to create variations.'
+        'You can also <b>clone</b> recipes to create variations.<br><br>' +
+        '<b>Download & import recipes:</b><br>' +
+        '&nbsp;&nbsp;• <a href="https://www.maischemalzundmehr.de/" target="_blank" style="color:#f0a030;">Maische Malz und Mehr</a> – Large German recipe database (JSON export → import)<br>' +
+        '&nbsp;&nbsp;• <a href="https://kleiner-brauhelfer.de/" target="_blank" style="color:#f0a030;">Kleiner Brauhelfer</a> – Brewing software with recipe export (KBH format)<br>' +
+        '&nbsp;&nbsp;• <a href="https://brewfather.app/" target="_blank" style="color:#f0a030;">Brewfather</a> – Cloud brewing platform (API integration in settings)<br>' +
+        '&nbsp;&nbsp;• <a href="https://beerxml.com/" target="_blank" style="color:#f0a030;">BeerXML</a> – Universal recipe format (.xml)'
     },
     '/plugins': {
       de: '<b>Erweiterungen</b> – Hier findest du zusätzliche Plugins:<br>' +
