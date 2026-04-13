@@ -4423,11 +4423,8 @@
   var WATER_SRC_PROFILES_KEY = 'cbpi_water_src_profiles';
   var WATER_SRC_ACTIVE_KEY = 'cbpi_water_src_active';
 
-  // Vordefinierte Quellwasser-Profile (Beispiele)
-  var DEFAULT_SRC_PROFILES = [
-    { id: 'zoerbig_ostharz', name: 'Zörbig \u2013 Ostharzwasser', year: 2024, source: 'azv-raguhn-zoerbig.de', Ca: 0, Mg: 0, Na: 10.2, SO4: 24, Cl: 15, HCO3: 0, pH: 8.62, note: 'Ca/Mg/HCO\u2083 beim Wasserwerk erfragen oder selbst messen. Gesamthärte: 4.1 °dH' },
-    { id: 'zoerbig_elbaue', name: 'Zörbig/Löberitz \u2013 Elbauewasser', year: 2024, source: 'azv-raguhn-zoerbig.de', Ca: 0, Mg: 0, Na: 20.8, SO4: 175, Cl: 45, HCO3: 0, pH: 7.68, note: 'Ca/Mg/HCO\u2083 beim Wasserwerk erfragen oder selbst messen. Gesamthärte: 15.9 °dH' }
-  ];
+  // Keine vordefinierten Quellwasser-Profile – jeder Nutzer legt eigene an
+  var DEFAULT_SRC_PROFILES = [];
 
   function loadSrcProfiles() {
     try {
