@@ -19,8 +19,8 @@ import os
 import pkgutil
 import shutil
 import click
-from subprocess import call
-from colorama import Fore, Back, Style
+import subprocess
+from colorama import Fore, Style
 import importlib
 from importlib_metadata import metadata
 from tabulate import tabulate
@@ -52,8 +52,8 @@ class CraftBeerPiCli():
 
     def list_one_wire(self):
         print("List 1Wire")
-        call(["modprobe", "w1-gpio"])
-        call(["modprobe", "w1-therm"])
+        subprocess.run(["modprobe", "w1-gpio"], check=False)
+        subprocess.run(["modprobe", "w1-therm"], check=False)
         try:
             for dirname in os.listdir('/sys/bus/w1/devices'):
                 if (dirname.startswith("28") or dirname.startswith("10")):
@@ -158,9 +158,9 @@ class CraftBeerPiCli():
                     destfile = os.path.join("/etc/systemd/system")
                     shutil.copy(srcfile, destfile)
                     print("Copied craftbeerpi.service to /etc/systemd/system")
-                    os.system('systemctl enable craftbeerpi.service')
+                    subprocess.run(['systemctl', 'enable', 'craftbeerpi.service'], check=False)
                     print('Enabled craftbeerpi service')
-                    os.system('systemctl start craftbeerpi.service')
+                    subprocess.run(['systemctl', 'start', 'craftbeerpi.service'], check=False)
                     print('Started craftbeerpi.service')
                 else:
                     print("craftbeerpi.service is already located in /etc/systemd/system")
@@ -171,11 +171,11 @@ class CraftBeerPiCli():
         elif(name == "off"): 
             print("Remove craftbeerpi.service from systemd")
             try:
-                status = os.popen('systemctl list-units --type=service --state=running | grep craftbeerpi.service').read()
-                if status.find("craftbeerpi.service") != -1:
-                    os.system('systemctl stop craftbeerpi.service')
+                result = subprocess.run(['systemctl', 'list-units', '--type=service', '--state=running'], capture_output=True, text=True, check=False)
+                if 'craftbeerpi.service' in result.stdout:
+                    subprocess.run(['systemctl', 'stop', 'craftbeerpi.service'], check=False)
                     print('Stopped craftbeerpi service')
-                    os.system('systemctl disable craftbeerpi.service')
+                    subprocess.run(['systemctl', 'disable', 'craftbeerpi.service'], check=False)
                     print('Removed craftbeerpi.service as service')
                 else:
                     print('craftbeerpi.service service is not running')

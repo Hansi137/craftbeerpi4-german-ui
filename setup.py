@@ -58,10 +58,6 @@ setup(name='cbpi',
           'pandas==2.0.3'] + (
           ['RPi.GPIO==0.7.1'] if raspberrypi else [] ),
 
-        dependency_links=[
-        'https://testpypi.python.org/pypi',
-        
-        ],
       entry_points = {
         "console_scripts": [
             "cbpi=cbpi.cli:main",
