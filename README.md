@@ -37,7 +37,22 @@ Ein Fork von [CraftBeerPi 4](https://github.com/craftbeerpi/craftbeerpi4) (Manue
 - Automatische Berechnung von Gesamthärte (°dH), Restalkalität und SO₄/Cl-Verhältnis
 - Erreichbar über den Sidebar-Eintrag **„Brauwasser"**
 
-### 📖 Rezeptquellen
+### � Zutatenverwaltung & Rezeptdetails
+- **Tab-System** auf der Rezeptdetailseite — „Brau-Schritte" und „Zutaten" sauber getrennt
+- **Zwei-Spalten-Layout** — links Schüttung, Hopfen & Sonstiges, rechts Brauwasser & Notizen
+- **Auto-Scaling** — Ausschlagmenge ändern und alle Zutatenmengen skalieren automatisch proportional mit
+- **Inline-Tabellen** für Malz, Hopfen (Standard, Whirlpool, Dry Hop, Vorderwürze) und sonstige Zutaten
+- **Hopfenplan** — automatisch sortierte Übersicht aller Hopfengaben nach Kochzeit
+- **Einzelrezept-Export/Import** — 📤-Button pro Rezept in der Rezeptliste (nur bei vorhandenen Zutaten)
+- **Alle Rezepte exportieren** — Sammelexport aller Rezepte als JSON
+- **MMuM-Import** — Rezepte von Maische Malz und Mehr direkt importieren
+- Alle Zutatendaten werden lokal im Browser gespeichert (localStorage)
+
+### 🔢 Nachgussrechner
+- **Haupt- und Nachguss** automatisch berechnen auf Basis von Schüttung, Hauptguss-Faktor und Ausschlagmenge
+- Erreichbar über den Sidebar-Eintrag **„Nachguss"**
+
+### �📖 Rezeptquellen
 - **Links zu externen Rezeptdatenbanken** direkt in der Rezept-Ansicht:
   Maische Malz und Mehr, Kleiner Brauhelfer, Brewfather, BeerXML-Standard
 
