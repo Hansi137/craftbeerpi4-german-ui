@@ -1937,8 +1937,14 @@
     // Cockpit-Menüpunkt einfügen (vor dem Dashboard-Link)
     injectCockpitNavItem(drawer);
 
+    // Rezeptbuch Menüpunkt (nach Brauplan)
+    injectRecipeBookNavItem(drawer);
+
     // Brauwasser-Rechner Menüpunkt (nach Rezeptbuch)
     injectWaterNavItem(drawer);
+
+    // Nachgussrechner Menüpunkt (nach Brauwasser)
+    injectSpargeNavItem(drawer);
 
     // Brau-Logbuch Menüpunkt
     injectBrewLogNavItem(drawer);
@@ -2940,6 +2946,7 @@
     html += (de ? 'Bereit zum Brauen' : 'Ready to brew') + ' \u2014 <span>' + steps.length + ' ' + (de ? 'Schritte' : 'steps') + ' \u00b7 \u2248' + timeStr + '</span>';
     html += '</div>';
     html += '<button class="cockpit-recipe-change-btn" id="cockpit-recipe-change">\ud83d\udd04 ' + (de ? 'Rezept wechseln' : 'Change Recipe') + '</button>';
+    html += '<button class="cockpit-recipe-book-btn" id="cockpit-recipe-book">\ud83d\udcd6 ' + (de ? 'Rezeptbuch' : 'Recipe Book') + '</button>';
     html += '</div>';
 
     // Rezept-Wechsler (initial eingeklappt)
@@ -3008,6 +3015,19 @@
       html += '<span class="ready-overview-value">' + hopAdditions.join(', ') + '</span>';
       html += '</div>';
     }
+
+    // Zutaten aus localStorage anzeigen (falls vorhanden)
+    if (recipeName) {
+      var ingrDetail = renderIngredientDetail(recipeName);
+      if (ingrDetail) {
+        html += ingrDetail;
+      }
+      html += '<div style="margin-top:8px">';
+      html += '<button class="ingr-btn-small" id="cockpit-ingr-edit">' +
+        (getIngredients(recipeName) ? (de ? '\u270f\ufe0f Zutaten bearbeiten' : '\u270f\ufe0f Edit ingredients') : (de ? '+ Zutaten hinzuf\u00fcgen' : '+ Add ingredients')) +
+        '</button></div>';
+    }
+
     html += '</div></div>';
 
     html += '</div>'; // /grid
@@ -3703,6 +3723,31 @@
       return;
     }
 
+    // Rezeptbuch öffnen
+    var bookBtn = e.target.closest('#cockpit-recipe-book');
+    if (bookBtn) {
+      e.stopPropagation();
+      _cockpitMode = false;
+      stopCockpit();
+      window.location.hash = '#/recipes';
+      return;
+    }
+
+    // Zutaten-Editor im Cockpit öffnen
+    var ingrEditBtn = e.target.closest('#cockpit-ingr-edit');
+    if (ingrEditBtn) {
+      e.stopPropagation();
+      var rName = document.querySelector('.cockpit-recipe-name');
+      if (rName) {
+        var name = rName.textContent.replace(/^\ud83d\udcdd\s*/, '').trim();
+        if (name) {
+          buildIngredientEditor(name);
+          _cockpitRenderLock = Date.now() + 30000;
+        }
+      }
+      return;
+    }
+
     // Rezept direkt aus dem Cockpit laden
     var brewBtn = e.target.closest('[data-recipe-brew]');
     if (brewBtn) {
@@ -4280,6 +4325,10 @@
               })
               .then(function () {
                 showToast(de ? 'MMuM-Rezept "' + data.Name + '" importiert!' : 'MMuM recipe "' + data.Name + '" imported!', 'success');
+
+                // Zutaten aus MMuM-JSON extrahieren und in localStorage speichern
+                extractMmumIngredients(data);
+
                 window.location.hash = '#/';
                 setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
               })
@@ -5003,6 +5052,734 @@
   }
 
   // ============================================================
+  // ZUTATEN-VERWALTUNG — Malz, Hopfen, Wasser pro Rezept
+  // ============================================================
+  var INGREDIENTS_KEY = 'cbpi_recipe_ingredients';
+
+  function loadAllIngredients() {
+    try { return JSON.parse(localStorage.getItem(INGREDIENTS_KEY)) || {}; } catch(e) { return {}; }
+  }
+
+  function saveAllIngredients(all) {
+    localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(all));
+  }
+
+  function getIngredients(recipeName) {
+    var all = loadAllIngredients();
+    return all[recipeName] || null;
+  }
+
+  function saveIngredients(recipeName, data) {
+    var all = loadAllIngredients();
+    all[recipeName] = data;
+    saveAllIngredients(all);
+  }
+
+  function deleteIngredients(recipeName) {
+    var all = loadAllIngredients();
+    delete all[recipeName];
+    saveAllIngredients(all);
+  }
+
+  function emptyIngredients() {
+    return {
+      batchSize: 20,
+      grains: [],
+      hops: [],
+      others: [],
+      water: { hauptguss: '', nachguss: '' },
+      notes: ''
+    };
+  }
+
+  // MMuM-JSON Zutaten extrahieren und in localStorage speichern
+  function extractMmumIngredients(data) {
+    if (!data || !data.Name) return;
+    var recipeName = data.Name;
+    var ingr = emptyIngredients();
+
+    // Ausschlagmenge
+    ingr.batchSize = parseFloat(data.Ausschlagwuerze) || 20;
+
+    // Malze (v2.0 Array-Format)
+    if (data.Malze && Array.isArray(data.Malze)) {
+      data.Malze.forEach(function(m) {
+        ingr.grains.push({ name: m.Name || '', amount: parseFloat(m.Menge) || '' });
+      });
+    } else {
+      // v1.x Feld-Format: Malz1, Malz1_Menge, Malz1_Einheit, ...
+      for (var mi = 1; mi <= 10; mi++) {
+        var mName = data['Malz' + mi];
+        var mMenge = data['Malz' + mi + '_Menge'];
+        if (mName && mMenge) {
+          var mEinheit = data['Malz' + mi + '_Einheit'] || 'kg';
+          var amt = parseFloat(mMenge) || 0;
+          if (mEinheit === 'g') amt = amt / 1000;
+          ingr.grains.push({ name: mName, amount: amt });
+        }
+      }
+    }
+
+    // Hopfen (v2.0 Array-Format)
+    if (data.Hopfenkochen && Array.isArray(data.Hopfenkochen)) {
+      data.Hopfenkochen.forEach(function(h) {
+        ingr.hops.push({
+          name: h.Sorte || h.Name || '',
+          amount: parseFloat(h.Menge) || '',
+          alpha: parseFloat(h.Alpha) || '',
+          time: parseFloat(h.Zeit) || 0,
+          type: h.Typ || 'Standard'
+        });
+      });
+    } else {
+      // v1.x Feld-Format: Hopfen_1_Sorte, Hopfen_1_Menge, Hopfen_1_Alpha, Hopfen_1_Kochzeit
+      for (var hi = 1; hi <= 10; hi++) {
+        var hSorte = data['Hopfen_' + hi + '_Sorte'];
+        var hMenge = data['Hopfen_' + hi + '_Menge'];
+        var hAlpha = data['Hopfen_' + hi + '_Alpha'];
+        var hZeit = data['Hopfen_' + hi + '_Kochzeit'];
+        if (hSorte && hMenge) {
+          ingr.hops.push({
+            name: hSorte,
+            amount: parseFloat(hMenge) || '',
+            alpha: parseFloat(hAlpha) || '',
+            time: parseFloat(hZeit) || 0,
+            type: 'Standard'
+          });
+        }
+      }
+    }
+
+    // Stopfhopfen / Kalthopfung
+    if (data.Stopfhopfen && Array.isArray(data.Stopfhopfen)) {
+      data.Stopfhopfen.forEach(function(h) {
+        ingr.hops.push({
+          name: h.Sorte || h.Name || '',
+          amount: parseFloat(h.Menge) || '',
+          alpha: parseFloat(h.Alpha) || '',
+          time: 0,
+          type: 'Dry Hop'
+        });
+      });
+    }
+
+    // Wasser
+    if (data.Hauptguss) ingr.water.hauptguss = parseFloat(data.Hauptguss) || '';
+    if (data.Nachguss) ingr.water.nachguss = parseFloat(data.Nachguss) || '';
+
+    // Hefe und weitere Infos als Notizen
+    var notes = [];
+    if (data.Hefe) notes.push('Hefe: ' + data.Hefe);
+    if (data.Gaertemperatur) notes.push('G\u00e4rtemperatur: ' + data.Gaertemperatur + '\u00b0C');
+    if (data.Stammwuerze) notes.push('Stammw\u00fcrze: ' + data.Stammwuerze + '\u00b0P');
+    if (data.Bittere) notes.push('Bittere: ' + data.Bittere + ' IBU');
+    if (data.Farbe) notes.push('Farbe: ' + data.Farbe + ' EBC');
+    if (data.Alkohol) notes.push('Alkohol: ' + data.Alkohol + '%');
+    if (data.Karbonisierung) notes.push('Karbonisierung: ' + data.Karbonisierung + ' g/L CO\u2082');
+    if (data.Kurzbeschreibung) notes.push('\n' + data.Kurzbeschreibung);
+    ingr.notes = notes.join('\n');
+
+    saveIngredients(recipeName, ingr);
+    console.log('[CBPI] MMuM-Zutaten f\u00fcr "' + recipeName + '" gespeichert:', ingr);
+  }
+
+  function scaleValue(val, factor) {
+    if (!val || isNaN(val)) return val;
+    return Math.round(parseFloat(val) * factor * 10) / 10;
+  }
+
+  // Kurzanzeige der Zutaten (für Rezeptkarten + Cockpit)
+  function renderIngredientSummary(recipeName, targetBatch) {
+    var data = getIngredients(recipeName);
+    if (!data) return '';
+    var de = currentLang === 'de';
+    var factor = (targetBatch && data.batchSize) ? targetBatch / data.batchSize : 1;
+    var parts = [];
+
+    if (data.grains && data.grains.length > 0) {
+      var totalKg = 0;
+      data.grains.forEach(function(g) { totalKg += (parseFloat(g.amount) || 0); });
+      totalKg = scaleValue(totalKg, factor);
+      parts.push('<span class="ingr-summary-item">\ud83c\udf3e <b>' + totalKg + ' kg</b> ' + (de ? 'Malz' : 'Grain') +
+        ' (' + data.grains.length + (data.grains.length === 1 ? (de ? ' Sorte' : ' type') : (de ? ' Sorten' : ' types')) + ')</span>');
+    }
+    if (data.hops && data.hops.length > 0) {
+      var totalG = 0;
+      data.hops.forEach(function(h) { totalG += (parseFloat(h.amount) || 0); });
+      totalG = scaleValue(totalG, factor);
+      parts.push('<span class="ingr-summary-item">\ud83c\udf3f <b>' + totalG + ' g</b> ' + (de ? 'Hopfen' : 'Hops') +
+        ' (' + data.hops.length + (data.hops.length === 1 ? (de ? ' Gabe' : ' add.') : (de ? ' Gaben' : ' add.')) + ')</span>');
+    }
+    if (data.water && (data.water.hauptguss || data.water.nachguss)) {
+      var hg = scaleValue(data.water.hauptguss, factor);
+      var ng = scaleValue(data.water.nachguss, factor);
+      var w = [];
+      if (hg) w.push((de ? 'HG ' : 'Mash ') + hg + 'L');
+      if (ng) w.push((de ? 'NG ' : 'Sparge ') + ng + 'L');
+      parts.push('<span class="ingr-summary-item">\ud83d\udca7 ' + w.join(' / ') + '</span>');
+    }
+    return parts.length > 0 ? '<div class="ingr-summary">' + parts.join('') + '</div>' : '';
+  }
+
+  // Detail-Anzeige für Cockpit (mit Skalierung)
+  function renderIngredientDetail(recipeName, targetBatch) {
+    var data = getIngredients(recipeName);
+    if (!data) return '';
+    var de = currentLang === 'de';
+    var factor = (targetBatch && data.batchSize) ? targetBatch / data.batchSize : 1;
+    var isScaled = Math.abs(factor - 1) > 0.01;
+    var uid = 'ingr-toggle-' + Date.now();
+
+    // Kompakte Zusammenfassung bauen
+    var summary = [];
+    if (data.grains && data.grains.length > 0) {
+      var totalKg = 0;
+      data.grains.forEach(function(g) { totalKg += scaleValue(g.amount, factor) || 0; });
+      summary.push('\ud83c\udf3e ' + totalKg.toFixed(1) + ' kg');
+    }
+    if (data.hops && data.hops.length > 0) {
+      var totalG = 0;
+      data.hops.forEach(function(h) { totalG += scaleValue(h.amount, factor) || 0; });
+      summary.push('\ud83c\udf3f ' + Math.round(totalG) + ' g');
+    }
+    if (data.water && (data.water.hauptguss || data.water.nachguss)) {
+      var w = [];
+      if (data.water.hauptguss) w.push((de ? 'HG ' : 'M ') + scaleValue(data.water.hauptguss, factor) + 'L');
+      if (data.water.nachguss) w.push((de ? 'NG ' : 'S ') + scaleValue(data.water.nachguss, factor) + 'L');
+      summary.push('\ud83d\udca7 ' + w.join('/'));
+    }
+    if (isScaled) summary.push('\u2696\ufe0f x' + factor.toFixed(2));
+
+    // Detail-Block bauen
+    var detail = '';
+
+    if (data.grains && data.grains.length > 0) {
+      detail += '<div class="ingr-detail-group"><span class="ingr-detail-cat">\ud83c\udf3e ' + (de ? 'Sch\u00fcttung' : 'Grain') + '</span>';
+      data.grains.forEach(function(g) {
+        detail += '<span class="ingr-detail-item"><b>' + scaleValue(g.amount, factor) + ' kg</b> ' + (g.name || '?') + '</span>';
+      });
+      detail += '</div>';
+    }
+
+    if (data.hops && data.hops.length > 0) {
+      detail += '<div class="ingr-detail-group"><span class="ingr-detail-cat">\ud83c\udf3f ' + (de ? 'Hopfen' : 'Hops') + '</span>';
+      data.hops.forEach(function(h) {
+        var info = '<b>' + scaleValue(h.amount, factor) + ' g</b> ' + (h.name || '?');
+        if (h.alpha) info += ' (' + h.alpha + '%\u03b1)';
+        if (h.time) info += ' @' + h.time + "'";
+        if (h.type && h.type !== 'Standard') info += ' <em>[' + h.type + ']</em>';
+        detail += '<span class="ingr-detail-item">' + info + '</span>';
+      });
+      detail += '</div>';
+    }
+
+    if (data.water && (data.water.hauptguss || data.water.nachguss)) {
+      detail += '<div class="ingr-detail-group"><span class="ingr-detail-cat">\ud83d\udca7 ' + (de ? 'Wasser' : 'Water') + '</span>';
+      if (data.water.hauptguss) detail += '<span class="ingr-detail-item"><b>' + scaleValue(data.water.hauptguss, factor) + ' L</b> ' + (de ? 'Hauptguss' : 'Mash water') + '</span>';
+      if (data.water.nachguss) detail += '<span class="ingr-detail-item"><b>' + scaleValue(data.water.nachguss, factor) + ' L</b> ' + (de ? 'Nachguss' : 'Sparge water') + '</span>';
+      detail += '</div>';
+    }
+
+    if (data.others && data.others.length > 0) {
+      detail += '<div class="ingr-detail-group"><span class="ingr-detail-cat">\ud83e\uddf2 ' + (de ? 'Sonstiges' : 'Other') + '</span>';
+      data.others.forEach(function(o) {
+        detail += '<span class="ingr-detail-item"><b>' + (scaleValue(o.amount, factor) || '') + ' ' + (o.unit || 'g') + '</b> ' + (o.name || '?') + '</span>';
+      });
+      detail += '</div>';
+    }
+
+    if (data.notes) {
+      detail += '<div class="ingr-detail-group"><span class="ingr-detail-cat">\ud83d\udcdd ' + (de ? 'Notizen' : 'Notes') + '</span>';
+      detail += '<span class="ingr-detail-item">' + data.notes.replace(/</g, '&lt;').replace(/\n/g, ' \u2014 ') + '</span>';
+      detail += '</div>';
+    }
+
+    if (isScaled) {
+      detail += '<div class="ingr-detail-group"><span class="ingr-detail-item" style="opacity:.6">\u2696\ufe0f ' + data.batchSize + 'L \u2192 ' + targetBatch + 'L (x' + factor.toFixed(2) + ')</span></div>';
+    }
+
+    var html = '<div class="ready-overview-row ingr-collapsible">' +
+      '<input type="checkbox" id="' + uid + '" class="ingr-toggle-cb">' +
+      '<label for="' + uid + '" class="ingr-toggle-label">' +
+        '<span class="ready-overview-icon">\ud83e\uddea</span>' +
+        '<span class="ready-overview-label">' + (de ? 'Zutaten' : 'Ingredients') + '</span>' +
+        '<span class="ingr-summary">' + summary.join(' \u00b7 ') + '</span>' +
+        '<span class="ingr-chevron">\u25b6</span>' +
+      '</label>' +
+      '<div class="ingr-detail-body">' + detail + '</div>' +
+    '</div>';
+
+    return html;
+  }
+
+  // Zutaten-Editor Overlay
+  function buildIngredientEditor(recipeName) {
+    var existing = document.getElementById('cbpi-ingr-editor');
+    if (existing) existing.remove();
+
+    var data = getIngredients(recipeName) || emptyIngredients();
+    var lang = currentLang;
+    var de = lang === 'de';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-ingr-editor';
+    overlay.className = 'ingr-overlay';
+
+    function renderEditor() {
+      var grainRows = (data.grains || []).map(function(g, i) {
+        return '<tr>' +
+          '<td><input type="text" value="' + (g.name || '').replace(/"/g, '&quot;') + '" data-field="grains.' + i + '.name" placeholder="' + (de ? 'z.B. Pilsner Malz' : 'e.g. Pilsner Malt') + '"></td>' +
+          '<td><input type="number" value="' + (g.amount || '') + '" data-field="grains.' + i + '.amount" step="0.1" min="0" placeholder="kg"></td>' +
+          '<td><button class="ingr-del-btn" data-del="grains.' + i + '">\u2716</button></td>' +
+        '</tr>';
+      }).join('');
+      var hopTypeOptions = ['Standard', 'Whirlpool', 'Dry Hop', 'First Wort'];
+      var hopRows = (data.hops || []).map(function(h, i) {
+        var typeSelect = '<select data-field="hops.' + i + '.type" style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:4px;padding:5px 4px;color:var(--text);font-size:12px;width:90px">';
+        hopTypeOptions.forEach(function(t) {
+          typeSelect += '<option value="' + t + '"' + ((h.type || 'Standard') === t ? ' selected' : '') + '>' + t + '</option>';
+        });
+        typeSelect += '</select>';
+        return '<tr>' +
+          '<td><input type="text" value="' + (h.name || '').replace(/"/g, '&quot;') + '" data-field="hops.' + i + '.name" placeholder="' + (de ? 'z.B. Cascade' : 'e.g. Cascade') + '"></td>' +
+          '<td><input type="number" value="' + (h.amount || '') + '" data-field="hops.' + i + '.amount" step="1" min="0" placeholder="g"></td>' +
+          '<td><input type="number" value="' + (h.alpha || '') + '" data-field="hops.' + i + '.alpha" step="0.1" min="0" placeholder="% \u03b1"></td>' +
+          '<td><input type="number" value="' + (h.time || '') + '" data-field="hops.' + i + '.time" step="1" min="0" placeholder="min"></td>' +
+          '<td>' + typeSelect + '</td>' +
+          '<td><button class="ingr-del-btn" data-del="hops.' + i + '">\u2716</button></td>' +
+        '</tr>';
+      }).join('');
+
+      var otherRows = (data.others || []).map(function(o, i) {
+        return '<tr>' +
+          '<td><input type="text" value="' + (o.name || '').replace(/"/g, '&quot;') + '" data-field="others.' + i + '.name" placeholder="' + (de ? 'z.B. Irish Moss' : 'e.g. Irish Moss') + '"></td>' +
+          '<td><input type="number" value="' + (o.amount || '') + '" data-field="others.' + i + '.amount" step="0.1" min="0" placeholder="' + (de ? 'Menge' : 'Amount') + '"></td>' +
+          '<td><input type="text" value="' + (o.unit || 'g').replace(/"/g, '&quot;') + '" data-field="others.' + i + '.unit" placeholder="g" style="width:50px"></td>' +
+          '<td><button class="ingr-del-btn" data-del="others.' + i + '">\u2716</button></td>' +
+        '</tr>';
+      }).join('');
+
+      overlay.innerHTML =
+        '<div class="ingr-container">' +
+          '<div class="ingr-header">' +
+            '<h2>' + (de ? 'Zutaten: ' : 'Ingredients: ') + recipeName + '</h2>' +
+            '<button class="water-close-btn" id="ingr-close">\u00d7</button>' +
+          '</div>' +
+          '<div class="ingr-body">' +
+
+            // Ausschlagmenge
+            '<div class="ingr-scale-row">' +
+              '<label>' + (de ? 'Referenz-Ausschlagmenge:' : 'Reference batch size:') + '</label>' +
+              '<input type="number" id="ingr-batch" value="' + (data.batchSize || 20) + '" min="1" step="0.5"> L' +
+              '<span style="color:var(--text-muted);font-size:12px;margin-left:8px">' +
+                (de ? '(Alle Mengen beziehen sich auf diese Menge)' : '(All amounts are for this batch size)') +
+              '</span>' +
+            '</div>' +
+
+            // Malz
+            '<div class="ingr-section">' +
+              '<div class="ingr-section-title">\ud83c\udf3e ' + (de ? 'Sch\u00fcttung (Malz)' : 'Grain Bill') + '</div>' +
+              '<table class="ingr-table"><thead><tr>' +
+                '<th>' + (de ? 'Sorte' : 'Type') + '</th><th>kg</th><th></th>' +
+              '</tr></thead><tbody id="ingr-grains">' + grainRows + '</tbody></table>' +
+              '<button class="ingr-add-btn" id="ingr-add-grain">+ ' + (de ? 'Malz hinzuf\u00fcgen' : 'Add Grain') + '</button>' +
+            '</div>' +
+
+            // Hopfen
+            '<div class="ingr-section">' +
+              '<div class="ingr-section-title">\ud83c\udf3f ' + (de ? 'Hopfen' : 'Hops') + '</div>' +
+              '<table class="ingr-table"><thead><tr>' +
+                '<th>' + (de ? 'Sorte' : 'Variety') + '</th><th>g</th><th>% \u03b1</th><th>min</th><th>' + (de ? 'Typ' : 'Type') + '</th><th></th>' +
+              '</tr></thead><tbody id="ingr-hops">' + hopRows + '</tbody></table>' +
+              '<button class="ingr-add-btn" id="ingr-add-hop">+ ' + (de ? 'Hopfen hinzuf\u00fcgen' : 'Add Hop') + '</button>' +
+            '</div>' +
+
+            // Sonstiges
+            '<div class="ingr-section">' +
+              '<div class="ingr-section-title">\ud83e\uddf2 ' + (de ? 'Sonstiges' : 'Other') + '</div>' +
+              '<table class="ingr-table"><thead><tr>' +
+                '<th>' + (de ? 'Zutat' : 'Ingredient') + '</th><th>' + (de ? 'Menge' : 'Amount') + '</th><th>' + (de ? 'Einheit' : 'Unit') + '</th><th></th>' +
+              '</tr></thead><tbody id="ingr-others">' + otherRows + '</tbody></table>' +
+              '<button class="ingr-add-btn" id="ingr-add-other">+ ' + (de ? 'Zutat hinzuf\u00fcgen' : 'Add Ingredient') + '</button>' +
+            '</div>' +
+
+            // Wasser
+            '<div class="ingr-section">' +
+              '<div class="ingr-section-title">\ud83d\udca7 ' + (de ? 'Wasser' : 'Water') + '</div>' +
+              '<div class="sparge-input-grid" style="max-width:400px">' +
+                '<div class="sparge-input-item">' +
+                  '<label>' + (de ? 'Hauptguss' : 'Mash Water') + ' (L)</label>' +
+                  '<input type="number" id="ingr-water-hg" value="' + (data.water.hauptguss || '') + '" step="0.5" min="0" placeholder="L">' +
+                '</div>' +
+                '<div class="sparge-input-item">' +
+                  '<label>' + (de ? 'Nachguss' : 'Sparge Water') + ' (L)</label>' +
+                  '<input type="number" id="ingr-water-ng" value="' + (data.water.nachguss || '') + '" step="0.5" min="0" placeholder="L">' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+
+            // Notizen
+            '<div class="ingr-section">' +
+              '<div class="ingr-section-title">\ud83d\udcdd ' + (de ? 'Notizen' : 'Notes') + '</div>' +
+              '<textarea id="ingr-notes" rows="3" style="width:100%;box-sizing:border-box;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text);font-size:13px;resize:vertical" placeholder="' + (de ? 'z.B. Hefe, Besonderheiten\u2026' : 'e.g. yeast, special notes\u2026') + '">' + (data.notes || '').replace(/</g, '&lt;') + '</textarea>' +
+            '</div>' +
+
+            // Buttons
+            '<div class="ingr-actions">' +
+              '<button class="water-btn water-btn-accent" id="ingr-save">' + (de ? 'Speichern' : 'Save') + '</button>' +
+              '<button class="water-btn water-btn-secondary" id="ingr-cancel">' + (de ? 'Abbrechen' : 'Cancel') + '</button>' +
+            '</div>' +
+
+          '</div>' +
+        '</div>';
+
+      // Event-Handler binden
+      setTimeout(bindEditorEvents, 0);
+    }
+
+    function collectData() {
+      data.batchSize = parseFloat(document.getElementById('ingr-batch').value) || 20;
+      data.water = {
+        hauptguss: document.getElementById('ingr-water-hg').value,
+        nachguss: document.getElementById('ingr-water-ng').value
+      };
+      data.notes = document.getElementById('ingr-notes').value;
+
+      // Inputs sammeln
+      overlay.querySelectorAll('[data-field]').forEach(function(inp) {
+        var parts = inp.getAttribute('data-field').split('.');
+        var list = parts[0]; // grains, hops, others
+        var idx = parseInt(parts[1]);
+        var field = parts[2];
+        if (!data[list]) return;
+        if (!data[list][idx]) return;
+        data[list][idx][field] = inp.type === 'number' ? (inp.value === '' ? '' : parseFloat(inp.value)) : inp.value;
+      });
+    }
+
+    function bindEditorEvents() {
+      document.getElementById('ingr-close').onclick = function() { overlay.remove(); };
+      overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+      document.getElementById('ingr-cancel').onclick = function() { overlay.remove(); };
+
+      document.getElementById('ingr-save').onclick = function() {
+        collectData();
+        saveIngredients(recipeName, data);
+        overlay.remove();
+        // Rezeptkarten aktualisieren falls sichtbar
+        if (window.location.hash === '#/recipes') {
+          setTimeout(function() { refreshIngredientSummaries(); }, 100);
+        }
+      };
+
+      document.getElementById('ingr-add-grain').onclick = function() {
+        collectData();
+        data.grains.push({ name: '', amount: '' });
+        renderEditor();
+      };
+      document.getElementById('ingr-add-hop').onclick = function() {
+        collectData();
+        data.hops.push({ name: '', amount: '', alpha: '', time: '', type: 'Standard' });
+        renderEditor();
+      };
+      document.getElementById('ingr-add-other').onclick = function() {
+        collectData();
+        if (!data.others) data.others = [];
+        data.others.push({ name: '', amount: '', unit: 'g' });
+        renderEditor();
+      };
+
+      // Delete-Buttons
+      overlay.querySelectorAll('[data-del]').forEach(function(btn) {
+        btn.onclick = function() {
+          collectData();
+          var parts = btn.getAttribute('data-del').split('.');
+          var list = parts[0];
+          var idx = parseInt(parts[1]);
+          data[list].splice(idx, 1);
+          renderEditor();
+        };
+      });
+    }
+
+    renderEditor();
+    document.body.appendChild(overlay);
+  }
+
+  // Zutaten-Zusammenfassungen in Rezeptkarten einf\u00fcgen/aktualisieren
+  function exportSingleRecipe(recipeName) {
+    var data = getIngredients(recipeName);
+    if (!data) { alert(currentLang === 'de' ? 'Keine Zutaten zum Exportieren.' : 'No ingredients to export.'); return; }
+    var exportObj = { name: recipeName, version: 1 };
+    ['batchSize', 'grains', 'hops', 'others', 'water', 'notes'].forEach(function(k) { exportObj[k] = data[k]; });
+    var blob = new Blob([JSON.stringify(exportObj, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = recipeName.replace(/[^a-zA-Z0-9\u00e4\u00f6\u00fc\u00c4\u00d6\u00dc\u00df _-]/g, '_') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function refreshIngredientSummaries() {
+    // Rezeptliste: <li class="MuiListItem-container"> mit
+    //   <span class="MuiListItemText-primary">Rezeptname</span>
+    var items = document.querySelectorAll('li.MuiListItem-container');
+    items.forEach(function(li) {
+      if (li.querySelector('.recipe-row-actions')) return;
+
+      var nameSpan = li.querySelector('.MuiListItemText-primary');
+      if (!nameSpan) return;
+      var recipeName = (nameSpan.textContent || '').trim();
+      if (!recipeName) return;
+
+      var de = currentLang === 'de';
+      var hasData = !!getIngredients(recipeName);
+
+      // Aktionen-Container erstellen
+      var actions = document.createElement('span');
+      actions.className = 'recipe-row-actions';
+
+      // Export-Button (nur wenn Zutaten vorhanden)
+      if (hasData) {
+        var expBtn = document.createElement('button');
+        expBtn.className = 'recipe-row-btn';
+        expBtn.textContent = '\ud83d\udce4';
+        expBtn.title = de ? 'Zutaten exportieren' : 'Export ingredients';
+        expBtn.onclick = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          exportSingleRecipe(recipeName);
+        };
+        actions.appendChild(expBtn);
+      }
+
+      // Bearbeiten-Button
+      var editBtn = document.createElement('button');
+      editBtn.className = 'recipe-row-btn';
+      editBtn.textContent = hasData ? '\u270f\ufe0f' : '\u2795';
+      editBtn.title = hasData ? (de ? 'Zutaten bearbeiten' : 'Edit ingredients') : (de ? 'Zutaten hinzuf\u00fcgen' : 'Add ingredients');
+      editBtn.onclick = function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        buildIngredientEditor(recipeName);
+      };
+      actions.appendChild(editBtn);
+
+      // Neben dem Rezeptnamen einf\u00fcgen
+      var textRoot = li.querySelector('.MuiListItemText-root');
+      if (textRoot) {
+        textRoot.style.display = 'flex';
+        textRoot.style.alignItems = 'center';
+        textRoot.style.gap = '8px';
+        textRoot.appendChild(actions);
+      } else {
+        li.appendChild(actions);
+      }
+    });
+  }
+
+  // ============================================================
+  // NACHGUSSRECHNER — Haupt-/Nachguss berechnen
+  // ============================================================
+  var SPARGE_KEY = 'cbpi_sparge_settings';
+
+  function loadSpargeSettings() {
+    try { return JSON.parse(localStorage.getItem(SPARGE_KEY)) || {}; } catch(e) { return {}; }
+  }
+
+  function saveSpargeSettings(vals) {
+    localStorage.setItem(SPARGE_KEY, JSON.stringify(vals));
+  }
+
+  function buildSpargeCalculator() {
+    var existing = document.getElementById('cbpi-sparge-calc');
+    if (existing) existing.remove();
+
+    var saved = loadSpargeSettings();
+    var lang = currentLang;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'cbpi-sparge-calc';
+    overlay.className = 'water-calc-overlay';
+
+    var fields = [
+      { id: 'sparge-grain',    label: { de: 'Sch\u00fcttung',           en: 'Grain Bill' },           unit: 'kg',   val: saved.grain    || '',   step: '0.1',  min: '0', placeholder: 'z.B. 5.0',
+        hint: { de: 'Gesamtgewicht deines Malzes laut Rezept', en: 'Total weight of your malt per recipe' } },
+      { id: 'sparge-target',   label: { de: 'Ziel-Ausschlagmenge',     en: 'Target Batch Volume' },  unit: 'L',    val: saved.target   || '20', step: '0.5',  min: '1', placeholder: '20',
+        hint: { de: 'Fertige W\u00fcrzem\u00e4nge nach dem Kochen (typisch: 20\u201325 L)', en: 'Final wort volume after boil (typical: 20\u201325 L)' } },
+      { id: 'sparge-ratio',    label: { de: 'Hauptguss-Faktor',        en: 'Mash Ratio' },           unit: 'L/kg', val: saved.ratio    || '2.7', step: '0.1', min: '1', placeholder: '2.7',
+        hint: { de: 'Liter Wasser pro kg Malz zum Einmaischen (typisch: 2,5\u20133,5 \u2013 dicker Maisch = 2,5 / d\u00fcnner = 3,5)', en: 'Liters water per kg grain for mashing (typical: 2.5\u20133.5)' } },
+      { id: 'sparge-boiltime', label: { de: 'Kochzeit',                en: 'Boil Time' },            unit: 'min',  val: saved.boiltime || '60', step: '5',   min: '0', placeholder: '60',
+        hint: { de: 'Wie lange du kochst (Standard: 60 min, manche Rezepte 90 min)', en: 'How long you boil (standard: 60 min, some recipes 90 min)' } },
+      { id: 'sparge-evap',     label: { de: 'Verdampfungsrate',        en: 'Evaporation Rate' },     unit: 'L/h',  val: saved.evap     || '4',  step: '0.5', min: '0', placeholder: '4',
+        hint: { de: 'Wieviel Wasser pro Stunde verdampft (typisch: 3\u20135 L/h \u2013 einmal messen und merken!)', en: 'Water lost per hour of boiling (typical: 3\u20135 L/h \u2013 measure once!)' } },
+      { id: 'sparge-absorb',   label: { de: 'Treberaufnahme',          en: 'Grain Absorption' },     unit: 'L/kg', val: saved.absorb   || '0.8', step: '0.05', min: '0', placeholder: '0.8',
+        hint: { de: 'Wasser das im Treber gebunden bleibt (typisch: 0,7\u20131,0 L/kg \u2013 0,8 ist ein guter Standardwert)', en: 'Water retained by spent grain (typical: 0.7\u20131.0 L/kg \u2013 0.8 is a good default)' } }
+    ];
+
+    var inputsHtml = fields.map(function(f) {
+      return '<div class="sparge-input-item">' +
+        '<label>' + f.label[lang] + ' <span class="sparge-unit">(' + f.unit + ')</span></label>' +
+        '<input type="number" id="' + f.id + '" value="' + f.val + '" step="' + f.step + '" min="' + f.min + '" placeholder="' + f.placeholder + '">' +
+        '<small class="sparge-hint">' + f.hint[lang] + '</small>' +
+      '</div>';
+    }).join('');
+
+    overlay.innerHTML =
+      '<div class="water-calc-container" style="max-width:660px;">' +
+        '<div class="water-calc-header">' +
+          '<h2>' + (lang === 'de' ? 'Nachgussrechner' : 'Sparge Water Calculator') + '</h2>' +
+          '<button class="water-close-btn" id="sparge-close">\u00d7</button>' +
+        '</div>' +
+        '<div class="water-calc-body">' +
+          '<p class="water-hint" style="margin-bottom:14px;">' +
+            (lang === 'de'
+              ? 'Berechne Hauptguss und Nachguss basierend auf deiner Sch\u00fcttung und den Brauparametern.'
+              : 'Calculate mash water and sparge water based on your grain bill and brewing parameters.') +
+          '</p>' +
+          '<div class="sparge-input-grid">' + inputsHtml + '</div>' +
+          '<button class="water-btn water-btn-accent" id="sparge-calc-btn" style="margin-top:8px;">' +
+            (lang === 'de' ? 'Berechnen' : 'Calculate') +
+          '</button>' +
+          '<div id="sparge-result" style="display:none;"></div>' +
+        '</div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Events
+    document.getElementById('sparge-close').onclick = function() { overlay.remove(); };
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    document.getElementById('sparge-calc-btn').onclick = function() {
+      var grain    = parseFloat(document.getElementById('sparge-grain').value) || 0;
+      var target   = parseFloat(document.getElementById('sparge-target').value) || 20;
+      var ratio    = parseFloat(document.getElementById('sparge-ratio').value) || 2.7;
+      var boiltime = parseFloat(document.getElementById('sparge-boiltime').value) || 60;
+      var evap     = parseFloat(document.getElementById('sparge-evap').value) || 4;
+      var absorb   = parseFloat(document.getElementById('sparge-absorb').value) || 0.8;
+
+      if (grain <= 0) {
+        alert(lang === 'de' ? 'Bitte Sch\u00fcttung eingeben!' : 'Please enter grain amount!');
+        return;
+      }
+
+      // Einstellungen speichern
+      saveSpargeSettings({ grain: grain, target: target, ratio: ratio, boiltime: boiltime, evap: evap, absorb: absorb });
+
+      // Berechnung
+      var hauptguss       = grain * ratio;
+      var verdampfung     = (boiltime / 60) * evap;
+      var pfanneVoll      = target + verdampfung;
+      var treberVerlust   = grain * absorb;
+      var nachguss        = pfanneVoll - hauptguss + treberVerlust;
+      var gesamtwasser    = hauptguss + Math.max(0, nachguss);
+
+      if (nachguss < 0) nachguss = 0;
+
+      var resultDiv = document.getElementById('sparge-result');
+      resultDiv.style.display = '';
+      resultDiv.innerHTML =
+        '<div class="sparge-result-grid">' +
+          '<div class="sparge-result-item">' +
+            '<span>' + (lang === 'de' ? 'Hauptguss' : 'Mash Water') + '</span>' +
+            '<b>' + hauptguss.toFixed(1) + ' L</b>' +
+          '</div>' +
+          '<div class="sparge-result-item sparge-highlight">' +
+            '<span>' + (lang === 'de' ? 'Nachguss' : 'Sparge Water') + '</span>' +
+            '<b>' + nachguss.toFixed(1) + ' L</b>' +
+          '</div>' +
+          '<div class="sparge-result-item">' +
+            '<span>' + (lang === 'de' ? 'Gesamtwasser' : 'Total Water') + '</span>' +
+            '<b>' + gesamtwasser.toFixed(1) + ' L</b>' +
+          '</div>' +
+          '<div class="sparge-result-item">' +
+            '<span>' + (lang === 'de' ? 'Pfanne-voll' : 'Pre-Boil Vol.') + '</span>' +
+            '<b>' + pfanneVoll.toFixed(1) + ' L</b>' +
+          '</div>' +
+          '<div class="sparge-result-item">' +
+            '<span>' + (lang === 'de' ? 'Verdampfung' : 'Evaporation') + '</span>' +
+            '<b>' + verdampfung.toFixed(1) + ' L</b>' +
+          '</div>' +
+          '<div class="sparge-result-item">' +
+            '<span>' + (lang === 'de' ? 'Treberverlust' : 'Grain Absorption') + '</span>' +
+            '<b>' + treberVerlust.toFixed(1) + ' L</b>' +
+          '</div>' +
+        '</div>' +
+        '<div class="sparge-formula">' +
+          (lang === 'de'
+            ? '<b>Formeln:</b><br>' +
+              '<code>Hauptguss</code> = Sch\u00fcttung \u00d7 Hauptguss-Faktor = ' + grain + ' \u00d7 ' + ratio + ' = ' + hauptguss.toFixed(1) + ' L<br>' +
+              '<code>Pfanne-voll</code> = Ziel-Ausschlag + Verdampfung = ' + target + ' + ' + verdampfung.toFixed(1) + ' = ' + pfanneVoll.toFixed(1) + ' L<br>' +
+              '<code>Nachguss</code> = Pfanne-voll \u2212 Hauptguss + Treberverlust = ' + pfanneVoll.toFixed(1) + ' \u2212 ' + hauptguss.toFixed(1) + ' + ' + treberVerlust.toFixed(1) + ' = ' + nachguss.toFixed(1) + ' L'
+            : '<b>Formulas:</b><br>' +
+              '<code>Mash Water</code> = Grain \u00d7 Ratio = ' + grain + ' \u00d7 ' + ratio + ' = ' + hauptguss.toFixed(1) + ' L<br>' +
+              '<code>Pre-Boil</code> = Target + Evaporation = ' + target + ' + ' + verdampfung.toFixed(1) + ' = ' + pfanneVoll.toFixed(1) + ' L<br>' +
+              '<code>Sparge</code> = Pre-Boil \u2212 Mash Water + Grain Absorption = ' + pfanneVoll.toFixed(1) + ' \u2212 ' + hauptguss.toFixed(1) + ' + ' + treberVerlust.toFixed(1) + ' = ' + nachguss.toFixed(1) + ' L'
+          ) +
+        '</div>';
+
+      resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+  }
+
+  // Nachgussrechner-Nav-Item in Sidebar injizieren
+  function injectSpargeNavItem(drawer) {
+    if (drawer.querySelector('#cbpi-nav-sparge')) return;
+    var list = drawer.querySelector('.MuiList-root');
+    if (!list) return;
+    var firstItem = list.querySelector('.MuiListItem-root');
+    if (!firstItem) return;
+
+    _isOurDomChange = true;
+    var li = firstItem.cloneNode(true);
+    li.id = 'cbpi-nav-sparge';
+    li.style.cursor = 'pointer';
+    li.classList.remove('cbpi-nav-hidden');
+
+    li.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      buildSpargeCalculator();
+    });
+
+    // Icon: Messbecher / Wasser gießen
+    var svg = li.querySelector('svg');
+    if (svg) {
+      svg.innerHTML = '<path d="M3 2l2.01 18.23C5.13 21.23 5.97 22 7 22h10c1.03 0 1.87-.77 1.99-1.77L21 2H3zm14 18H7L5.2 4h13.6L17 20zM12 5l-1.5 8h3L12 5z"/>';
+    }
+
+    var textEl = li.querySelector('.MuiListItemText-primary');
+    if (textEl) textEl.textContent = currentLang === 'de' ? 'Nachgussrechner' : 'Sparge Calculator';
+    var descEl = li.querySelector('.cbpi-menu-desc');
+    if (descEl) descEl.textContent = currentLang === 'de' ? 'Haupt- & Nachguss berechnen' : 'Calculate mash & sparge water';
+
+    // Nach dem Brauwasser-Item einfügen
+    var waterItem = drawer.querySelector('#cbpi-nav-water');
+    if (waterItem && waterItem.nextSibling) {
+      list.insertBefore(li, waterItem.nextSibling);
+    } else {
+      // Fallback: nach Rezeptbuch
+      var items = list.querySelectorAll('.MuiListItem-root');
+      var insertAfter = null;
+      items.forEach(function(item) {
+        var t = item.querySelector('.MuiListItemText-primary');
+        if (t) {
+          var txt = t.textContent.trim().toLowerCase();
+          if (txt === 'brauwasser' || txt === 'water chemistry') insertAfter = item;
+          if (txt === 'rezeptbuch' || txt === 'recipe book') { if (!insertAfter) insertAfter = item; }
+        }
+      });
+      if (insertAfter && insertAfter.nextSibling) {
+        list.insertBefore(li, insertAfter.nextSibling);
+      } else {
+        list.appendChild(li);
+      }
+    }
+    _isOurDomChange = false;
+  }
+
+  // ============================================================
   // BRAU-LOGBUCH — Brauprotokolle/Notizen speichern und abrufen
   // ============================================================
   var BREWLOG_KEY = 'cbpi_brewlog';
@@ -5042,6 +5819,53 @@
       }
     }
     saveBrewLogs(logs);
+  }
+
+  function injectRecipeBookNavItem(drawer) {
+    if (drawer.querySelector('#cbpi-nav-recipebook')) return;
+    var list = drawer.querySelector('.MuiList-root');
+    if (!list) return;
+    var firstItem = list.querySelector('.MuiListItem-root');
+    if (!firstItem) return;
+
+    _isOurDomChange = true;
+    var li = firstItem.cloneNode(true);
+    li.id = 'cbpi-nav-recipebook';
+    li.style.cursor = 'pointer';
+
+    li.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      _cockpitMode = false;
+      stopCockpit();
+      window.location.hash = '#/recipes';
+    });
+
+    var svg = li.querySelector('svg');
+    if (svg) {
+      svg.innerHTML = '<path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/>';
+    }
+    var textEl = li.querySelector('.MuiListItemText-primary');
+    if (textEl) textEl.textContent = currentLang === 'de' ? 'Rezeptbuch' : 'Recipe Book';
+    var descEl = li.querySelector('.cbpi-menu-desc');
+    if (descEl) descEl.textContent = currentLang === 'de' ? 'Rezepte verwalten & laden' : 'Manage & load recipes';
+
+    // Nach Brauplan einfügen
+    var items = list.querySelectorAll('.MuiListItem-root');
+    var insertAfter = null;
+    items.forEach(function(item) {
+      var t = item.querySelector('.MuiListItemText-primary');
+      if (t) {
+        var txt = t.textContent.trim().toLowerCase();
+        if (txt === 'brauplan' || txt === 'brew plan' || txt === 'mash profile') insertAfter = item;
+      }
+    });
+    if (insertAfter && insertAfter.nextSibling) {
+      list.insertBefore(li, insertAfter.nextSibling);
+    } else {
+      list.appendChild(li);
+    }
+    _isOurDomChange = false;
   }
 
   function injectBrewLogNavItem(drawer) {
@@ -5499,6 +6323,324 @@
     saveRecipeMeta(RECIPE_NOTES_KEY, meta);
   }
 
+  // ============================================================
+  // Rezept-Detailseite erweitern (Tab-System: Brau-Schritte | Zutaten)
+  // Ansatz: Keine React-Elemente verschieben, nur Sichtbarkeit toggeln
+  // ============================================================
+  function enhanceRecipeDetailPage() {
+    var hash = window.location.hash.replace('#', '');
+    if (!/^\/recipe\//.test(hash)) {
+      // Cleanup: Sichtbarkeit wiederherstellen + Marker entfernen
+      var stale = document.getElementById('cbpi-recipe-detail-enhance');
+      if (stale) {
+        var sib = stale.nextElementSibling;
+        while (sib) { sib.style.display = ''; sib = sib.nextElementSibling; }
+        stale.remove();
+      }
+      return;
+    }
+    if (document.getElementById('cbpi-recipe-detail-enhance')) return;
+
+    var de = currentLang === 'de';
+
+    // Rezeptname aus Breadcrumb extrahieren
+    var recipeName = '';
+    var bcContainer = document.querySelector('.MuiBreadcrumbs-root, .MuiBreadcrumbs-ol');
+    if (bcContainer) {
+      var bcParts = (bcContainer.textContent || '').split('/').map(function(s) { return s.trim(); });
+      if (bcParts.length >= 3) recipeName = bcParts[bcParts.length - 1];
+    }
+    if (!recipeName) {
+      var titleEl = document.querySelector('.MuiTypography-h5, .MuiTypography-h6');
+      if (titleEl) recipeName = titleEl.textContent.trim();
+    }
+    if (!recipeName) return;
+
+    // "Brau-Schritte" Heading finden
+    var stepsHeading = null;
+    document.querySelectorAll('h2, h3, h4, h5, h6, .MuiTypography-h5, .MuiTypography-h6, .MuiTypography-subtitle1').forEach(function(h) {
+      var t = (h.textContent || '').trim().toLowerCase();
+      if (t === 'brau-schritte' || t === 'brew steps' || t === 'steps') stepsHeading = h;
+    });
+    if (!stepsHeading) return;
+
+    // Heading-Wrapper finden: Hochgehen bis Eltern-Element viele Kinder hat (Grid-Container)
+    var headingItem = stepsHeading;
+    for (var lvl = 0; lvl < 4; lvl++) {
+      if (!headingItem.parentNode) break;
+      if (headingItem.parentNode.children.length >= 4) break;
+      headingItem = headingItem.parentNode;
+    }
+    var contentParent = headingItem.parentNode;
+    if (!contentParent) return;
+
+    // Tab-Wrapper erstellen (wird VOR dem Heading-Item eingefügt)
+    var tabWrapper = document.createElement('div');
+    tabWrapper.id = 'cbpi-recipe-detail-enhance';
+    tabWrapper.className = 'recipe-tabs-wrapper';
+
+    // Tab-Bar
+    var tabBar = document.createElement('div');
+    tabBar.className = 'recipe-tab-bar';
+    tabBar.innerHTML =
+      '<button class="recipe-tab active" data-tab="steps">\ud83d\udcdd ' + (de ? 'Brau-Schritte' : 'Brew Steps') + '</button>' +
+      '<button class="recipe-tab" data-tab="ingredients">\ud83e\uddea ' + (de ? 'Zutaten' : 'Ingredients') + '</button>';
+    tabWrapper.appendChild(tabBar);
+
+    // Zutaten-Panel (initial versteckt)
+    var ingrPanel = document.createElement('div');
+    ingrPanel.className = 'recipe-tab-panel-ingr';
+    ingrPanel.style.display = 'none';
+    tabWrapper.appendChild(ingrPanel);
+
+    // Tab-Wrapper vor dem Heading einfügen
+    contentParent.insertBefore(tabWrapper, headingItem);
+
+    // Zutaten rendern
+    renderIngredientsTab(ingrPanel, recipeName, de);
+
+    // Tab-Umschaltung: Sichtbarkeit toggeln statt Elemente verschieben
+    function setActiveTab(tab) {
+      tabBar.querySelectorAll('.recipe-tab').forEach(function(b) { b.classList.remove('active'); });
+      var activeBtn = tabBar.querySelector('[data-tab="' + tab + '"]');
+      if (activeBtn) activeBtn.classList.add('active');
+
+      // Zutaten-Panel ein/ausblenden
+      ingrPanel.style.display = tab === 'ingredients' ? 'block' : 'none';
+
+      // Alle Geschwister-Elemente nach tabWrapper (= Steps-Content) ein/ausblenden
+      var el = tabWrapper.nextElementSibling;
+      while (el) {
+        el.style.display = tab === 'steps' ? '' : 'none';
+        el = el.nextElementSibling;
+      }
+    }
+
+    tabBar.addEventListener('click', function(e) {
+      var btn = e.target.closest('.recipe-tab');
+      if (!btn) return;
+      setActiveTab(btn.getAttribute('data-tab'));
+    });
+  }
+
+  function renderIngredientsTab(panel, recipeName, de, existingData) {
+    var data = existingData || getIngredients(recipeName) || emptyIngredients();
+    var hopTypeOptions = ['Standard', 'Whirlpool', 'Dry Hop', 'First Wort'];
+    var html = '';
+
+    html += '<div class="recipe-ingr-tab">';
+
+    // === ZWEI-SPALTEN-LAYOUT ===
+    html += '<div class="recipe-ingr-columns">';
+    html += '<div class="recipe-ingr-left">';
+
+    // Batch-Größe
+    html += '<div class="recipe-ingr-field-row">';
+    html += '<label>' + (de ? 'Ausschlagmenge' : 'Batch size') + '</label>';
+    html += '<input type="number" id="rit-batch" value="' + (data.batchSize || 20) + '" min="1" step="0.5"> L';
+    html += '</div>';
+
+    // -- Schüttung --
+    html += '<div class="recipe-ingr-section">';
+    html += '<h4 class="recipe-ingr-section-title">\ud83c\udf3e ' + (de ? 'Sch\u00fcttung (Malz)' : 'Grain Bill') + '</h4>';
+    html += '<table class="recipe-ingr-table" id="rit-grains-table"><thead><tr>';
+    html += '<th>' + (de ? 'Sorte' : 'Type') + '</th><th>kg</th><th></th>';
+    html += '</tr></thead><tbody>';
+    (data.grains || []).forEach(function(g, i) {
+      html += '<tr>' +
+        '<td><input type="text" value="' + (g.name || '').replace(/"/g, '&quot;') + '" data-field="grains.' + i + '.name" placeholder="' + (de ? 'z.B. Pilsner Malz' : 'e.g. Pilsner Malt') + '"></td>' +
+        '<td><input type="number" value="' + (g.amount || '') + '" data-field="grains.' + i + '.amount" step="0.1" min="0" placeholder="kg"></td>' +
+        '<td><button class="ingr-del-btn" data-del="grains.' + i + '">\u2716</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<button class="recipe-ingr-add-btn" data-add="grain">+ ' + (de ? 'Malz' : 'Grain') + '</button>';
+    html += '</div>';
+
+    // -- Hopfen --
+    html += '<div class="recipe-ingr-section">';
+    html += '<h4 class="recipe-ingr-section-title">\ud83c\udf3f ' + (de ? 'Hopfen' : 'Hops') + '</h4>';
+    html += '<table class="recipe-ingr-table" id="rit-hops-table"><thead><tr>';
+    html += '<th>' + (de ? 'Sorte' : 'Variety') + '</th><th>g</th><th>% \u03b1</th><th>min</th><th>' + (de ? 'Typ' : 'Type') + '</th><th></th>';
+    html += '</tr></thead><tbody>';
+    (data.hops || []).forEach(function(h, i) {
+      var sel = '<select data-field="hops.' + i + '.type" class="recipe-ingr-select">';
+      hopTypeOptions.forEach(function(t) {
+        sel += '<option value="' + t + '"' + ((h.type || 'Standard') === t ? ' selected' : '') + '>' + t + '</option>';
+      });
+      sel += '</select>';
+      html += '<tr>' +
+        '<td><input type="text" value="' + (h.name || '').replace(/"/g, '&quot;') + '" data-field="hops.' + i + '.name" placeholder="' + (de ? 'z.B. Cascade' : 'e.g. Cascade') + '"></td>' +
+        '<td><input type="number" value="' + (h.amount || '') + '" data-field="hops.' + i + '.amount" step="1" min="0" placeholder="g"></td>' +
+        '<td><input type="number" value="' + (h.alpha || '') + '" data-field="hops.' + i + '.alpha" step="0.1" min="0" placeholder="%"></td>' +
+        '<td><input type="number" value="' + (h.time || '') + '" data-field="hops.' + i + '.time" step="1" min="0" placeholder="min"></td>' +
+        '<td>' + sel + '</td>' +
+        '<td><button class="ingr-del-btn" data-del="hops.' + i + '">\u2716</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<button class="recipe-ingr-add-btn" data-add="hop">+ ' + (de ? 'Hopfen' : 'Hop') + '</button>';
+    html += '</div>';
+
+    // -- Hopfenplan (read-only Übersicht) --
+    if (data.hops && data.hops.length > 0) {
+      html += '<div class="recipe-ingr-section">';
+      html += '<h4 class="recipe-ingr-section-title">\ud83d\udcc5 ' + (de ? 'Hopfenplan' : 'Hop Schedule') + '</h4>';
+      html += '<table class="recipe-detail-hop-table"><thead><tr>';
+      html += '<th>' + (de ? 'Zeitpunkt' : 'Timing') + '</th><th>' + (de ? 'Sorte' : 'Variety') + '</th><th>' + (de ? 'Menge' : 'Amount') + '</th><th>% \u03b1</th><th>' + (de ? 'Typ' : 'Type') + '</th>';
+      html += '</tr></thead><tbody>';
+      var sortedHops = data.hops.slice().sort(function(a, b) {
+        var order = { 'First Wort': 0, 'Standard': 1, 'Whirlpool': 2, 'Dry Hop': 3 };
+        var d = (order[a.type || 'Standard'] || 1) - (order[b.type || 'Standard'] || 1);
+        return d !== 0 ? d : (parseFloat(b.time) || 0) - (parseFloat(a.time) || 0);
+      });
+      sortedHops.forEach(function(h) {
+        var type = h.type || 'Standard';
+        var timing = '';
+        if (type === 'First Wort') timing = de ? 'Vorderw\u00fcrze' : 'First Wort';
+        else if (type === 'Whirlpool') timing = 'Whirlpool';
+        else if (type === 'Dry Hop') timing = de ? 'Stopfhopfen' : 'Dry Hop';
+        else { var t = parseFloat(h.time) || 0; timing = t > 0 ? t + ' min ' + (de ? 'vor Kochende' : 'before end') : (de ? 'Kochende (0 min)' : 'Flame out'); }
+        var rc = 'recipe-detail-hop-row';
+        if (type === 'Whirlpool') rc += ' hop-whirlpool';
+        else if (type === 'Dry Hop') rc += ' hop-dryhop';
+        else if (type === 'First Wort') rc += ' hop-firstwort';
+        html += '<tr class="' + rc + '"><td>' + timing + '</td><td><b>' + (h.name || '?') + '</b></td><td>' + (h.amount || '') + ' g</td><td>' + (h.alpha || '') + '%</td>';
+        html += '<td><span class="hop-type-badge hop-type-' + type.toLowerCase().replace(/\s/g, '') + '">' + type + '</span></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+
+    // -- Sonstiges --
+    html += '<div class="recipe-ingr-section">';
+    html += '<h4 class="recipe-ingr-section-title">\ud83e\uddf2 ' + (de ? 'Sonstiges' : 'Other') + '</h4>';
+    html += '<table class="recipe-ingr-table" id="rit-others-table"><thead><tr>';
+    html += '<th>' + (de ? 'Zutat' : 'Ingredient') + '</th><th>' + (de ? 'Menge' : 'Amount') + '</th><th>' + (de ? 'Einheit' : 'Unit') + '</th><th></th>';
+    html += '</tr></thead><tbody>';
+    (data.others || []).forEach(function(o, i) {
+      html += '<tr>' +
+        '<td><input type="text" value="' + (o.name || '').replace(/"/g, '&quot;') + '" data-field="others.' + i + '.name"></td>' +
+        '<td><input type="number" value="' + (o.amount || '') + '" data-field="others.' + i + '.amount" step="0.1" min="0"></td>' +
+        '<td><input type="text" value="' + (o.unit || 'g').replace(/"/g, '&quot;') + '" data-field="others.' + i + '.unit" style="width:50px"></td>' +
+        '<td><button class="ingr-del-btn" data-del="others.' + i + '">\u2716</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<button class="recipe-ingr-add-btn" data-add="other">+ ' + (de ? 'Zutat' : 'Ingredient') + '</button>';
+    html += '</div>';
+
+    html += '</div>'; // Ende .recipe-ingr-left
+
+    // === RECHTE SPALTE: Wasser + Notizen ===
+    html += '<div class="recipe-ingr-right">';
+
+    // -- Wasser --
+    html += '<div class="recipe-ingr-section">';
+    html += '<h4 class="recipe-ingr-section-title">\ud83d\udca7 ' + (de ? 'Wasser' : 'Water') + '</h4>';
+    html += '<div class="recipe-ingr-field-row">';
+    html += '<label>' + (de ? 'Hauptguss' : 'Mash water') + '</label>';
+    html += '<input type="number" id="rit-water-hg" value="' + (data.water && data.water.hauptguss || '') + '" step="0.5" min="0" placeholder="L"> L';
+    html += '</div>';
+    html += '<div class="recipe-ingr-field-row">';
+    html += '<label>' + (de ? 'Nachguss' : 'Sparge water') + '</label>';
+    html += '<input type="number" id="rit-water-ng" value="' + (data.water && data.water.nachguss || '') + '" step="0.5" min="0" placeholder="L"> L';
+    html += '</div>';
+    html += '</div>';
+
+    // -- Notizen --
+    html += '<div class="recipe-ingr-section">';
+    html += '<h4 class="recipe-ingr-section-title">\ud83d\udcdd ' + (de ? 'Notizen' : 'Notes') + '</h4>';
+    html += '<textarea id="rit-notes" class="recipe-ingr-notes" rows="12" placeholder="' + (de ? 'Hefe, G\u00e4rtemperatur, Tipps...' : 'Yeast, fermentation temp, tips...') + '">' + (data.notes || '').replace(/</g, '&lt;') + '</textarea>';
+    html += '</div>';
+
+    html += '</div>'; // Ende .recipe-ingr-right
+    html += '</div>'; // Ende .recipe-ingr-columns
+
+    // -- Speichern --
+    html += '<div class="recipe-ingr-actions">';
+    html += '<button class="water-btn water-btn-accent" id="rit-save">\ud83d\udcbe ' + (de ? 'Zutaten speichern' : 'Save ingredients') + '</button>';
+    html += '</div>';
+
+    html += '</div>';
+    panel.innerHTML = html;
+
+    // Event-Handler
+    bindIngredientsTabEvents(panel, recipeName, data, de);
+  }
+
+  function collectIngrTabData(panel, data) {
+    data.batchSize = parseFloat(panel.querySelector('#rit-batch').value) || 20;
+    data.water = {
+      hauptguss: panel.querySelector('#rit-water-hg').value,
+      nachguss: panel.querySelector('#rit-water-ng').value
+    };
+    data.notes = panel.querySelector('#rit-notes').value;
+
+    panel.querySelectorAll('[data-field]').forEach(function(inp) {
+      var parts = inp.getAttribute('data-field').split('.');
+      var list = parts[0];
+      var idx = parseInt(parts[1]);
+      var field = parts[2];
+      if (!data[list] || !data[list][idx]) return;
+      data[list][idx][field] = inp.tagName === 'SELECT' ? inp.value : (inp.type === 'number' ? (inp.value === '' ? '' : parseFloat(inp.value)) : inp.value);
+    });
+  }
+
+  function bindIngredientsTabEvents(panel, recipeName, data, de) {
+    // Batch-Größe ändern → Zutaten skalieren
+    var batchInput = panel.querySelector('#rit-batch');
+    var oldBatch = parseFloat(batchInput.value) || 20;
+    batchInput.addEventListener('change', function() {
+      var newBatch = parseFloat(batchInput.value) || 20;
+      if (newBatch === oldBatch || oldBatch === 0) { oldBatch = newBatch; return; }
+      var ratio = newBatch / oldBatch;
+      // Aktuelle Werte einlesen
+      collectIngrTabData(panel, data);
+      data.batchSize = newBatch;
+      // Mengen skalieren (auf 1-2 Nachkommastellen runden)
+      (data.grains || []).forEach(function(g) { if (g.amount !== '' && g.amount != null) g.amount = Math.round(parseFloat(g.amount) * ratio * 100) / 100; });
+      (data.hops || []).forEach(function(h) { if (h.amount !== '' && h.amount != null) h.amount = Math.round(parseFloat(h.amount) * ratio * 10) / 10; });
+      (data.others || []).forEach(function(o) { if (o.amount !== '' && o.amount != null) o.amount = Math.round(parseFloat(o.amount) * ratio * 10) / 10; });
+      if (data.water) {
+        if (data.water.hauptguss) data.water.hauptguss = String(Math.round(parseFloat(data.water.hauptguss) * ratio * 10) / 10);
+        if (data.water.nachguss) data.water.nachguss = String(Math.round(parseFloat(data.water.nachguss) * ratio * 10) / 10);
+      }
+      oldBatch = newBatch;
+      renderIngredientsTab(panel, recipeName, de, data);
+    });
+
+    // Speichern
+    panel.querySelector('#rit-save').addEventListener('click', function() {
+      collectIngrTabData(panel, data);
+      saveIngredients(recipeName, data);
+      // Re-render um Hopfenplan zu aktualisieren
+      renderIngredientsTab(panel, recipeName, de);
+      // Kurze Bestätigung
+      var btn = panel.querySelector('#rit-save');
+      if (btn) { btn.textContent = '\u2705 ' + (de ? 'Gespeichert!' : 'Saved!'); setTimeout(function() { btn.textContent = '\ud83d\udcbe ' + (de ? 'Zutaten speichern' : 'Save ingredients'); }, 1500); }
+    });
+
+    // Zeilen löschen
+    panel.addEventListener('click', function(e) {
+      var delBtn = e.target.closest('.ingr-del-btn');
+      if (delBtn) {
+        collectIngrTabData(panel, data);
+        var parts = delBtn.getAttribute('data-del').split('.');
+        if (data[parts[0]]) { data[parts[0]].splice(parseInt(parts[1]), 1); }
+        renderIngredientsTab(panel, recipeName, de);
+      }
+    });
+
+    // Zeilen hinzufügen
+    panel.querySelectorAll('.recipe-ingr-add-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        collectIngrTabData(panel, data);
+        var type = btn.getAttribute('data-add');
+        if (type === 'grain') data.grains.push({ name: '', amount: '' });
+        else if (type === 'hop') data.hops.push({ name: '', amount: '', alpha: '', time: '', type: 'Standard' });
+        else if (type === 'other') data.others.push({ name: '', amount: '', unit: 'g' });
+        renderIngredientsTab(panel, recipeName, de);
+      });
+    });
+  }
+
   function enhanceRecipePage() {
     var hash = window.location.hash.replace('#', '');
     // Auf anderen Seiten: Rezept-Enhancements entfernen
@@ -5560,6 +6702,9 @@
 
     // Rezept-Details nachladen und Karten anreichern
     enrichRecipeCards();
+
+    // Zutaten-Zusammenfassungen einfügen
+    setTimeout(function() { refreshIngredientSummaries(); }, 800);
   }
 
   function enrichRecipeCards() {
@@ -8703,6 +9848,7 @@
         buildHelpPage();
         addRecipeTools();
         enhanceRecipePage();
+        enhanceRecipeDetailPage();
         enhancePluginPage();
         enhanceHardwarePage();
         enhanceFermenterDetailPage();
@@ -8737,6 +9883,7 @@
       buildHelpPage();
       addRecipeTools();
       enhanceRecipePage();
+      enhanceRecipeDetailPage();
       enhancePluginPage();
       enhanceHardwarePage();
       enhanceFermenterDetailPage();
