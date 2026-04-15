@@ -5,6 +5,10 @@
 (function () {
   'use strict';
 
+  // Guard gegen doppeltes Ausführen (Script wird evtl. 2x geladen)
+  if (window._cbpiTranslateLoaded) return;
+  window._cbpiTranslateLoaded = true;
+
   // ============================================================
   // SPRACH-SYSTEM
   // ============================================================
@@ -865,28 +869,36 @@
         '<b>So erstellst du ein Rezept & startest das Brauen:</b><br>' +
         '&nbsp;&nbsp;1. Klicke <b>+</b> um ein neues Rezept zu erstellen<br>' +
         '&nbsp;&nbsp;2. Gib <b>Name</b>, <b>Autor</b> und <b>Beschreibung</b> ein<br>' +
-        '&nbsp;&nbsp;3. Füge <b>Brau-Schritte</b> hinzu (Einmaischen → Maisch-Schritt → Kochschritt → Abkühlen)<br>' +
-        '&nbsp;&nbsp;4. Klicke oben auf den Breadcrumb <b>"Aktives Rezept"</b> – das lädt das Rezept in den Brauplan<br>' +
-        '&nbsp;&nbsp;5. Wechsle zum <b>Brauplan</b> und drücke <b>Start</b>!<br><br>' +
+        '&nbsp;&nbsp;3. F\u00fcge <b>Brau-Schritte</b> hinzu (Einmaischen \u2192 Maisch-Schritt \u2192 Kochschritt \u2192 Abk\u00fchlen)<br>' +
+        '&nbsp;&nbsp;4. Klicke oben auf den Breadcrumb <b>\u201eAktives Rezept\u201c</b> \u2013 das l\u00e4dt das Rezept in den Brauplan<br>' +
+        '&nbsp;&nbsp;5. Wechsle zum <b>Brauplan</b> und dr\u00fccke <b>Start</b>!<br><br>' +
         'Du kannst Rezepte auch <b>klonen</b> um Varianten zu erstellen.<br><br>' +
-        '<b>Rezepte herunterladen & importieren:</b><br>' +
-        '&nbsp;&nbsp;• <a href="https://www.maischemalzundmehr.de/" target="_blank" style="color:#f0a030;">Maische Malz und Mehr</a> – Große deutsche Rezeptdatenbank (JSON-Export → Import)<br>' +
-        '&nbsp;&nbsp;• <a href="https://kleiner-brauhelfer.de/" target="_blank" style="color:#f0a030;">Kleiner Brauhelfer</a> – Brau-Software mit Rezeptexport (KBH-Format)<br>' +
-        '&nbsp;&nbsp;• <a href="https://brewfather.app/" target="_blank" style="color:#f0a030;">Brewfather</a> – Cloud-Brau-Plattform (API-Integration in den Einstellungen)<br>' +
-        '&nbsp;&nbsp;• <a href="https://beerxml.com/" target="_blank" style="color:#f0a030;">BeerXML</a> – Universelles Rezeptformat (.xml)',
-      en: '<b>Recipe Book</b> – Manage your beer recipes here.<br><br>' +
+        '<b>Rezepte importieren (\ud83d\udcc2 Datei-Auswahl):</b><br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://www.maischemalzundmehr.de/" target="_blank" style="color:#f0a030;">MMuM</a> \u2013 JSON-Export \u2192 über Datei-Auswähler importieren<br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://brewfather.app/" target="_blank" style="color:#f0a030;">Brewfather</a> \u2013 JSON-Datei-Export <b>oder</b> API-Integration (\u00fcber Einstellungen)<br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://beerxml.com/" target="_blank" style="color:#f0a030;">BeerXML</a> \u2013 Universelles .xml-Format<br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://kleiner-brauhelfer.de/" target="_blank" style="color:#f0a030;">Kleiner Brauhelfer</a> \u2013 KBH-Datenbank-Export<br><br>' +
+        '<b>Zutatenverwaltung:</b><br>' +
+        '&nbsp;&nbsp;\u2022 Beim Import werden Malze, Hopfen, Wasser und Notizen automatisch gespeichert<br>' +
+        '&nbsp;&nbsp;\u2022 In der Rezeptliste: \ud83d\udce4 exportiert Zutaten als JSON, \u2795 importiert sie aus einer Datei<br>' +
+        '&nbsp;&nbsp;\u2022 Im Rezept-Detail: Tab <b>\ud83e\uddea Zutaten</b> zeigt alle Zutaten inkl. Skalierung bei Gr\u00f6\u00dfen\u00e4nderung',
+      en: '<b>Recipe Book</b> \u2013 Manage your beer recipes here.<br><br>' +
         '<b>How to create a recipe & start brewing:</b><br>' +
         '&nbsp;&nbsp;1. Click <b>+</b> to create a new recipe<br>' +
         '&nbsp;&nbsp;2. Enter <b>name</b>, <b>author</b> and <b>description</b><br>' +
-        '&nbsp;&nbsp;3. Add <b>brew steps</b> (MashIn → MashStep → BoilStep → Cooldown)<br>' +
-        '&nbsp;&nbsp;4. Click the breadcrumb <b>"Active Recipe"</b> at the top – this loads the recipe into the Brew Plan<br>' +
+        '&nbsp;&nbsp;3. Add <b>brew steps</b> (MashIn \u2192 MashStep \u2192 BoilStep \u2192 Cooldown)<br>' +
+        '&nbsp;&nbsp;4. Click the breadcrumb <b>\u201cActive Recipe\u201d</b> at the top \u2013 this loads the recipe into the Brew Plan<br>' +
         '&nbsp;&nbsp;5. Switch to <b>Brew Plan</b> and press <b>Start</b>!<br><br>' +
         'You can also <b>clone</b> recipes to create variations.<br><br>' +
-        '<b>Download & import recipes:</b><br>' +
-        '&nbsp;&nbsp;• <a href="https://www.maischemalzundmehr.de/" target="_blank" style="color:#f0a030;">Maische Malz und Mehr</a> – Large German recipe database (JSON export → import)<br>' +
-        '&nbsp;&nbsp;• <a href="https://kleiner-brauhelfer.de/" target="_blank" style="color:#f0a030;">Kleiner Brauhelfer</a> – Brewing software with recipe export (KBH format)<br>' +
-        '&nbsp;&nbsp;• <a href="https://brewfather.app/" target="_blank" style="color:#f0a030;">Brewfather</a> – Cloud brewing platform (API integration in settings)<br>' +
-        '&nbsp;&nbsp;• <a href="https://beerxml.com/" target="_blank" style="color:#f0a030;">BeerXML</a> – Universal recipe format (.xml)'
+        '<b>Import recipes (\ud83d\udcc2 file picker):</b><br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://www.maischemalzundmehr.de/" target="_blank" style="color:#f0a030;">MMuM</a> \u2013 JSON export \u2192 import via file picker<br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://brewfather.app/" target="_blank" style="color:#f0a030;">Brewfather</a> \u2013 JSON file export <b>or</b> API integration (via Settings)<br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://beerxml.com/" target="_blank" style="color:#f0a030;">BeerXML</a> \u2013 Universal .xml format<br>' +
+        '&nbsp;&nbsp;\u2022 <a href="https://kleiner-brauhelfer.de/" target="_blank" style="color:#f0a030;">Kleiner Brauhelfer</a> \u2013 KBH database export<br><br>' +
+        '<b>Ingredient management:</b><br>' +
+        '&nbsp;&nbsp;\u2022 Grains, hops, water and notes are saved automatically during import<br>' +
+        '&nbsp;&nbsp;\u2022 In the recipe list: \ud83d\udce4 exports ingredients as JSON, \u2795 imports from file<br>' +
+        '&nbsp;&nbsp;\u2022 In recipe detail: <b>\ud83e\uddea Ingredients</b> tab shows all ingredients with auto-scaling'
     },
     '/plugins': {
       de: '<b>Erweiterungen</b> – Hier findest du zusätzliche Plugins:<br>' +
@@ -1617,6 +1629,8 @@
       createThemeToggle();
       createExpertToggle();
       applyExpertMode();
+      createHamburgerMenu();
+      addSidebarTooltips();
       buildCockpit();
     };
     toolbar.insertBefore(btn, toolbar.lastChild);
@@ -1662,16 +1676,16 @@
       de: [
         { icon: '', title: 'Willkommen bei CraftBeerPi!', text: 'Dieser kurze Assistent zeigt dir in 4 Schritten, wie du deine Brauanlage einrichtest und dein erstes Bier braust.' },
         { icon: '', title: 'Schritt 1: Hardware einrichten', text: 'Öffne <b>Hardware</b> im Seitenmenü:<br><br>1. <b>Sensor anlegen</b> – Wähle „OneWire" als Typ. Dein DS18B20 wird automatisch erkannt.<br><br>2. <b>Aktoren anlegen</b> – Wähle „GPIOActor". Erstelle einen für die <b>Heizung</b> und einen für das <b>Rührwerk</b>. Gib jeweils den <b>GPIO-Pin</b> an, an dem dein Relais angeschlossen ist.<br>⚠️ Die meisten Relais-Boards sind <b>Active-Low</b> → setze <b>Inverted = Yes</b>!<br><br>3. <b>Kessel anlegen</b> – Verknüpfe den Sensor mit Heizung und Rührwerk.' },
-        { icon: '', title: 'Schritt 2: Rezept erstellen', text: 'Öffne das <b>Rezeptbuch</b>:<br><br>• Erstelle ein neues Rezept (+ Button)<br>• Gib Name und Autor ein<br>• Füge Brau-Schritte hinzu:<br>&nbsp;&nbsp;– <b>Einmaischen</b> (z.B. 52°C)<br>&nbsp;&nbsp;– <b>Maisch-Schritt</b> (z.B. 63°C für 45 Min)<br>&nbsp;&nbsp;– <b>Kochschritt</b> (z.B. 100°C für 60 Min)<br>&nbsp;&nbsp;– <b>Abkühlschritt</b> (z.B. 20°C)' },
+        { icon: '', title: 'Schritt 2: Rezept erstellen', text: '\u00d6ffne das <b>Rezeptbuch</b>:<br><br>\u2022 Erstelle ein neues Rezept (+ Button) <b>oder</b> importiere eins über den Datei-Auswähler<br>\u2022 Unterst\u00fctzte Formate: <b>MMuM-JSON</b>, <b>Brewfather-JSON</b>, <b>BeerXML</b>, <b>Kleiner Brauhelfer</b><br>\u2022 Beim Import werden Brau-Schritte <b>und</b> Zutaten automatisch erstellt/gespeichert<br><br>Oder manuell:<br>&nbsp;&nbsp;\u2013 <b>Einmaischen</b> (z.B. 52\u00b0C)<br>&nbsp;&nbsp;\u2013 <b>Maisch-Schritt</b> (z.B. 63\u00b0C f\u00fcr 45 Min)<br>&nbsp;&nbsp;\u2013 <b>Kochschritt</b> (z.B. 100\u00b0C f\u00fcr 60 Min)<br>&nbsp;&nbsp;\u2013 <b>Abk\u00fchlschritt</b> (z.B. 20\u00b0C)' },
         { icon: '', title: 'Schritt 3: Brauen!', text: 'Lade dein Rezept ins <b>Maischprofil</b> und drücke <b>Start</b>!<br><br>CraftBeerPi regelt automatisch:<br>• Temperatur hochheizen<br>• Rasten einhalten<br>• Rührwerk steuern<br>• Benachrichtigungen bei jedem Schritt<br><br>Auf dem <b>Dashboard</b> siehst du alles live.' },
-        { icon: '', title: 'Fertig! Viel Spass!', text: 'Deine Brauanlage ist bereit!<br><br><b>Tipps:</b><br>• Im <b>Dashboard</b> kannst du Widgets anordnen<br>• Unter <b>Einstellungen</b> kannst du CSV-Logging aktivieren<br>• Unter <b>System</b> findest du Logs und Neustart<br>• Klicke <b>?</b> oben rechts um diese Hilfe erneut anzuzeigen<br><br><b>Dashboard-Grafiken:</b> Auf <a href="https://github.com/craftbeerpi/craftbeerpi-ui-widgets" target="_blank" style="color:#f0a030;">github.com/craftbeerpi/craftbeerpi-ui-widgets</a> findest du eine umfangreiche SVG-Sammlung (Kessel, Rohre, Ventile, Flaschen u.v.m.) von kalausr. ZIP herunterladen und den Inhalt nach <code>~/config/widgets</code> kopieren.<br><br>Prost!' }
+        { icon: '', title: 'Fertig! Viel Spass!', text: 'Deine Brauanlage ist bereit!<br><br><b>Tipps:</b><br>\u2022 Im <b>Cockpit</b> siehst du Temperatur, Schritte und Zutaten auf einen Blick<br>\u2022 Im <b>Rezeptbuch</b>: Rezepte importieren über Datei-Auswähler (MMuM, Brewfather, BeerXML)<br>\u2022 <b>Nachgussrechner</b> und <b>Wasseraufbereitung</b> findest du im Seitenmen\u00fc<br>\u2022 Unter <b>Einstellungen</b> kannst du CSV-Logging aktivieren<br>\u2022 Unter <b>System</b> findest du Logs und Neustart<br>\u2022 Klicke <b>?</b> oben rechts um diese Hilfe erneut anzuzeigen<br>\u2022 Im Men\u00fc <b>Hilfe</b> findest du ein ausf\u00fchrliches Nachschlagewerk<br><br><b>Dashboard-Grafiken:</b> Auf <a href="https://github.com/craftbeerpi/craftbeerpi-ui-widgets" target="_blank" style="color:#f0a030;">github.com/craftbeerpi/craftbeerpi-ui-widgets</a> findest du eine umfangreiche SVG-Sammlung (Kessel, Rohre, Ventile, Flaschen u.v.m.) von kalausr. ZIP herunterladen und den Inhalt nach <code>~/config/widgets</code> kopieren.<br><br>Prost!' }
       ],
       en: [
         { icon: '', title: 'Welcome to CraftBeerPi!', text: 'This quick guide shows you how to set up your brewery and brew your first beer in 4 steps.' },
         { icon: '', title: 'Step 1: Set up Hardware', text: 'Open <b>Hardware</b> in the sidebar:<br><br>1. <b>Add Sensor</b> – Select "OneWire" type. Your DS18B20 will be auto-detected.<br><br>2. <b>Add Actors</b> – Select "GPIOActor". Create one for <b>Heater</b> and one for <b>Agitator</b>. Enter the <b>GPIO pin</b> your relay is connected to.<br>⚠️ Most relay boards are <b>Active-Low</b> → set <b>Inverted = Yes</b>!<br><br>3. <b>Add Kettle</b> – Link sensor with heater and agitator.' },
-        { icon: '', title: 'Step 2: Create a Recipe', text: 'Open the <b>Recipe Book</b>:<br><br>• Create a new recipe (+ button)<br>• Enter name and author<br>• Add brew steps:<br>&nbsp;&nbsp;– <b>MashIn</b> (e.g. 52°C)<br>&nbsp;&nbsp;– <b>MashStep</b> (e.g. 63°C for 45 min)<br>&nbsp;&nbsp;– <b>BoilStep</b> (e.g. 100°C for 60 min)<br>&nbsp;&nbsp;– <b>CooldownStep</b> (e.g. 20°C)' },
+        { icon: '', title: 'Step 2: Create a Recipe', text: 'Open the <b>Recipe Book</b>:<br><br>\u2022 Create a new recipe (+ button) <b>or</b> import one via file picker<br>\u2022 Supported formats: <b>MMuM JSON</b>, <b>Brewfather JSON</b>, <b>BeerXML</b>, <b>Kleiner Brauhelfer</b><br>\u2022 Import automatically creates brew steps <b>and</b> saves ingredients<br><br>Or manually:<br>&nbsp;&nbsp;\u2013 <b>MashIn</b> (e.g. 52\u00b0C)<br>&nbsp;&nbsp;\u2013 <b>MashStep</b> (e.g. 63\u00b0C for 45 min)<br>&nbsp;&nbsp;\u2013 <b>BoilStep</b> (e.g. 100\u00b0C for 60 min)<br>&nbsp;&nbsp;\u2013 <b>CooldownStep</b> (e.g. 20\u00b0C)' },
         { icon: '', title: 'Step 3: Start Brewing!', text: 'Load your recipe into the <b>Mash Profile</b> and press <b>Start</b>!<br><br>CraftBeerPi automatically controls:<br>• Heating to target temperature<br>• Holding rest temperatures<br>• Agitator control<br>• Notifications at each step<br><br>Watch everything live on the <b>Dashboard</b>.' },
-        { icon: '', title: 'All set! Enjoy!', text: 'Your brewery is ready!<br><br><b>Tips:</b><br>• Arrange widgets on the <b>Dashboard</b><br>• Enable CSV logging in <b>Settings</b><br>• Find logs & restart in <b>System</b><br>• Click <b>?</b> in the top bar to show this guide again<br><br><b>Dashboard Graphics:</b> Find a comprehensive SVG collection (kettles, pipes, valves, bottles and more) by kalausr at <a href="https://github.com/craftbeerpi/craftbeerpi-ui-widgets" target="_blank" style="color:#f0a030;">github.com/craftbeerpi/craftbeerpi-ui-widgets</a>. Download the ZIP and copy contents to <code>~/config/widgets</code>.<br><br>Cheers!' }
+        { icon: '', title: 'All set! Enjoy!', text: 'Your brewery is ready!<br><br><b>Tips:</b><br>\u2022 The <b>Cockpit</b> shows temperature, steps and ingredients at a glance<br>\u2022 In the <b>Recipe Book</b>: import recipes via file picker (MMuM, Brewfather, BeerXML)<br>\u2022 <b>Sparge Calculator</b> and <b>Water Chemistry</b> tools in the sidebar<br>\u2022 Enable CSV logging in <b>Settings</b><br>\u2022 Find logs & restart in <b>System</b><br>\u2022 Click <b>?</b> in the top bar to show this guide again<br>\u2022 The <b>Help</b> menu has a comprehensive reference guide<br><br><b>Dashboard Graphics:</b> Find a comprehensive SVG collection (kettles, pipes, valves, bottles and more) by kalausr at <a href="https://github.com/craftbeerpi/craftbeerpi-ui-widgets" target="_blank" style="color:#f0a030;">github.com/craftbeerpi/craftbeerpi-ui-widgets</a>. Download the ZIP and copy contents to <code>~/config/widgets</code>.<br><br>Cheers!' }
       ]
     };
 
@@ -2102,6 +2116,47 @@
     } else {
       toolbar.insertBefore(btn, toolbar.lastChild);
     }
+  }
+
+  // ============================================================
+  // RESPONSIVE SIDEBAR (Hamburger-Toggle + Tooltips)
+  // ============================================================
+  function createHamburgerMenu() {
+    if (document.getElementById('cbpi-hamburger')) return;
+
+    // Der MUI Drawer ist ein "temporary" Drawer, gesteuert durch React State.
+    // Wir delegieren den Klick an den eingebauten MUI MenuButton, der das
+    // React-State korrekt setzt und den Drawer öffnet/schließt.
+    var btn = document.createElement('button');
+    btn.id = 'cbpi-hamburger';
+    btn.innerHTML = '☰';
+    btn.title = currentLang === 'de' ? 'Menü öffnen' : 'Open menu';
+    btn.setAttribute('aria-label', btn.title);
+
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      // MUI's eingebauten "open drawer" Button finden und klicken
+      var muiBtn = document.querySelector('[aria-label="open drawer"]');
+      if (muiBtn) {
+        muiBtn.click();
+      }
+    });
+
+    document.body.appendChild(btn);
+  }
+
+  // Tooltips für Icons-only Modus (Tablet)
+  function addSidebarTooltips() {
+    var drawer = document.querySelector('.MuiDrawer-paper');
+    if (!drawer) return;
+    var items = drawer.querySelectorAll('.MuiListItem-root');
+    items.forEach(function (item) {
+      var textEl = item.querySelector('.MuiListItemText-primary');
+      if (textEl) {
+        item.setAttribute('data-tooltip', textEl.textContent.trim());
+      }
+    });
   }
 
   // ============================================================
@@ -4336,8 +4391,45 @@
                 showToast(de ? 'Fehler beim MMuM-Import: ' + err.message : 'MMuM import error: ' + err.message, 'error');
               });
             return;
+          } else if (data.mash && data.fermentables) {
+            // Brewfather JSON-Format (Datei-Export)
+            var bfName = data.name || 'Brewfather Import';
+            var blob = new Blob([fileContent], { type: 'application/json' });
+            var formData = new FormData();
+            formData.append('File', blob, 'mmum.json');
+            fetch('/upload/', {
+              method: 'POST',
+              body: formData
+            })
+              .then(function () { return fetch('/upload/json'); })
+              .then(function (r) { return r.json(); })
+              .then(function (list) {
+                if (!list || list.length === 0) {
+                  showToast(de ? 'Keine Rezepte in der Brewfather-Datei gefunden' : 'No recipes found in Brewfather file', 'error');
+                  return;
+                }
+                var target = list[list.length - 1];
+                return fetch('/upload/json', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: target.value })
+                });
+              })
+              .then(function () {
+                showToast(de ? 'Brewfather-Rezept "' + bfName + '" importiert!' : 'Brewfather recipe "' + bfName + '" imported!', 'success');
+
+                // Zutaten aus Brewfather-JSON extrahieren und in localStorage speichern
+                extractBrewfatherIngredients(data);
+
+                window.location.hash = '#/';
+                setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
+              })
+              .catch(function (err) {
+                showToast(de ? 'Fehler beim Brewfather-Import: ' + err.message : 'Brewfather import error: ' + err.message, 'error');
+              });
+            return;
           } else {
-            showToast(de ? 'Unbekanntes Dateiformat. Unterstützt: CBPi4-JSON, MMuM-JSON, BeerXML' : 'Unknown format. Supported: CBPi4 JSON, MMuM JSON, BeerXML', 'error');
+            showToast(de ? 'Unbekanntes Dateiformat. Unterst\u00fctzt: CBPi4-JSON, MMuM-JSON, Brewfather-JSON, BeerXML' : 'Unknown format. Supported: CBPi4 JSON, MMuM JSON, Brewfather JSON, BeerXML', 'error');
             return;
           }
 
@@ -5181,6 +5273,66 @@
 
     saveIngredients(recipeName, ingr);
     console.log('[CBPI] MMuM-Zutaten f\u00fcr "' + recipeName + '" gespeichert:', ingr);
+  }
+
+  function extractBrewfatherIngredients(data) {
+    if (!data || !data.name) return;
+    var recipeName = data.name;
+    var ingr = emptyIngredients();
+
+    // Ausschlagmenge
+    ingr.batchSize = parseFloat(data.batchSize) || 20;
+
+    // Malze / Fermentables
+    if (data.fermentables && Array.isArray(data.fermentables)) {
+      data.fermentables.forEach(function(f) {
+        ingr.grains.push({ name: f.name || '', amount: parseFloat(f.amount) || 0 });
+      });
+    }
+
+    // Hopfen
+    if (data.hops && Array.isArray(data.hops)) {
+      data.hops.forEach(function(h) {
+        var hopType = 'Standard';
+        if (h.use === 'Dry Hop') hopType = 'Dry Hop';
+        else if (h.use === 'Aroma') hopType = 'Whirlpool';
+        else if (h.use === 'First Wort') hopType = 'First Wort';
+        ingr.hops.push({
+          name: h.name || '',
+          amount: parseFloat(h.amount) || 0,
+          alpha: parseFloat(h.alpha) || 0,
+          time: parseFloat(h.time) || 0,
+          type: hopType
+        });
+      });
+    }
+
+    // Wasser
+    var bfData = data.data || {};
+    if (bfData.mashWaterAmount) ingr.water.hauptguss = parseFloat(bfData.mashWaterAmount) || '';
+    if (bfData.spargeWaterAmount) ingr.water.nachguss = parseFloat(bfData.spargeWaterAmount) || '';
+
+    // Hefe und weitere Infos als Notizen
+    var notes = [];
+    if (data.yeasts && data.yeasts.length > 0) {
+      var y = data.yeasts[0];
+      var yeastInfo = y.name || '';
+      if (y.laboratory) yeastInfo += ' (' + y.laboratory;
+      if (y.productId) yeastInfo += ' ' + y.productId;
+      if (y.laboratory) yeastInfo += ')';
+      notes.push('Hefe: ' + yeastInfo);
+      if (y.minTemp && y.maxTemp) notes.push('G\u00e4rtemperatur: ' + y.minTemp + '-' + y.maxTemp + '\u00b0C');
+    }
+    if (data.og) notes.push('Stammw\u00fcrze: ' + (Math.round((-463.371 + 668.72 * data.og - 205.347 * data.og * data.og) * 10) / 10) + '\u00b0P');
+    if (data.ibu) notes.push('Bittere: ' + Math.round(data.ibu) + ' IBU');
+    if (data.color) notes.push('Farbe: ' + Math.round(data.color) + ' EBC');
+    if (data.abv) notes.push('Alkohol: ' + (Math.round(data.abv * 10) / 10) + '%');
+    if (data.boilTime) notes.push('Kochzeit: ' + data.boilTime + ' Min.');
+    if (data.notes) notes.push('\n' + data.notes);
+    ingr.notes = notes.join('\n');
+
+    saveIngredients(recipeName, ingr);
+    console.log('[CBPI] Brewfather-Zutaten f\u00fcr "' + recipeName + '" gespeichert:', ingr);
   }
 
   function scaleValue(val, factor) {
@@ -6480,35 +6632,6 @@
     html += '<button class="recipe-ingr-add-btn" data-add="hop">+ ' + (de ? 'Hopfen' : 'Hop') + '</button>';
     html += '</div>';
 
-    // -- Hopfenplan (read-only Übersicht) --
-    if (data.hops && data.hops.length > 0) {
-      html += '<div class="recipe-ingr-section">';
-      html += '<h4 class="recipe-ingr-section-title">\ud83d\udcc5 ' + (de ? 'Hopfenplan' : 'Hop Schedule') + '</h4>';
-      html += '<table class="recipe-detail-hop-table"><thead><tr>';
-      html += '<th>' + (de ? 'Zeitpunkt' : 'Timing') + '</th><th>' + (de ? 'Sorte' : 'Variety') + '</th><th>' + (de ? 'Menge' : 'Amount') + '</th><th>% \u03b1</th><th>' + (de ? 'Typ' : 'Type') + '</th>';
-      html += '</tr></thead><tbody>';
-      var sortedHops = data.hops.slice().sort(function(a, b) {
-        var order = { 'First Wort': 0, 'Standard': 1, 'Whirlpool': 2, 'Dry Hop': 3 };
-        var d = (order[a.type || 'Standard'] || 1) - (order[b.type || 'Standard'] || 1);
-        return d !== 0 ? d : (parseFloat(b.time) || 0) - (parseFloat(a.time) || 0);
-      });
-      sortedHops.forEach(function(h) {
-        var type = h.type || 'Standard';
-        var timing = '';
-        if (type === 'First Wort') timing = de ? 'Vorderw\u00fcrze' : 'First Wort';
-        else if (type === 'Whirlpool') timing = 'Whirlpool';
-        else if (type === 'Dry Hop') timing = de ? 'Stopfhopfen' : 'Dry Hop';
-        else { var t = parseFloat(h.time) || 0; timing = t > 0 ? t + ' min ' + (de ? 'vor Kochende' : 'before end') : (de ? 'Kochende (0 min)' : 'Flame out'); }
-        var rc = 'recipe-detail-hop-row';
-        if (type === 'Whirlpool') rc += ' hop-whirlpool';
-        else if (type === 'Dry Hop') rc += ' hop-dryhop';
-        else if (type === 'First Wort') rc += ' hop-firstwort';
-        html += '<tr class="' + rc + '"><td>' + timing + '</td><td><b>' + (h.name || '?') + '</b></td><td>' + (h.amount || '') + ' g</td><td>' + (h.alpha || '') + '%</td>';
-        html += '<td><span class="hop-type-badge hop-type-' + type.toLowerCase().replace(/\s/g, '') + '">' + type + '</span></td></tr>';
-      });
-      html += '</tbody></table></div>';
-    }
-
     // -- Sonstiges --
     html += '<div class="recipe-ingr-section">';
     html += '<h4 class="recipe-ingr-section-title">\ud83e\uddf2 ' + (de ? 'Sonstiges' : 'Other') + '</h4>';
@@ -6552,6 +6675,35 @@
 
     html += '</div>'; // Ende .recipe-ingr-right
     html += '</div>'; // Ende .recipe-ingr-columns
+
+    // -- Hopfenplan (read-only Übersicht, volle Breite) --
+    if (data.hops && data.hops.length > 0) {
+      html += '<div class="recipe-ingr-section">';
+      html += '<h4 class="recipe-ingr-section-title">\ud83d\udcc5 ' + (de ? 'Hopfenplan' : 'Hop Schedule') + '</h4>';
+      html += '<table class="recipe-detail-hop-table"><thead><tr>';
+      html += '<th>' + (de ? 'Zeitpunkt' : 'Timing') + '</th><th>' + (de ? 'Sorte' : 'Variety') + '</th><th>' + (de ? 'Menge' : 'Amount') + '</th><th>% \u03b1</th><th>' + (de ? 'Typ' : 'Type') + '</th>';
+      html += '</tr></thead><tbody>';
+      var sortedHops = data.hops.slice().sort(function(a, b) {
+        var order = { 'First Wort': 0, 'Standard': 1, 'Whirlpool': 2, 'Dry Hop': 3 };
+        var d = (order[a.type || 'Standard'] || 1) - (order[b.type || 'Standard'] || 1);
+        return d !== 0 ? d : (parseFloat(b.time) || 0) - (parseFloat(a.time) || 0);
+      });
+      sortedHops.forEach(function(h) {
+        var type = h.type || 'Standard';
+        var timing = '';
+        if (type === 'First Wort') timing = de ? 'Vorderw\u00fcrze' : 'First Wort';
+        else if (type === 'Whirlpool') timing = 'Whirlpool';
+        else if (type === 'Dry Hop') timing = de ? 'Stopfhopfen' : 'Dry Hop';
+        else { var t = parseFloat(h.time) || 0; timing = t > 0 ? t + ' min ' + (de ? 'vor Kochende' : 'before end') : (de ? 'Kochende (0 min)' : 'Flame out'); }
+        var rc = 'recipe-detail-hop-row';
+        if (type === 'Whirlpool') rc += ' hop-whirlpool';
+        else if (type === 'Dry Hop') rc += ' hop-dryhop';
+        else if (type === 'First Wort') rc += ' hop-firstwort';
+        html += '<tr class="' + rc + '"><td>' + timing + '</td><td><b>' + (h.name || '?') + '</b></td><td>' + (h.amount || '') + ' g</td><td>' + (h.alpha || '') + '%</td>';
+        html += '<td><span class="hop-type-badge hop-type-' + type.toLowerCase().replace(/\s/g, '') + '">' + type + '</span></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
 
     // -- Speichern --
     html += '<div class="recipe-ingr-actions">';
@@ -8314,12 +8466,13 @@
       '<p>Das Cockpit ist die Startseite und zeigt alles Wichtige auf einen Blick:</p>' +
       '<table class="help-table">' +
         '<tr><td><b>Status-Banner</b></td><td>Zeigt ob gerade gebraut wird und welches Rezept geladen ist</td></tr>' +
-        '<tr><td><b>Temperatur-Anzeige</b></td><td>Aktuelle Temperatur (groß), Zieltemperatur und Abweichung (Δ)</td></tr>' +
-        '<tr><td><b>Aktiver Schritt</b></td><td>Name des aktuellen Brauschritts, Timer und nächster Schritt</td></tr>' +
+        '<tr><td><b>Temperatur-Anzeige</b></td><td>Aktuelle Temperatur (gro\u00df), Zieltemperatur und Abweichung (\u0394)</td></tr>' +
+        '<tr><td><b>Aktiver Schritt</b></td><td>Name des aktuellen Brauschritts, Timer und n\u00e4chster Schritt</td></tr>' +
         '<tr><td><b>Temperatur-Graph</b></td><td>Verlauf der letzten Stunden mit Ziel-Linie</td></tr>' +
-        '<tr><td><b>Aktoren-Schalter</b></td><td>Heizung, Rührwerk etc. manuell ein-/ausschalten</td></tr>' +
+        '<tr><td><b>Aktoren-Schalter</b></td><td>Heizung, R\u00fchrwerk etc. manuell ein-/ausschalten</td></tr>' +
+        '<tr><td><b>Zutatenliste</b></td><td>Aufklappbare \u00dcbersicht der Rezept-Zutaten (Malz, Hopfen, Wasser) \u2013 automatisch skaliert auf die aktuelle Sudgr\u00f6\u00dfe</td></tr>' +
       '</table>' +
-      '<p><b>Tipp:</b> Auf der Startseite kannst du zwischen <b>Cockpit</b> und <b>Anlagenbild</b> wählen (⚙️ → Startseite).</p>'
+      '<p><b>Tipp:</b> Auf der Startseite kannst du zwischen <b>Cockpit</b> und <b>Anlagenbild</b> w\u00e4hlen (\u2699\ufe0f \u2192 Startseite).</p>'
     ) +
 
     // ── Gärungs-Dashboard ──
@@ -8396,8 +8549,65 @@
       '</table>'
     ) +
 
+    // ── Rezept-Import ──
+    helpSection('\ud83d\udce5', 'Rezept-Import — Alle Formate', false,
+      '<p>CraftBeerPi unterst\u00fctzt vier Rezeptquellen. Klicke auf den <b>\ud83d\udcc2 Datei-Ausw\u00e4hler</b> um Rezeptdateien zu importieren:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>MMuM (JSON)</b></td><td>Export von <a href="https://www.maischemalzundmehr.de/" target="_blank" style="color:#f0a030;">maischemalzundmehr.de</a>. Das JSON enth\u00e4lt Rasten, Malze, Hopfen und Kochzeit. Wird automatisch erkannt.</td></tr>' +
+        '<tr><td><b>Brewfather (JSON)</b></td><td>Export aus <a href="https://brewfather.app/" target="_blank" style="color:#f0a030;">Brewfather</a> (Men\u00fc → Export → JSON). Wird automatisch vom MMuM-Format unterschieden. Alternativ: API-Integration \u00fcber Einstellungen.</td></tr>' +
+        '<tr><td><b>BeerXML (.xml)</b></td><td>Universelles Austauschformat. Unterst\u00fctzt von BeerSmith, Brewer\u2019s Friend u.v.m.</td></tr>' +
+        '<tr><td><b>Kleiner Brauhelfer (KBH)</b></td><td>SQLite-Datenbank aus dem <a href="https://kleiner-brauhelfer.de/" target="_blank" style="color:#f0a030;">Kleinen Brauhelfer</a>.</td></tr>' +
+      '</table>' +
+      '<h4>Was passiert beim Import?</h4>' +
+      '<ol>' +
+        '<li>Die Datei wird hochgeladen und das Format automatisch erkannt</li>' +
+        '<li>Brau-Schritte werden erstellt: Einmaischen \u2192 Rasten \u2192 L\u00e4utern \u2192 Stammw\u00fcrze messen \u2192 Kochen (mit Hopfen-Alarmen) \u2192 Whirlpool \u2192 Abk\u00fchlen</li>' +
+        '<li>Zutaten (Malze, Hopfen, Wasser, Hefe) werden im Browser gespeichert</li>' +
+        '<li>Das Rezept erscheint im Rezeptbuch</li>' +
+      '</ol>'
+    ) +
+
+    // ── Zutatenverwaltung ──
+    helpSection('\ud83e\uddea', 'Zutatenverwaltung', false,
+      '<p>Beim Import von Rezepten (MMuM, Brewfather) werden Zutaten automatisch extrahiert und im Browser (localStorage) gespeichert.</p>' +
+      '<h4>Wo sehe ich die Zutaten?</h4>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Rezeptliste</b></td><td>Unter jedem Rezeptnamen erscheint eine Kurzinfo: Malz (kg), Hopfen (g), Wasser (L)</td></tr>' +
+        '<tr><td><b>Rezept-Detail</b></td><td>Tab <b>\ud83e\uddea Zutaten</b> zeigt die volle Zutatenliste mit Mengen, aufgeteilt in Sch\u00fcttung, Hopfen, Wasser und Notizen</td></tr>' +
+        '<tr><td><b>Cockpit</b></td><td>Aufklappbare Zutatenliste unter den Brau-Schritten \u2013 praktisch w\u00e4hrend des Brautags</td></tr>' +
+      '</table>' +
+      '<h4>Automatische Skalierung</h4>' +
+      '<p>Wenn du die <b>Sudgr\u00f6\u00dfe</b> im Rezept \u00e4nderst, werden alle Mengen automatisch umgerechnet.</p>' +
+      '<h4>Export & Import von Zutaten</h4>' +
+      '<table class="help-table">' +
+        '<tr><td><b>\ud83d\udce4 Export-Button</b></td><td>In der Rezeptliste \u2013 speichert die Zutaten als JSON-Datei</td></tr>' +
+        '<tr><td><b>\u2795 Import-Button</b></td><td>In der Rezeptliste \u2013 importiert Zutaten aus einer gespeicherten JSON-Datei</td></tr>' +
+      '</table>' +
+      '<p><b>Hinweis:</b> Zutaten werden im Browser gespeichert (localStorage). Nach dem L\u00f6schen des Browser-Caches musst du sie erneut importieren.</p>'
+    ) +
+
+    // ── Brauwerkzeuge ──
+    helpSection('\ud83e\uddee', 'Brauwerkzeuge', false,
+      '<h4>Nachgussrechner</h4>' +
+      '<p>Berechnet Hauptguss und Nachguss basierend auf:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Sch\u00fcttung</b></td><td>Gesamtmenge Malz in kg</td></tr>' +
+        '<tr><td><b>Ausschlagw\u00fcrze</b></td><td>Gew\u00fcnschte Menge Bier nach dem Kochen</td></tr>' +
+        '<tr><td><b>Hauptguss-Faktor</b></td><td>Liter Wasser pro kg Malz (Standard: 3.0 L/kg)</td></tr>' +
+      '</table>' +
+      '<p>Die Berechnung ber\u00fccksichtigt Verdampfung, Treber-Absorption und Nachisomerisierungsvolumen.</p>' +
+      '<h4>Wasseraufbereitung</h4>' +
+      '<p>Berechnet die Salzzugabe f\u00fcr dein Brauwasser \u2013 getrennt f\u00fcr Hauptguss und Nachguss:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>CaCl\u2082</b></td><td>Calciumchlorid \u2013 betont Malzs\u00fc\u00dfe, weicheres Mundgef\u00fchl</td></tr>' +
+        '<tr><td><b>CaSO\u2084 (Gips)</b></td><td>Calciumsulfat \u2013 betont Hopfenbittere, trockeneres Finish</td></tr>' +
+        '<tr><td><b>Milchs\u00e4ure</b></td><td>Zur pH-Absenkung (Ziel: 5.2 \u2013 5.6 im Maischewasser)</td></tr>' +
+      '</table>' +
+      '<p>Gib deine Rohwasserwerte und Zielwerte ein \u2013 die ben\u00f6tigten Mengen werden berechnet.</p>'
+    ) +
+
     // ── Glossar ──
-    helpSection('📚', 'Glossar — Brauerischen Begriffe', false,
+    helpSection('\ud83d\udcda', 'Glossar \u2014 Brauerischen Begriffe', false,
       '<table class="help-table">' +
         '<tr><td><b>Maischen</b></td><td>Malz + Wasser mischen und Enzyme bei verschiedenen Temperaturen arbeiten lassen</td></tr>' +
         '<tr><td><b>Rasten</b></td><td>Temperatur-Pausen beim Maischen (z.B. 63°C = Maltose-Rast, 72°C = Verzuckerung)</td></tr>' +
@@ -8424,32 +8634,66 @@
   function buildHelpContentEN() {
     return '<div class="help-container">' +
     '<div class="help-intro">' +
-      '<h2>📖 CraftBeerPi 4 — Help & Reference</h2>' +
+      '<h2>\ud83d\udcd6 CraftBeerPi 4 \u2014 Help & Reference</h2>' +
       '<p>Find explanations for all features here. Click a section to expand it.</p>' +
     '</div>' +
-    helpSection('🚀', 'Quick Start — Brew Your First Beer', true,
+    helpSection('\ud83d\ude80', 'Quick Start \u2014 Brew Your First Beer', true,
       '<ol class="help-steps">' +
-        '<li><b>Set up hardware</b> → Menu "Hardware"<br>Add sensor (OneWire/DS18B20), actor (GPIOActor), and kettle (link them together)</li>' +
-        '<li><b>Create recipe</b> → Menu "Recipe Book"<br>Create with +, add steps (MashIn → MashStep → BoilStep → Cooldown)</li>' +
-        '<li><b>Load recipe</b> → Click "Active Recipe" in the recipe editor</li>' +
-        '<li><b>Start brewing</b> → Menu "Brew Plan" → Press Start</li>' +
+        '<li><b>Set up hardware</b> \u2192 Menu "Hardware"<br>Add sensor (OneWire/DS18B20), actor (GPIOActor), and kettle (link them together)</li>' +
+        '<li><b>Create recipe</b> \u2192 Menu "Recipe Book"<br>Create with +, add steps (MashIn \u2192 MashStep \u2192 BoilStep \u2192 Cooldown)</li>' +
+        '<li><b>Load recipe</b> \u2192 Click "Active Recipe" in the recipe editor</li>' +
+        '<li><b>Start brewing</b> \u2192 Menu "Brew Plan" \u2192 Press Start</li>' +
       '</ol>'
     ) +
-    helpSection('🎛️', 'Brew Cockpit', false,
-      '<p>The cockpit is your main dashboard showing temperature, active step, timer, graph and actor controls.</p>'
+    helpSection('\ud83c\udfdb\ufe0f', 'Brew Cockpit', false,
+      '<p>The cockpit is your main dashboard showing everything at a glance:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Status Banner</b></td><td>Shows whether a brew is active and which recipe is loaded</td></tr>' +
+        '<tr><td><b>Temperature</b></td><td>Current temp (large), target temp and deviation (\u0394)</td></tr>' +
+        '<tr><td><b>Active Step</b></td><td>Current brew step name, timer and next step</td></tr>' +
+        '<tr><td><b>Temperature Graph</b></td><td>History of the last hours with target line</td></tr>' +
+        '<tr><td><b>Actor Switches</b></td><td>Manually toggle heater, agitator etc.</td></tr>' +
+        '<tr><td><b>Ingredient List</b></td><td>Collapsible ingredient overview (grains, hops, water) \u2013 auto-scaled to current batch size</td></tr>' +
+      '</table>'
     ) +
-    helpSection('🍶', 'Fermentation Dashboard', false,
+    helpSection('\ud83c\udf76', 'Fermentation Dashboard', false,
       '<p>Monitor and control your fermenters with real-time temperature, pressure, and iSpindel data. ' +
       'Load fermentation profiles (Ale, Lager, Wheat, Kveik) with one click.</p>'
     ) +
-    helpSection('📋', 'Recipes & Brew Plan', false,
-      '<p>Create recipes with MashIn → MashStep → BoilStep → Cooldown steps. Load into Brew Plan and press Start.</p>'
+    helpSection('\ud83d\udccb', 'Recipes & Brew Plan', false,
+      '<p>Create recipes with MashIn \u2192 MashStep \u2192 BoilStep \u2192 Cooldown steps. Load into Brew Plan and press Start.</p>' +
+      '<h4>Recipe Detail Tabs</h4>' +
+      '<p>Each recipe has two tabs: <b>Brew Steps</b> (the automated process) and <b>\ud83e\uddea Ingredients</b> (grains, hops, water, notes). ' +
+      'Ingredients auto-scale when you change the batch size.</p>'
     ) +
-    helpSection('🔧', 'Hardware Setup', false,
+    helpSection('\ud83d\udce5', 'Recipe Import \u2014 All Formats', false,
+      '<p>Import recipes using the file picker button. The format is detected automatically:</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>MMuM (JSON)</b></td><td>Export from maischemalzundmehr.de \u2013 German recipe database</td></tr>' +
+        '<tr><td><b>Brewfather (JSON)</b></td><td>File export from Brewfather app. Also supports API integration via Settings.</td></tr>' +
+        '<tr><td><b>BeerXML (.xml)</b></td><td>Universal exchange format (BeerSmith, Brewer\u2019s Friend, etc.)</td></tr>' +
+        '<tr><td><b>Kleiner Brauhelfer</b></td><td>SQLite database export from KBH software</td></tr>' +
+      '</table>'
+    ) +
+    helpSection('\ud83e\uddea', 'Ingredient Management', false,
+      '<p>Ingredients (grains, hops, water, yeast notes) are automatically extracted during import and stored in the browser.</p>' +
+      '<table class="help-table">' +
+        '<tr><td><b>Recipe List</b></td><td>Summary below each recipe name: grain (kg), hops (g), water (L)</td></tr>' +
+        '<tr><td><b>Recipe Detail</b></td><td>Full ingredient list in the \ud83e\uddea Ingredients tab</td></tr>' +
+        '<tr><td><b>Cockpit</b></td><td>Collapsible ingredient summary during brew day</td></tr>' +
+        '<tr><td><b>\ud83d\udce4 Export</b></td><td>Save ingredients as JSON file from the recipe list</td></tr>' +
+        '<tr><td><b>\u2795 Import</b></td><td>Load ingredient JSON file in the recipe list</td></tr>' +
+      '</table>'
+    ) +
+    helpSection('\ud83e\uddee', 'Brewing Tools', false,
+      '<p><b>Sparge Water Calculator</b> \u2013 Calculates mash water and sparge water based on grain weight, batch size and mash thickness.</p>' +
+      '<p><b>Water Chemistry</b> \u2013 Calculates salt additions (CaCl\u2082, CaSO\u2084, lactic acid) for your brewing water.</p>'
+    ) +
+    helpSection('\ud83d\udd27', 'Hardware Setup', false,
       '<p>Configure sensors (OneWire), actors (GPIOActor), and kettles (link sensor + heater + agitator).</p>'
     ) +
-    helpSection('📚', 'Glossary', false,
-      '<p>Mashing, lautering, sparging, dry hopping, cold crash, diacetyl rest, gravity, attenuation — all explained on the German page.</p>'
+    helpSection('\ud83d\udcda', 'Glossary', false,
+      '<p>Mashing, lautering, sparging, dry hopping, cold crash, diacetyl rest, gravity, attenuation \u2014 all explained on the German page.</p>'
     ) +
     '</div>';
   }
@@ -9813,6 +10057,8 @@
     createThemeToggle();
     createExpertToggle();
     applyExpertMode();
+    createHamburgerMenu();
+    addSidebarTooltips();
     createStatusBar();
     startOnlineCheck();
     buildCockpit();
@@ -9878,6 +10124,8 @@
       createThemeToggle();
       createExpertToggle();
       applyExpertMode();
+      createHamburgerMenu();
+      addSidebarTooltips();
       buildCockpit();
       buildFermenterDashboard();
       buildHelpPage();

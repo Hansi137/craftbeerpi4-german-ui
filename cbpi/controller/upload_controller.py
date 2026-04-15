@@ -71,12 +71,26 @@ class UploadController:
         except Exception:
             return []
 
+    def _detect_json_format(self, data):
+        """Erkennt ob JSON-Daten MMuM oder Brewfather Format sind."""
+        if 'mash' in data and 'fermentables' in data:
+            return 'brewfather'
+        if 'Rasten' in data or 'Malze' in data or 'Rezeptquelle' in data:
+            return 'mmum'
+        # MMuM v1.x Felder
+        if 'Infusion_Rastzeit1' in data or 'Infusion_Rasttemperatur1' in data:
+            return 'mmum'
+        return 'mmum'  # Fallback
+
     async def get_json_recipes(self):
         try:
             path = self.cbpi.config_folder.get_upload_file("mmum.json")
             e = json.load(open(path))
-            result =[] 
-            result.append({'value': str(1), 'label': e['Name']})
+            fmt = self._detect_json_format(e)
+            label_prefix = 'Brewfather' if fmt == 'brewfather' else 'MMuM'
+            name = e.get('name', e.get('Name', 'Unbekanntes Rezept'))
+            result = []
+            result.append({'value': str(1), 'label': '{}: {}'.format(label_prefix, name)})
             return result
         except Exception:
             return []
@@ -353,12 +367,26 @@ class UploadController:
         config = self.get_config_values()
 
         if self.kettle is not None:
-            # load mmum-json file located in upload folder
+            # load json file located in upload folder
             self.path = self.cbpi.config_folder.get_upload_file("mmum.json")
             if os.path.exists(self.path) is False:
-                self.cbpi.notify("Datei nicht gefunden", "Bitte eine MMuM-JSON-Datei hochladen", NotificationType.ERROR)
+                self.cbpi.notify("Datei nicht gefunden", "Bitte eine JSON-Datei hochladen", NotificationType.ERROR)
+                return
 
-            e = json.load(open(self.path))
+            # Auto-detect: Brewfather oder MMuM?
+            try:
+                with open(self.path) as f:
+                    probe = json.load(f)
+                fmt = self._detect_json_format(probe)
+            except Exception:
+                fmt = 'mmum'
+
+            if fmt == 'brewfather':
+                logging.info("Brewfather-JSON erkannt, verwende Brewfather-Import")
+                await self.brewfather_json_recipe_creation(probe)
+                return
+
+            e = probe
             name = e['Name']
             boil_time = float(e['Kochzeit_Wuerze'])
             
@@ -569,6 +597,175 @@ class UploadController:
             self.cbpi.notify('MMuM-Rezept erstellt', name, NotificationType.INFO)
         else:
             self.cbpi.notify('Rezept-Import', 'Kein Standard-Kessel definiert. Bitte in den Einstellungen festlegen.', NotificationType.ERROR)
+
+
+    async def brewfather_json_recipe_creation(self, bf_recipe):
+        """Importiert ein Rezept aus einer lokal hochgeladenen Brewfather-JSON-Datei."""
+        config = self.get_config_values()
+
+        if self.kettle is None:
+            self.cbpi.notify('Rezept-Import', 'Kein Standard-Kessel definiert. Bitte in den Einstellungen festlegen.', NotificationType.ERROR)
+            return
+
+        try:
+            StrikeTemp = bf_recipe.get('data', {}).get('strikeTemp', None)
+        except (KeyError, TypeError):
+            StrikeTemp = None
+        if StrikeTemp is not None and self.TEMP_UNIT != "C":
+            StrikeTemp = round((9.0 / 5.0 * float(StrikeTemp) + 32))
+
+        RecipeName = bf_recipe.get('name', 'Brewfather Import')
+        BoilTime = bf_recipe.get('boilTime', 60)
+        mash_steps = bf_recipe.get('mash', {}).get('steps', [])
+        hops = bf_recipe.get('hops', [])
+        miscs = bf_recipe.get('miscs', None)
+
+        FirstWort = self.getFirstWort(hops, "bf")
+
+        await self.create_recipe(RecipeName)
+
+        MashIn_Flag = True
+        step_kettle = self.id
+        for step in mash_steps:
+            try:
+                step_name = step.get('name', '')
+                if step_name == "":
+                    step_name = "Maischeschritt"
+            except (KeyError, TypeError):
+                step_name = "Maischeschritt"
+
+            step_timer = str(int(step.get('stepTime', 0)))
+
+            if self.TEMP_UNIT == "C":
+                step_temp = str(int(step.get('stepTemp', 65)))
+            else:
+                step_temp = str(round((9.0 / 5.0 * int(step.get('stepTemp', 65)) + 32)))
+
+            sensor = self.kettle.sensor
+            if MashIn_Flag == True:
+                if int(step_timer) == 0:
+                    step_type = self.mashin if self.mashin != "" else "MashInStep"
+                    Notification = "Zieltemperatur erreicht. Bitte Malz zugeben."
+                    MashIn_Flag = False
+                elif self.addmashin == "Yes":
+                    mashin_temp = str(round(StrikeTemp)) if StrikeTemp is not None else step_temp
+                    step_type = self.mashin if self.mashin != "" else "MashInStep"
+                    Notification = "Zieltemperatur erreicht. Bitte Malz zugeben."
+                    MashIn_Flag = False
+                    step_string = { "name": "Einmaischen",
+                                "props": {
+                                    "AutoMode": self.AutoMode,
+                                    "Kettle": self.id,
+                                    "Sensor": self.kettle.sensor,
+                                    "Temp": mashin_temp,
+                                    "Timer": 0,
+                                    "Notification": Notification
+                                    },
+                                 "status_text": "",
+                                 "status": "I",
+                                 "type": step_type
+                                }
+                    await self.create_step(step_string)
+
+                    step_type = self.mash if self.mash != "" else "MashStep"
+                    Notification = ""
+                else:
+                    step_type = self.mash if self.mash != "" else "MashStep"
+                    Notification = ""
+            else:
+                step_type = self.mash if self.mash != "" else "MashStep"
+                Notification = ""
+
+            step_string = { "name": step_name,
+                            "props": {
+                                "AutoMode": self.AutoMode,
+                                "Kettle": self.id,
+                                "Sensor": self.kettle.sensor,
+                                "Temp": step_temp,
+                                "Timer": step_timer,
+                                "Notification": Notification
+                                },
+                             "status_text": "",
+                             "status": "I",
+                             "type": step_type
+                            }
+            await self.create_step(step_string)
+
+        # Laeutern
+        if self.mashout == "NotificationStep":
+            step_string = { "name": "Laeutern",
+                            "props": {
+                                "AutoNext": "No",
+                                "Kettle": self.id,
+                                "Notification": "Maischprozess abgeschlossen. Bitte Laeutern starten und dann Weiter druecken."
+                                },
+                            "status_text": "",
+                            "status": "I",
+                            "type": self.mashout
+                            }
+            await self.create_step(step_string)
+
+        # Stammwuerze messen
+        step_string = { "name": "Stammwuerze messen",
+                        "props": {
+                                "AutoNext": "No",
+                                "Kettle": self.id,
+                                "Notification": "Wie hoch ist die Stammwuerze?"
+                                },
+                            "status_text": "",
+                            "status": "I",
+                            "type": "NotificationStep"
+                            }
+        await self.create_step(step_string)
+
+        # Kochschritt mit Hopfenalarmen
+        Hops = self.getBoilAlerts(hops, miscs, "bf")
+        step_kettle = self.boilid
+        step_time = str(int(BoilTime))
+        step_type = self.boil if self.boil != "" else "BoilStep"
+        step_temp = self.BoilTemp
+        sensor = self.boilkettle.sensor
+        LidAlert = "Yes"
+
+        step_string = { "name": "Kochen",
+                    "props": {
+                        "AutoMode": self.AutoMode,
+                        "Kettle": step_kettle,
+                        "Sensor": sensor,
+                        "Temp": step_temp,
+                        "Timer": step_time,
+                        "First_Wort": FirstWort,
+                        "LidAlert": LidAlert,
+                        "Hop_1": Hops[0],
+                        "Hop_2": Hops[1],
+                        "Hop_3": Hops[2],
+                        "Hop_4": Hops[3],
+                        "Hop_5": Hops[4],
+                        "Hop_6": Hops[5]
+                        },
+                    "status_text": "",
+                    "status": "I",
+                    "type": step_type
+                }
+        await self.create_step(step_string)
+
+        # Stammwuerze messen (nach dem Kochen)
+        step_string = { "name": "Stammwuerze messen",
+                        "props": {
+                                "AutoNext": "No",
+                                "Kettle": self.id,
+                                "Notification": "Wie hoch ist die Stammwuerze?"
+                                },
+                            "status_text": "",
+                            "status": "I",
+                            "type": "NotificationStep"
+                            }
+        await self.create_step(step_string)
+
+        await self.create_Whirlpool_Cooldown()
+
+        await self.save_recipe_steps()
+        self.cbpi.notify('Brewfather-Rezept erstellt', RecipeName, NotificationType.INFO)
 
 
     async def xml_recipe_creation(self, Recipe_ID):

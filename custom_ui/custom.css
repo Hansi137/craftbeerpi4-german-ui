@@ -322,9 +322,57 @@ header,
 }
 
 /* ==================== SIDEBAR / DRAWER ==================== */
+/* MUI nutzt einen "temporary" Drawer — React steuert open/close via State.
+   Wir stylen nur das Aussehen, nicht die Sichtbarkeit. MUI kümmert sich
+   um Backdrop, Slide-Animation und DOM-Rendering. */
 .MuiDrawer-paper {
   background: var(--bg-surface) !important;
   border-right: 1px solid var(--accent-border) !important;
+}
+
+/* ── Hamburger-Button (nur Mobile ≤768px sichtbar) ── */
+#cbpi-hamburger {
+  display: none;
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 9600;
+  background: var(--bg-surface);
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 22px;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: background 0.15s ease;
+  line-height: 1;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+#cbpi-hamburger:hover,
+#cbpi-hamburger:active {
+  background: var(--accent-subtle);
+}
+@media (max-width: 768px) {
+  #cbpi-hamburger {
+    display: flex;
+  }
+  /* MUI MenuButton im Toolbar verstecken (unser Hamburger ersetzt ihn) */
+  .MuiAppBar-root .MuiToolbar-root > button:first-child {
+    position: absolute;
+    left: -9999px;
+    opacity: 0;
+    pointer-events: none;
+  }
+  /* Toolbar nach rechts rücken um Platz für unseren Hamburger zu machen */
+  .MuiAppBar-root .MuiToolbar-root {
+    padding-left: 56px !important;
+  }
 }
 
 .MuiDrawer-paper .MuiListItem-root:hover {
@@ -1227,6 +1275,8 @@ body:has(#cbpi-status-bar:not(.hidden)) {
   border-radius: 10px;
   padding: 14px 16px;
   transition: box-shadow 0.2s ease;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .cockpit-card:hover {
@@ -3460,7 +3510,8 @@ html, body, #root {
 .ingr-detail-item {
   font-size: 12px;
   color: var(--text-secondary);
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
 }
 .ingr-detail-item b {
   color: var(--text);
@@ -3530,30 +3581,27 @@ html, body, #root {
 }
 /* Zwei-Spalten-Layout: Links Zutaten, Rechts Notizen */
 .recipe-ingr-columns {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 24px;
-  align-items: flex-start;
+  align-items: start;
 }
 .recipe-ingr-left {
-  flex: 1;
   min-width: 0;
-  max-width: 520px;
 }
 .recipe-ingr-right {
-  width: 280px;
-  flex-shrink: 0;
+  min-width: 0;
   position: sticky;
   top: 16px;
 }
 .recipe-ingr-right .recipe-ingr-notes {
-  min-height: 260px;
+  min-height: 180px;
 }
 @media (max-width: 800px) {
   .recipe-ingr-columns {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
   .recipe-ingr-right {
-    width: 100%;
     position: static;
   }
 }
@@ -5463,6 +5511,8 @@ select.fermenter-input {
   font-weight: 600;
   color: var(--text-primary);
   text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ============================================================
