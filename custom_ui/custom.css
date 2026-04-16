@@ -567,10 +567,22 @@ button.MuiFab-extended,
 .MuiTableCell-head {
   font-weight: 600 !important;
   color: var(--accent) !important;
+  text-align: left;
 }
 
 .MuiTableRow-root:hover {
   background-color: var(--bg-hover) !important;
+}
+
+/* Hardware-Tabellen: gleichmäßige Spaltenbreiten */
+table[data-hw-fixed] {
+  table-layout: fixed;
+  width: 100%;
+}
+table[data-hw-fixed] .MuiTableCell-root {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ==================== TABS ==================== */

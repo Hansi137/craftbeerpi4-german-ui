@@ -79,6 +79,24 @@
     'Heater': { de: 'Heizung', en: 'Heater' },
     'Agitator': { de: 'Rührwerk', en: 'Agitator' },
     'Fermenter': { de: 'Gärbehälter', en: 'Fermenter' },
+    'Fermenter Config': { de: 'Gärbehälter-Konfiguration', en: 'Fermenter Config' },
+    'Delete Fermenter': { de: 'Gärbehälter löschen', en: 'Delete Fermenter' },
+    'Fermenter not Found': { de: 'Gärbehälter nicht gefunden', en: 'Fermenter not Found' },
+    'FermenterLogic': { de: 'Gärlogik', en: 'FermenterLogic' },
+    'Cooler': { de: 'Kühlung', en: 'Cooler' },
+    'Valve': { de: 'Ventil', en: 'Valve' },
+    'Temp Sensor': { de: 'Temperatursensor', en: 'Temp Sensor' },
+    'Pressure Sensor': { de: 'Drucksensor', en: 'Pressure Sensor' },
+    'BrewName': { de: 'Sudname', en: 'BrewName' },
+    'TargetTemp': { de: 'Zieltemperatur', en: 'TargetTemp' },
+    'TargetPressure': { de: 'Zieldruck', en: 'TargetPressure' },
+    'HeaterOffsetOn': { de: 'Heizung Ein-Offset', en: 'HeaterOffsetOn' },
+    'HeaterOffsetOff': { de: 'Heizung Aus-Offset', en: 'HeaterOffsetOff' },
+    'CoolerOffsetOn': { de: 'Kühlung Ein-Offset', en: 'CoolerOffsetOn' },
+    'CoolerOffsetOff': { de: 'Kühlung Aus-Offset', en: 'CoolerOffsetOff' },
+    'HeaterMaxPower': { de: 'Max. Heizleistung', en: 'HeaterMaxPower' },
+    'CoolerMaxPower': { de: 'Max. Kühlleistung', en: 'CoolerMaxPower' },
+    'AutoStart': { de: 'Autostart', en: 'AutoStart' },
     'Tank': { de: 'Tank', en: 'Tank' },
     'Led': { de: 'LED', en: 'Led' },
     'Temp': { de: 'Temperatur', en: 'Temp' },
@@ -195,7 +213,22 @@
     'SELECT': { de: 'AUSWAHL', en: 'SELECT' },
     'COLOR': { de: 'FARBE', en: 'COLOR' },
     'INPUT': { de: 'EINGABE', en: 'INPUT' },
-    'TEXTAREA': { de: 'TEXTFELD', en: 'TEXTAREA' }
+    'TEXTAREA': { de: 'TEXTFELD', en: 'TEXTAREA' },
+    'Recipe Upload': { de: 'Rezept-Import', en: 'Recipe Upload' },
+    'Select Recipe': { de: 'Rezept auswählen', en: 'Select Recipe' },
+    'Fermenter Profile': { de: 'Gärprofil', en: 'Fermenter Profile' },
+    'Fermenter Steps': { de: 'Gärungs-Schritte', en: 'Fermenter Steps' },
+    'Fermenter Recipe Book': { de: 'Gärrezept-Buch', en: 'Fermenter Recipe Book' },
+    'Delete Fermenter Recipe': { de: 'Gärrezept löschen', en: 'Delete Fermenter Recipe' },
+    'Select Fermenter': { de: 'Gärbehälter auswählen', en: 'Select Fermenter' },
+    'Send': { de: 'Senden', en: 'Send' },
+    'Spindle Data': { de: 'Spindel-Daten', en: 'Spindle Data' },
+    'Delete Old Notifications ?': { de: 'Alte Benachrichtigungen löschen?', en: 'Delete Old Notifications?' },
+    'Delete logs': { de: 'Logs löschen', en: 'Delete logs' },
+    'Delete all logs': { de: 'Alle Logs löschen', en: 'Delete all logs' },
+    'Erstellen': { de: 'Erstellen', en: 'Create' },
+    'Calibrate': { de: 'Kalibrieren', en: 'Calibrate' },
+    'Refresh': { de: 'Aktualisieren', en: 'Refresh' }
   };
 
   var longTranslations = {
@@ -298,6 +331,102 @@
     'Actor to trigger cooldown water on and off (default: None)': {
       de: 'Aktor zum Ein-/Ausschalten des Kühlwassers (Standard: keiner)',
       en: 'Actor to trigger cooldown water on and off (default: None)'
+    },
+    'You can upload recipes from BeerXML, MMuM-JSON, Brewfather or the Kleiner Brauhelfer V2 database.': {
+      de: 'Du kannst Rezepte aus BeerXML, MMuM-JSON, Brewfather oder der Kleiner Brauhelfer V2 Datenbank importieren.',
+      en: 'You can upload recipes from BeerXML, MMuM-JSON, Brewfather or the Kleiner Brauhelfer V2 database.'
+    },
+    'Upload BeerXML File, MMuM-JSON or KBH V2 database file': {
+      de: 'BeerXML, MMuM-JSON oder KBH V2 Datei hochladen',
+      en: 'Upload BeerXML File, MMuM-JSON or KBH V2 database file'
+    },
+    'BeerXML Recipe from uploaded file': {
+      de: 'BeerXML-Rezept aus hochgeladener Datei',
+      en: 'BeerXML Recipe from uploaded file'
+    },
+    'Create Recipe from BeerXML recipe': {
+      de: 'Rezept aus BeerXML erstellen',
+      en: 'Create Recipe from BeerXML recipe'
+    },
+    'MMuM-JSON Recipe from uploaded file': {
+      de: 'MMuM-JSON-Rezept aus hochgeladener Datei',
+      en: 'MMuM-JSON Recipe from uploaded file'
+    },
+    'Create Recipe from MMuM-JSON recipe': {
+      de: 'Rezept aus MMuM-JSON erstellen',
+      en: 'Create Recipe from MMuM-JSON recipe'
+    },
+    'Recipe from Kleiner Brauhelfer Database': {
+      de: 'Rezept aus Kleiner Brauhelfer Datenbank',
+      en: 'Recipe from Kleiner Brauhelfer Database'
+    },
+    'Create Recipe from KBH Database': {
+      de: 'Rezept aus KBH-Datenbank erstellen',
+      en: 'Create Recipe from KBH Database'
+    },
+    'Create Recipe from Brewfather Web App': {
+      de: 'Rezept aus Brewfather erstellen',
+      en: 'Create Recipe from Brewfather Web App'
+    },
+    'Recipe Offset (display 50 items after offset)': {
+      de: 'Rezept-Offset (50 Einträge ab Offset anzeigen)',
+      en: 'Recipe Offset (display 50 items after offset)'
+    },
+    'Do you want to delete the selected logs?': {
+      de: 'Möchtest du die ausgewählten Logs löschen?',
+      en: 'Do you want to delete the selected logs?'
+    },
+    'Do you really want to delete ALL logs?': {
+      de: 'Möchtest du wirklich ALLE Logs löschen?',
+      en: 'Do you really want to delete ALL logs?'
+    },
+    'Do you want to delete the Fermenter Recipe': {
+      de: 'Möchtest du das Gärrezept löschen?',
+      en: 'Do you want to delete the Fermenter Recipe?'
+    },
+    'Do you want to delete the current archive?': {
+      de: 'Möchtest du das aktuelle Archiv löschen?',
+      en: 'Do you want to delete the current archive?'
+    },
+    'Brewfather Recipes': {
+      de: 'Brewfather-Rezepte',
+      en: 'Brewfather Recipes'
+    },
+    'Items max at a time': {
+      de: 'Einträge pro Seite',
+      en: 'Items max at a time'
+    },
+    'Recipes total': {
+      de: 'Rezepte insgesamt',
+      en: 'Recipes total'
+    },
+    'Send recipe to Kettle': {
+      de: 'Rezept an Kessel senden',
+      en: 'Send recipe to Kettle'
+    },
+    'Send recipe to fermenter': {
+      de: 'Rezept an Gärbehälter senden',
+      en: 'Send recipe to fermenter'
+    },
+    'Save recipe': {
+      de: 'Rezept speichern',
+      en: 'Save recipe'
+    },
+    'Back to recipe book': {
+      de: 'Zurück zum Rezeptbuch',
+      en: 'Back to recipe book'
+    },
+    'Clone recipe': {
+      de: 'Rezept klonen',
+      en: 'Clone recipe'
+    },
+    'Server based Spindle Calibration': {
+      de: 'Serverbasierte Spindel-Kalibrierung',
+      en: 'Server based Spindle Calibration'
+    },
+    'Current Spindle Data': {
+      de: 'Aktuelle Spindel-Daten',
+      en: 'Current Spindle Data'
     },
     'Cooldown temp will send notification when this temeprature is reached': {
       de: 'Benachrichtigung senden, wenn diese Abkühltemperatur erreicht wird',
@@ -757,7 +886,13 @@
       'Über': 'Lizenz & Projekt-Info',
       'About': 'Lizenz & Projekt-Info',
       'Statistiken': 'Sensor-Verlauf & Diagramme',
-      'Analytics': 'Sensor-Verlauf & Diagramme'
+      'Analytics': 'Sensor-Verlauf & Diagramme',
+      'Rezept-Import': 'Rezepte importieren (BeerXML, MMuM, KBH, Brewfather)',
+      'Recipe Upload': 'Rezepte importieren (BeerXML, MMuM, KBH, Brewfather)',
+      'Fermenter Profile': 'Gärschritte & Rezepte konfigurieren',
+      'Gärprofil': 'Gärschritte & Rezepte konfigurieren',
+      'Spindel-Daten': 'iSpindle Messwerte & Archiv',
+      'Spindle Data': 'iSpindle Messwerte & Archiv'
     },
     en: {
       'Dashboard': 'Visual brewery layout',
@@ -770,7 +905,10 @@
       'Settings': 'Configure your brewery',
       'System': 'Logs, restart & info',
       'About': 'License & project info',
-      'Analytics': 'Sensor history & charts'
+      'Analytics': 'Sensor history & charts',
+      'Recipe Upload': 'Import recipes (BeerXML, MMuM, KBH, Brewfather)',
+      'Fermenter Profile': 'Configure fermentation steps & recipes',
+      'Spindle Data': 'iSpindle readings & archive'
     }
   };
 
@@ -809,7 +947,15 @@
     '/analytics':    { de: 'Statistiken',             en: 'Analytics' },
     '/fermenter':    { de: 'Gärbehälter',            en: 'Fermenter' },
     '/recipe':       { de: 'Rezept bearbeiten',       en: 'Edit Recipe' },
-    '/help':         { de: 'Hilfe & Dokumentation',   en: 'Help & Documentation' }
+    '/help':         { de: 'Hilfe & Dokumentation',   en: 'Help & Documentation' },
+    '/upload':       { de: 'Rezept-Import',            en: 'Recipe Upload' },
+    '/charting':     { de: 'Statistiken',              en: 'Analytics' },
+    '/fermenterprofile': { de: 'Gärprofil',          en: 'Fermenter Profile' },
+    '/fermenterrecipes': { de: 'Gärrezept-Buch',       en: 'Fermenter Recipe Book' },
+    '/fermenterrecipe':  { de: 'Gärrezept bearbeiten', en: 'Edit Fermenter Recipe' },
+    '/data':         { de: 'Spindel-Daten',            en: 'Spindle Data' },
+    '/calibrate':    { de: 'Kalibrierung',             en: 'Calibration' },
+    '/currentdata':  { de: 'Aktuelle Spindel-Daten',   en: 'Current Spindle Data' }
   };
 
   // ============================================================
@@ -1857,22 +2003,24 @@
   var expertMode = localStorage.getItem(EXPERT_KEY) === '1';
 
   // Routen im Anfänger-Modus (nur das Wesentliche)
-  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'brewlog', 'water', 'hardware', 'settings', 'system'];
+  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge', 'fermenter', 'fermenterprofile', 'hardware', 'settings', 'system', 'help'];
   // Zusätzliche Routen im Experten-Modus
-  var expertRoutes = ['actor', 'sensor', 'kettle', 'fermenter', 'analytics', 'plugins', 'about'];
+  var expertRoutes = ['actor', 'sensor', 'kettle', 'brewlog', 'analytics', 'data', 'plugins', 'upload', 'about'];
 
   var navGroups = {
     de: [
-      { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'brewlog', 'water'] },
+      { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge'] },
+      { label: 'Gärung', routes: ['fermenter', 'fermenterprofile'] },
+      { label: 'Analyse', routes: ['brewlog', 'analytics', 'data'] },
       { label: 'Einrichtung', routes: ['hardware', 'settings'] },
-      { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
-      { label: 'System', routes: ['system', 'about'] }
+      { label: 'System', routes: ['plugins', 'upload', 'system', 'about', 'help'] }
     ],
     en: [
-      { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'brewlog', 'water'] },
+      { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge'] },
+      { label: 'Fermentation', routes: ['fermenter', 'fermenterprofile'] },
+      { label: 'Analysis', routes: ['brewlog', 'analytics', 'data'] },
       { label: 'Setup', routes: ['hardware', 'settings'] },
-      { label: 'Extras', routes: ['analytics', 'fermenter', 'plugins'] },
-      { label: 'System', routes: ['system', 'about'] }
+      { label: 'System', routes: ['plugins', 'upload', 'system', 'about', 'help'] }
     ]
   };
 
@@ -1882,7 +2030,7 @@
     var list = drawer.querySelector('.MuiList-root');
     if (!list) return;
     // Ersten existierenden MuiListItem als Template nehmen
-    var firstItem = list.querySelector('.MuiListItem-root');
+    var firstItem = list.querySelector('.MuiListItemButton-root, .MuiListItem-root');
     if (!firstItem) return;
 
     _isOurDomChange = true;
@@ -1948,6 +2096,7 @@
     var drawer = document.querySelector('.MuiDrawer-paper');
     if (!drawer) return;
 
+    // === BRAUEN-Gruppe ===
     // Cockpit-Menüpunkt einfügen (vor dem Dashboard-Link)
     injectCockpitNavItem(drawer);
 
@@ -1960,16 +2109,19 @@
     // Nachgussrechner Menüpunkt (nach Brauwasser)
     injectSpargeNavItem(drawer);
 
-    // Brau-Logbuch Menüpunkt
-    injectBrewLogNavItem(drawer);
-
-    // Gärungs-Dashboard Menüpunkt
+    // === GÄRUNG-Gruppe ===
+    // Gärungs-Dashboard (nach Fermenter Profile)
     injectFermenterNavItem(drawer);
 
-    // Hilfe-Seite Menüpunkt
+    // === ANALYSE-Gruppe ===
+    // Brau-Logbuch Menüpunkt (nach Gärung, vor Hardware)
+    injectBrewLogNavItem(drawer);
+
+    // === SYSTEM-Gruppe ===
+    // Hilfe-Seite Menüpunkt (am Ende)
     injectHelpNavItem(drawer);
 
-    var items = drawer.querySelectorAll('.MuiListItem-root');
+    var items = drawer.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
     items.forEach(function (item) {
       var link = item.querySelector('a');
       var text = item.querySelector('.MuiListItemText-primary');
@@ -1996,18 +2148,23 @@
           'brau-cockpit': 'cockpit', 'brew cockpit': 'cockpit',
           'brau-logbuch': 'brewlog', 'brew log': 'brewlog',
           'hardware': 'hardware',
-          'mash profile': 'mashprofile', 'maischprofil': 'mashprofile',
+          'mash profile': 'mashprofile', 'maischprofil': 'mashprofile', 'brauplan': 'mashprofile',
           'recipe book': 'recipes', 'rezeptbuch': 'recipes',
           'actors': 'actor', 'aktoren': 'actor',
           'sensors': 'sensor', 'sensoren': 'sensor',
           'kettles': 'kettle', 'kessel': 'kettle',
-          'fermenter': 'fermenter', 'gärbehälter': 'fermenter',
+          'fermenter profile': 'fermenterprofile', 'gärprofil': 'fermenterprofile',
+          'gärung': 'fermenter', 'fermentation': 'fermenter',
           'analytics': 'analytics', 'statistiken': 'analytics',
+          'spindle data': 'data', 'spindel-daten': 'data',
           'plugins': 'plugins', 'erweiterungen': 'plugins',
           'settings': 'settings', 'einstellungen': 'settings',
           'system': 'system',
           'about': 'about', 'über': 'about', 'über craftbeerpi': 'about',
-          'brauwasser': 'water', 'water chemistry': 'water'
+          'brauwasser': 'water', 'water chemistry': 'water',
+          'nachgussrechner': 'sparge', 'sparge calculator': 'sparge',
+          'recipe upload': 'upload', 'rezept-import': 'upload',
+          'hilfe': 'help', 'help': 'help'
         };
         route = routeMap[label] || '';
       }
@@ -2062,6 +2219,12 @@
         var label = text ? text.textContent.trim().toLowerCase() : '';
         var route = '';
         if (item.id === 'cbpi-nav-cockpit') { route = 'cockpit'; }
+        else if (item.id === 'cbpi-nav-fermenter') { route = 'fermenter'; }
+        else if (item.id === 'cbpi-nav-brewlog') { route = 'brewlog'; }
+        else if (item.id === 'cbpi-nav-water') { route = 'water'; }
+        else if (item.id === 'cbpi-nav-sparge') { route = 'sparge'; }
+        else if (item.id === 'cbpi-nav-recipebook') { route = 'recipes'; }
+        else if (item.id === 'cbpi-nav-help') { route = 'help'; }
         else if (href) { var m = href.match(/#\/(\w+)/); if (m) route = m[1]; }
         visibleItems.push({ el: item, route: route, label: label });
       }
@@ -2150,7 +2313,7 @@
   function addSidebarTooltips() {
     var drawer = document.querySelector('.MuiDrawer-paper');
     if (!drawer) return;
-    var items = drawer.querySelectorAll('.MuiListItem-root');
+    var items = drawer.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
     items.forEach(function (item) {
       var textEl = item.querySelector('.MuiListItemText-primary');
       if (textEl) {
@@ -5094,7 +5257,7 @@
     if (drawer.querySelector('#cbpi-nav-water')) return;
     var list = drawer.querySelector('.MuiList-root');
     if (!list) return;
-    var firstItem = list.querySelector('.MuiListItem-root');
+    var firstItem = list.querySelector('.MuiListItemButton-root, .MuiListItem-root');
     if (!firstItem) return;
 
     _isOurDomChange = true;
@@ -5121,7 +5284,7 @@
     if (descEl) descEl.textContent = currentLang === 'de' ? 'Wasseraufbereitung berechnen' : 'Calculate water treatment';
 
     // Nach dem Rezeptbuch-Item einfügen (in der Brauen-Gruppe)
-    var items = list.querySelectorAll('.MuiListItem-root');
+    var items = list.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
     var insertAfter = null;
     var hardwareItem = null;
     items.forEach(function(item) {
@@ -5880,7 +6043,7 @@
     if (drawer.querySelector('#cbpi-nav-sparge')) return;
     var list = drawer.querySelector('.MuiList-root');
     if (!list) return;
-    var firstItem = list.querySelector('.MuiListItem-root');
+    var firstItem = list.querySelector('.MuiListItemButton-root, .MuiListItem-root');
     if (!firstItem) return;
 
     _isOurDomChange = true;
@@ -5912,7 +6075,7 @@
       list.insertBefore(li, waterItem.nextSibling);
     } else {
       // Fallback: nach Rezeptbuch
-      var items = list.querySelectorAll('.MuiListItem-root');
+      var items = list.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
       var insertAfter = null;
       items.forEach(function(item) {
         var t = item.querySelector('.MuiListItemText-primary');
@@ -5977,7 +6140,7 @@
     if (drawer.querySelector('#cbpi-nav-recipebook')) return;
     var list = drawer.querySelector('.MuiList-root');
     if (!list) return;
-    var firstItem = list.querySelector('.MuiListItem-root');
+    var firstItem = list.querySelector('.MuiListItemButton-root, .MuiListItem-root');
     if (!firstItem) return;
 
     _isOurDomChange = true;
@@ -6003,7 +6166,7 @@
     if (descEl) descEl.textContent = currentLang === 'de' ? 'Rezepte verwalten & laden' : 'Manage & load recipes';
 
     // Nach Brauplan einfügen
-    var items = list.querySelectorAll('.MuiListItem-root');
+    var items = list.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
     var insertAfter = null;
     items.forEach(function(item) {
       var t = item.querySelector('.MuiListItemText-primary');
@@ -6024,7 +6187,7 @@
     if (drawer.querySelector('#cbpi-nav-brewlog')) return;
     var list = drawer.querySelector('.MuiList-root');
     if (!list) return;
-    var firstItem = list.querySelector('.MuiListItem-root');
+    var firstItem = list.querySelector('.MuiListItemButton-root, .MuiListItem-root');
     if (!firstItem) return;
 
     _isOurDomChange = true;
@@ -6047,19 +6210,22 @@
     var descEl = li.querySelector('.cbpi-menu-desc');
     if (descEl) descEl.textContent = currentLang === 'de' ? 'Brauprotokolle & Notizen' : 'Brew protocols & notes';
 
-    // Nach Rezeptbuch einfügen
-    var items = list.querySelectorAll('.MuiListItem-root');
+    // Nach Gärung einfügen (Analyse-Gruppe, vor Hardware)
+    var items = list.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
     var insertAfter = null;
+    var hardwareItem = null;
     items.forEach(function(item) {
       var t = item.querySelector('.MuiListItemText-primary');
       if (t) {
         var txt = t.textContent.trim().toLowerCase();
-        if (txt === 'brauwasser' || txt === 'water chemistry') insertAfter = item;
-        if (!insertAfter && (txt === 'rezeptbuch' || txt === 'recipe book')) insertAfter = item;
+        if (txt === 'gärung' || txt === 'fermentation' || item.id === 'cbpi-nav-fermenter') insertAfter = item;
+        if (txt === 'hardware') hardwareItem = item;
       }
     });
     if (insertAfter && insertAfter.nextSibling) {
       list.insertBefore(li, insertAfter.nextSibling);
+    } else if (hardwareItem) {
+      list.insertBefore(li, hardwareItem);
     } else {
       list.appendChild(li);
     }
@@ -7049,7 +7215,7 @@
     if (drawer.querySelector('#cbpi-nav-fermenter')) return;
     var list = drawer.querySelector('.MuiList-root');
     if (!list) return;
-    var firstItem = list.querySelector('.MuiListItem-root');
+    var firstItem = list.querySelector('.MuiListItemButton-root, .MuiListItem-root');
     if (!firstItem) return;
 
     _isOurDomChange = true;
@@ -7073,14 +7239,14 @@
     var descEl = li.querySelector('.cbpi-menu-desc');
     if (descEl) descEl.textContent = currentLang === 'de' ? 'Gärbehälter steuern & überwachen' : 'Control & monitor fermenters';
 
-    // Nach Brau-Logbuch einfügen
-    var items = list.querySelectorAll('.MuiListItem-root');
+    // Nach Fermenter Profile einfügen (Gärung-Gruppe)
+    var items = list.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
     var insertAfter = null;
     items.forEach(function(item) {
       var t = item.querySelector('.MuiListItemText-primary');
       if (t) {
         var txt = t.textContent.trim().toLowerCase();
-        if (txt === 'brau-logbuch' || txt === 'brew log') insertAfter = item;
+        if (txt === 'fermenter profile' || txt === 'gärprofil') insertAfter = item;
       }
     });
     if (insertAfter && insertAfter.nextSibling) {
@@ -7095,7 +7261,7 @@
     if (drawer.querySelector('#cbpi-nav-help')) return;
     var list = drawer.querySelector('.MuiList-root');
     if (!list) return;
-    var firstItem = list.querySelector('.MuiListItem-root');
+    var firstItem = list.querySelector('.MuiListItemButton-root, .MuiListItem-root');
     if (!firstItem) return;
 
     _isOurDomChange = true;
@@ -8757,17 +8923,25 @@
       var table = kettlePaper.querySelector('table');
       if (!table) return;
 
+      // Feste Spaltenbreiten (8 Spalten wie alle anderen Tabellen)
+      table.setAttribute('data-hw-fixed', 'true');
+      var existingCg = table.querySelector('colgroup');
+      if (existingCg) existingCg.remove();
+      table.insertAdjacentHTML('afterbegin', '<colgroup><col style="width:12%"><col><col><col><col><col><col><col style="width:14%"></colgroup>');
+
       _isOurDomChange = true;
 
-      // Header neu
+      // Header neu (8 Spalten: Name | Logik | _ | Heizung | Rührwerk | Sensor | _ | Aktionen)
       var thead = table.querySelector('thead');
       if (thead) {
         thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
           '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Logik' : 'Logic') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head"></th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Heizung' : 'Heater') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Rührwerk' : 'Agitator') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">Sensor</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head"></th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
           '</tr>';
       }
@@ -8780,9 +8954,11 @@
           html += '<tr class="MuiTableRow-root">';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (k.name || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (k.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body"></td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[k.heater] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[k.agitator] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[k.sensor] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body"></td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-kettle-delete="' + k.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
@@ -8855,16 +9031,24 @@
       var table = sensorPaper.querySelector('table');
       if (!table) return;
 
+      // Feste Spaltenbreiten (8 Spalten wie alle anderen Tabellen)
+      table.setAttribute('data-hw-fixed', 'true');
+      var existingCg = table.querySelector('colgroup');
+      if (existingCg) existingCg.remove();
+      table.insertAdjacentHTML('afterbegin', '<colgroup><col style="width:12%"><col><col><col><col><col><col><col style="width:14%"></colgroup>');
+
       _isOurDomChange = true;
 
+      // Header (8 Spalten: Name | Typ | Adresse/ID | GPIO | Interval | _ | Wert | Aktionen)
       var thead = table.querySelector('thead');
       if (thead) {
         thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
           '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Typ' : 'Type') + '</th>' +
-          '<th class="MuiTableCell-root MuiTableCell-head">GPIO</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Adresse / ID' : 'Address / ID') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">GPIO</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">Interval</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head"></th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:center">' + (de ? 'Wert' : 'Value') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
           '</tr>';
@@ -8887,9 +9071,10 @@
           html += '<tr class="MuiTableRow-root">';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (s.name || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (s.type || '—') + '</td>';
-          html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace">' + gpio + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace;font-size:0.8rem">' + address + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace">' + gpio + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + interval + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body"></td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body hw-sensor-value-cell" data-hw-sensor-id="' + s.id + '" style="text-align:center;font-family:monospace;font-weight:bold">';
           html += '<span class="hw-sensor-loading">…</span>';
           html += '</td>';
@@ -8999,15 +9184,24 @@
       var table = actorPaper.querySelector('table');
       if (!table) return;
 
+      // Feste Spaltenbreiten (8 Spalten wie alle anderen Tabellen)
+      table.setAttribute('data-hw-fixed', 'true');
+      var existingCg = table.querySelector('colgroup');
+      if (existingCg) existingCg.remove();
+      table.insertAdjacentHTML('afterbegin', '<colgroup><col style="width:12%"><col><col><col><col><col><col><col style="width:14%"></colgroup>');
+
       _isOurDomChange = true;
 
+      // Header (8 Spalten: Name | Typ | _ | GPIO | Invertiert | _ | Test | Aktionen)
       var thead = table.querySelector('thead');
       if (thead) {
         thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
           '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Typ' : 'Type') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head"></th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">GPIO</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Invertiert' : 'Inverted') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head"></th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:center">' + (de ? 'Test' : 'Test') + '</th>' +
           '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
           '</tr>';
@@ -9025,8 +9219,10 @@
           html += '<tr class="MuiTableRow-root">';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (act.name || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (act.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body"></td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="font-family:monospace">' + gpio + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + inverted + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body"></td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:center">';
           html += '<label class="hw-actor-switch" data-hw-actor-toggle="' + act.id + '" data-hw-actor-state="' + actorState + '" title="' + (de ? 'Aktor ein-/ausschalten' : 'Toggle actor on/off') + '">';
           html += '<input type="checkbox"' + (actorState ? ' checked' : '') + '>';
@@ -9042,7 +9238,8 @@
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
           html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
           html += '</button>';
-          html += '</td></tr>';
+          html += '</td>';
+          html += '</tr>';
         });
         tbody.innerHTML = html;
 
@@ -9113,6 +9310,156 @@
     });
   }
 
+  // --- Upstream Fermenter-Tabelle patchen (wie Kessel/Sensor/Aktor) und unter Kessel verschieben ---
+  function patchFermenterTable() {
+    var papers = document.querySelectorAll('.MuiPaper-root');
+    var fermenterPaper = null;
+    for (var i = 0; i < papers.length; i++) {
+      if (papers[i].id === 'cbpi-fermenter-hardware') continue;
+      var table = papers[i].querySelector('table');
+      if (!table) continue;
+      var headers = table.querySelectorAll('thead th');
+      var texts = [];
+      headers.forEach(function(h) { texts.push(h.textContent); });
+      if (texts.indexOf('Cooler') >= 0 || texts.indexOf('Kühlung') >= 0) {
+        fermenterPaper = papers[i];
+        break;
+      }
+    }
+    if (!fermenterPaper) return;
+    if (fermenterPaper.getAttribute('data-patched') === 'true') return;
+
+    var de = currentLang === 'de';
+
+    // Unter den Kessel verschieben (nach dem ersten Grid-Item = Kessel)
+    var gridItem = fermenterPaper.closest('.MuiGrid-item') || fermenterPaper.parentElement;
+    if (gridItem && gridItem.parentElement) {
+      var kettleGridItem = gridItem.parentElement.querySelector('.MuiGrid-item');
+      if (kettleGridItem && kettleGridItem.nextSibling) {
+        gridItem.parentElement.insertBefore(gridItem, kettleGridItem.nextSibling);
+      }
+    }
+
+    // Tabelle komplett neu bauen per API (wie bei Kessel/Sensor/Aktor)
+    Promise.all([
+      fetch('/fermenter/').then(function(r) { return r.json(); }),
+      fetch('/sensor/').then(function(r) { return r.json(); }),
+      fetch('/actor/').then(function(r) { return r.json(); })
+    ]).then(function(results) {
+      var fermData = results[0];
+      var sensors = results[1].data || [];
+      var actors = results[2].data || [];
+      var fermenters = fermData.data || [];
+      var types = fermData.types || {};
+
+      var sensorNames = {};
+      sensors.forEach(function(s) { sensorNames[s.id] = s.name; });
+      var actorNames = {};
+      actors.forEach(function(a) { actorNames[a.id] = a.name; });
+
+      var table = fermenterPaper.querySelector('table');
+      if (!table) return;
+
+      // Feste Spaltenbreiten (8 Spalten wie alle anderen Tabellen)
+      table.setAttribute('data-hw-fixed', 'true');
+      var existingCg = table.querySelector('colgroup');
+      if (existingCg) existingCg.remove();
+      table.insertAdjacentHTML('afterbegin', '<colgroup><col style="width:12%"><col><col><col><col><col><col><col style="width:14%"></colgroup>');
+
+      _isOurDomChange = true;
+
+      // Titel patchen
+      var title = fermenterPaper.querySelector('.MuiTypography-root');
+      if (title) title.textContent = de ? 'Gärbehälter' : 'Fermenter';
+
+      // Header neu
+      var thead = table.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = '<tr class="MuiTableRow-root MuiTableRow-head">' +
+          '<th class="MuiTableCell-root MuiTableCell-head">Name</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Logik' : 'Logic') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Drucksensor' : 'Pressure') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Heizung' : 'Heater') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Kühlung' : 'Cooler') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">Sensor</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Ventil' : 'Valve') + '</th>' +
+          '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>' +
+          '</tr>';
+      }
+
+      // Body neu
+      var tbody = table.querySelector('tbody');
+      if (tbody) {
+        var html = '';
+        fermenters.forEach(function(f) {
+          html += '<tr class="MuiTableRow-root">';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (f.name || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (f.type || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.pressure_sensor] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.heater] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.cooler] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.sensor] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.valve] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-delete="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
+          html += '</button>';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-edit="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Bearbeiten' : 'Edit') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#4caf50;letter-spacing:0.05em">' + (de ? 'BEARBEITEN' : 'EDIT') + '</span>';
+          html += '</button>';
+          html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-view="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Anzeigen' : 'View') + '">';
+          html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
+          html += '<span class="cbpi-icon-label" style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'ANZEIGEN' : 'VIEW') + '</span>';
+          html += '</button>';
+          html += '</td>';
+          html += '</tr>';
+        });
+        tbody.innerHTML = html;
+
+        // Delete handler
+        tbody.querySelectorAll('[data-ferm-delete]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-ferm-delete');
+            showConfirm(
+              de ? 'Gärbehälter löschen?' : 'Delete fermenter?',
+              de ? 'Der Gärbehälter und seine Einstellungen werden entfernt.' : 'The fermenter and its settings will be removed.',
+              function() {
+                btn.disabled = true;
+                fetch('/fermenter/' + encodeURIComponent(id), { method: 'DELETE' })
+                  .then(function() { showToast(de ? 'Gärbehälter gelöscht' : 'Fermenter deleted', 'success'); location.reload(); })
+                  .catch(function() { btn.disabled = false; showToast(de ? 'Fehler beim Löschen' : 'Delete failed', 'error'); });
+              },
+              { danger: true, confirmText: de ? '🗑 Löschen' : '🗑 Delete' }
+            );
+          });
+        });
+
+        // Edit handler
+        tbody.querySelectorAll('[data-ferm-edit]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-ferm-edit');
+            window.location.hash = '#/fermenter/' + id;
+          });
+        });
+
+        // View handler
+        tbody.querySelectorAll('[data-ferm-view]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-ferm-view');
+            var f = fermenters.find(function(x) { return x.id === id; });
+            if (!f) return;
+            showFermenterDetails(f, sensorNames, actorNames, types, de);
+          });
+        });
+      }
+
+      fermenterPaper.setAttribute('data-patched', 'true');
+      _isOurDomChange = false;
+    });
+  }
+
   // ============================================================
   // FERMENTER-DETAILSEITE — Konfigurations-Formular
   // ============================================================
@@ -9127,12 +9474,17 @@
     }
     var fermenterId = match[1];
 
-    // Bereits injiziert?
-    if (document.getElementById('cbpi-fermenter-config-form')) return;
-
-    // Suche den leeren main-Bereich der Fermenter-Detailseite
+    // Upstream-Formular verstecken (wird durch unser übersetztes ersetzt)
     var main = document.querySelector('main');
     if (!main) return;
+    var upstreamGrid = main.querySelector('.MuiGrid-container, .MuiGrid-root');
+    if (upstreamGrid && !upstreamGrid.getAttribute('data-hidden-by-cbpi')) {
+      upstreamGrid.style.display = 'none';
+      upstreamGrid.setAttribute('data-hidden-by-cbpi', 'true');
+    }
+
+    // Bereits injiziert?
+    if (document.getElementById('cbpi-fermenter-config-form')) return;
 
     var de = currentLang === 'de';
     _isOurDomChange = true;
@@ -9497,54 +9849,34 @@
     var hash = window.location.hash.replace('#', '');
     if (hash !== '/hardware') return;
 
-    // Bestehende Tabellen patchen (Kessel/Sensor/Aktor)
+    // Bestehende Tabellen patchen (Kessel/Sensor/Aktor/Gärbehälter)
     patchKettleTable();
     patchSensorTable();
     patchActorTable();
+    patchFermenterTable();
+
+    // Grid-Container robust finden
+    function findGridContainer() {
+      var gc = document.querySelector('.MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-3');
+      if (gc) return gc;
+      var papers = document.querySelectorAll('.MuiPaper-root');
+      for (var i = 0; i < papers.length; i++) {
+        if (papers[i].querySelector('table')) {
+          var gridItem = papers[i].closest('.MuiGrid-item') || papers[i].parentElement;
+          if (gridItem && gridItem.parentElement) {
+            return gridItem.parentElement;
+          }
+        }
+      }
+      return null;
+    }
+
+    var gridContainer = findGridContainer();
 
     // Hardware-Validierung anzeigen
-    var gridContainer = document.querySelector('.MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-3');
     if (gridContainer && !document.getElementById('cbpi-hw-warnings')) {
       renderHardwareWarnings(gridContainer);
     }
-
-    if (document.getElementById('cbpi-fermenter-hardware')) return;
-
-    // Hardware-Seite besteht aus MuiPaper-root Karten für Kessel/Sensor/Aktor
-    // Finde den Grid-Container direkt statt über das letzte Paper zu gehen
-    var gridContainer = document.querySelector('.MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-3');
-    if (!gridContainer) return;
-
-    var de = currentLang === 'de';
-    _isOurDomChange = true;
-
-    // Grid-Item wie die anderen Sektionen erstellen
-    var gridItemDiv = document.createElement('div');
-    gridItemDiv.className = 'MuiGrid-root MuiGrid-item MuiGrid-grid-sm-12';
-    gridItemDiv.id = 'cbpi-fermenter-hardware';
-    gridItemDiv.style.padding = '12px';
-
-    var paper = document.createElement('div');
-    paper.className = 'MuiPaper-root MuiPaper-elevation1 MuiPaper-rounded';
-    paper.style.padding = '10px';
-
-    paper.innerHTML =
-      '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:0 16px">' +
-        '<div><span class="MuiTypography-root MuiTypography-h6" style="color:#00FF00">' + (de ? 'Gärbehälter' : 'Fermenter') + '</span></div>' +
-        '<div><button class="MuiButtonBase-root MuiIconButton-root" id="fermenter-hw-add-hdr" style="display:flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px" title="' + (de ? 'Hinzufügen' : 'Add') + '">' +
-          '<span style="font-size:1.5rem;line-height:1">+</span>' +
-          '<span class="cbpi-icon-label" style="font-size:0.65rem;letter-spacing:0.05em">' + (de ? 'HINZUFÜGEN' : 'ADD') + '</span>' +
-        '</button></div>' +
-      '</div>' +
-      '<div class="fermenter-hw-content" id="fermenter-hw-content">' +
-        '<div style="padding:20px;text-align:center;color:var(--text-secondary)">' + (de ? 'Laden…' : 'Loading…') + '</div>' +
-      '</div>';
-
-    gridItemDiv.appendChild(paper);
-    gridContainer.appendChild(gridItemDiv);
-    _isOurDomChange = false;
-
-    loadFermenterHardwareList();
   }
 
   function loadFermenterHardwareList() {
@@ -9573,10 +9905,10 @@
         html += '<thead class="MuiTableHead-root"><tr class="MuiTableRow-root MuiTableRow-head">';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Name' : 'Name') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Logik' : 'Logic') + '</th>';
-        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Sensor' : 'Sensor') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Drucksensor' : 'Pressure') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Heizung' : 'Heater') + '</th>';
-        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Kühlung' : 'Cooler') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'K\u00fchlung' : 'Cooler') + '</th>';
+        html += '<th class="MuiTableCell-root MuiTableCell-head">Sensor</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head">' + (de ? 'Ventil' : 'Valve') + '</th>';
         html += '<th class="MuiTableCell-root MuiTableCell-head" style="text-align:right">' + (de ? 'Aktionen' : 'Actions') + '</th>';
         html += '</tr></thead><tbody class="MuiTableBody-root">';
@@ -9590,10 +9922,10 @@
           html += '<tr class="MuiTableRow-root">';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="color:#00FF00">' + (f.name || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (f.type || '—') + '</td>';
-          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.sensor] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.pressure_sensor] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.heater] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.cooler] || '—') + '</td>';
+          html += '<td class="MuiTableCell-root MuiTableCell-body">' + (sensorNames[f.sensor] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body">' + (actorNames[f.valve] || '—') + '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-ferm-delete="' + f.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
