@@ -19,18 +19,19 @@ Plugin-Implementierung:
 import asyncio
 import logging
 from abc import abstractmethod
-import cbpi
 
+import cbpi
 from cbpi.api.base import CBPiBase
 
 __all__ = ["StepResult", "StepState", "StepMove", "CBPiStep", "CBPiFermentationStep"]
 
 from enum import Enum
 
-logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-    datefmt='%Y-%m-%d:%H:%M:%S',
-    level=logging.INFO)
-
+logging.basicConfig(
+    format="%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s",
+    datefmt="%Y-%m-%d:%H:%M:%S",
+    level=logging.INFO,
+)
 
 
 class StepResult(Enum):
@@ -64,6 +65,7 @@ class CBPiStep(CBPiBase):
         self.props = props
         self.cancel_reason: StepResult = None
         self.summary = ""
+        self.summary2 = None
         self.task = None
         self.running: bool = False
         self.logger = logging.getLogger(__name__)
@@ -97,7 +99,7 @@ class CBPiStep(CBPiBase):
                 await self.task
         except Exception as e:
             logging.error(e)
-        
+
     async def reset(self):
         pass
 
@@ -133,7 +135,10 @@ class CBPiStep(CBPiBase):
         pass
 
     def __str__(self):
-        return "name={} props={}, type={}".format(self.name, self.props, self.__class__.__name__)
+        return "name={} props={}, type={}".format(
+            self.name, self.props, self.__class__.__name__
+        )
+
 
 class CBPiFermentationStep(CBPiBase):
 
@@ -152,7 +157,7 @@ class CBPiFermentationStep(CBPiBase):
         self.running: bool = False
         self.logger = logging.getLogger(__name__)
         self.step = step
-        self.update_key="fermenterstepupdate"
+        self.update_key = "fermenterstepupdate"
 
     def _done(self, task):
         if self._done_callback is not None:
@@ -160,7 +165,7 @@ class CBPiFermentationStep(CBPiBase):
                 result = task.result()
                 logging.info(result)
                 logging.info(self.fermenter.id)
-                fermenter=self.fermenter.id
+                fermenter = self.fermenter.id
                 self._done_callback(self, result, fermenter)
             except Exception as e:
                 self.logger.error(e)
@@ -190,7 +195,7 @@ class CBPiFermentationStep(CBPiBase):
                 await self.task
         except Exception as e:
             logging.error(e)
-        
+
     async def reset(self):
         pass
 
@@ -198,7 +203,9 @@ class CBPiFermentationStep(CBPiBase):
         self.props = {**self.props, **props}
 
     async def update_endtime(self):
-        await self.cbpi.fermenter.update_endtime(self.fermenter.id, self.id, self.endtime)
+        await self.cbpi.fermenter.update_endtime(
+            self.fermenter.id, self.id, self.endtime
+        )
 
     async def save_props(self):
         self.cbpi.fermenter.save()
@@ -229,4 +236,6 @@ class CBPiFermentationStep(CBPiBase):
         pass
 
     def __str__(self):
-        return "name={} props={}, type={}".format(self.name, self.props, self.__class__.__name__)
+        return "name={} props={}, type={}".format(
+            self.name, self.props, self.__class__.__name__
+        )

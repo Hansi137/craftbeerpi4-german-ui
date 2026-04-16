@@ -1,29 +1,11 @@
-"""actor.py - Basisklasse fuer Hardware-Aktoren
-
-Aktoren sind steuerbare Hardware-Komponenten wie Heizer, Pumpen, Ventile
-oder Ruehrwerke. Jeder Aktor hat einen An/Aus-Status und eine Leistung (0-100%).
-
-Lebenszyklus:
-    1. Instanzierung durch ActorController (create/start)
-    2. _run() startet on_start() -> run() -> on_stop()
-    3. on(power)/off()/set_power() fuer Zustandsaenderungen
-    4. stop() beendet den async Task
-
-Plugin-Implementierung:
-    class MeinAktor(CBPiActor):
-        async def on(self, power=100): ...
-        async def off(self): ...
-        async def run(self): ...
-"""
-
-from abc import ABCMeta
 import asyncio
+from abc import ABCMeta
+
 from cbpi.api.config import ConfigType
 
 __all__ = ["CBPiActor"]
 
 import logging
-
 
 logger = logging.getLogger(__file__)
 
@@ -36,16 +18,19 @@ class CBPiActor(metaclass=ABCMeta):
         self.props = props
         self.logger = logging.getLogger(__file__)
         self.data_logger = None
-        self.state = False  
+        self.state = False
         self.running = False
         self.power = 100
+        self.output = 100
+        self.maxoutput = 100
+        self.timer = 0
 
     def init(self):
         pass
 
     def log_data(self, value):
         self.cbpi.log.log_data(self.id, value)
-        
+
     def get_state(self):
         return dict(state=self.state)
 
@@ -63,7 +48,7 @@ class CBPiActor(metaclass=ABCMeta):
 
     async def run(self):
         pass
-    
+
     async def _run(self):
 
         try:
@@ -74,44 +59,51 @@ class CBPiActor(metaclass=ABCMeta):
         finally:
             await self.on_stop()
 
-
-
-    def get_static_config_value(self,name,default):
+    def get_static_config_value(self, name, default):
         return self.cbpi.static_config.get(name, default)
 
-    def get_config_value(self,name,default):
+    def get_config_value(self, name, default):
         return self.cbpi.config.get(name, default=default)
 
-    async def set_config_value(self,name,value):
-        return await self.cbpi.config.set(name,value)
+    async def set_config_value(self, name, value):
+        return await self.cbpi.config.set(name, value)
 
-    async def add_config_value(self, name, value, type: ConfigType, description, options=None):
+    async def add_config_value(
+        self, name, value, type: ConfigType, description, options=None
+    ):
         await self.cbpi.add(name, value, type, description, options=None)
 
-    async def on(self, power):
-        '''
-        Code to switch the actor on. Power is provided as integer value  
-        
-        :param power: power value between 0 and 100 
+    async def on(self, power, output=None):
+        """
+        Code to switch the actor on. Power is provided as integer value
+
+        :param power: power value between 0 and 100
         :return: None
-        '''
+        """
         pass
 
     async def off(self):
-
-        '''
+        """
         Code to switch the actor off
-        
-        :return: None 
-        '''
+
+        :return: None
+        """
         pass
 
-    async def set_power(self,power):
-        '''
-        Code to set power for actor 
-        
+    async def set_power(self, power):
+        """
+        Code to set power for actor
+
         :return: dict power
-        '''
+        """
         return dict(power=self.power)
         pass
 
+    async def set_output(self, output):
+        """
+        Code to set power for actor
+
+        :return: dict power
+        """
+        return dict(output=self.output)
+        pass

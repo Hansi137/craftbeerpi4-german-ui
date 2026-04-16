@@ -1,33 +1,19 @@
-"""satellite_controller.py - MQTT-Verbindung und Remote-Steuerung
-
-Verwaltet die MQTT-Verbindung zum Broker und ermoeglicht:
-    - Veroeffentlichen von Status-Updates (Kessel, Fermenter, Sensoren)
-    - Empfang von Aktor-Befehlen (on/off/power) ueber MQTT
-    - Automatische Reconnection bei Verbindungsverlust
-
-MQTT-Topics (empfangen):
-    cbpi/actor/{id}/on    - Aktor einschalten
-    cbpi/actor/{id}/off   - Aktor ausschalten  
-    cbpi/actor/{id}/power - Leistung setzen
-
-MQTT-Topics (senden):
-    cbpi/updateactor, cbpi/updatekettle, cbpi/updatesensor, cbpi/updatefermenter
-"""
-
 import asyncio
 import json
-from re import M
-try:
-    from aiomqtt import Client, MqttError, Will
-except ImportError:
-    from asyncio_mqtt import Client, MqttError, Will
-from contextlib import AsyncExitStack, asynccontextmanager
-from cbpi import __version__
 import logging
+from contextlib import AsyncExitStack, asynccontextmanager
+from re import M
+
+import shortuuid
+import aiomqtt
+from cbpi import __version__
+
+
 
 class SatelliteController:
 
     def __init__(self, cbpi):
+        self.client_id = shortuuid.uuid()
         self.cbpi = cbpi
         self.kettlecontroller = cbpi.kettle
         self.fermentercontroller = cbpi.fermenter
@@ -43,154 +29,165 @@ class SatelliteController:
             ("cbpi/actor/+/on", self._actor_on),
             ("cbpi/actor/+/off", self._actor_off),
             ("cbpi/actor/+/power", self._actor_power),
+            ("cbpi/actor/+/output", self._actor_output),
             ("cbpi/updateactor", self._actorupdate),
             ("cbpi/updatekettle", self._kettleupdate),
             ("cbpi/updatesensor", self._sensorupdate),
             ("cbpi/updatefermenter", self._fermenterupdate),
-        
         ]
         self.tasks = set()
 
+    def remove_key(self, d, key):
+        r = dict(d)
+        del r[key]
+        return r
+
     async def init(self):
-        asyncio.create_task(self.init_client(self.cbpi))
+
+        self.client = aiomqtt.Client(          
+            self.host,
+            port=self.port,
+            username=self.username,
+            password=self.password,
+            will=aiomqtt.Will(topic="cbpi/disconnect", payload="CBPi Server Disconnected"),
+            identifier=self.client_id,
+        )
+        try:
+            ## Listen for mqtt messages in an (unawaited) asyncio task
+            task = asyncio.create_task(self.listen())
+            ## Save a reference to the task so it doesn't get garbage collected
+            self.tasks.add(task)
+            task.add_done_callback(self.tasks.discard)
+            self.logger.info("MQTT Connected to {}:{}".format(self.host, self.port))
+        except asyncio.CancelledError as e:
+            self.logger.error("MQTT Connection failed: {}".format(e))
+
+    async def listen(self):
+        while True:
+            try:
+                async with self.client as client:
+                    await client.subscribe("#")
+                    async for message in client.messages:
+                        for topic_filter in self.topic_filters:
+                            topic = topic_filter[0]
+                            method = topic_filter[1]
+                            if message.topic.matches(topic):
+                                await method(message)
+            except asyncio.CancelledError:
+                # Cancel
+                self.logger.warning("MQTT Listening Cancelled")
+                break
+            except Exception as e:
+                self.logger.error("MQTT General Exception: {}".format(e))
+                break
+            except aiomqtt.MqttError as e:
+                self.logger.error("MQTT Exception: {}".format(e))
+
+            await asyncio.sleep(5)
 
     async def publish(self, topic, message, retain=False):
         if self.client is not None and self.client._connected:
             try:
                 await self.client.publish(topic, message, qos=1, retain=retain)
-            except Exception as e:
+            except aiomqtt.MqttError as e:
                 self.logger.warning("Failed to push data via mqtt: {}".format(e))
 
-    async def _actor_on(self, messages):
-        async for message in messages:
+    async def _actor_on(self, message):
+        try:
+            topic_key = str(message.topic).split("/")
+            await self.cbpi.actor.on(topic_key[2])
+            self.logger.warning("Processed actor {} on via mqtt".format(topic_key[2]))
+        except Exception as e:
+            self.logger.warning("Failed to process actor on via mqtt: {}".format(e))
+
+    async def _actor_off(self, message):
+        try:
+            topic_key = str(message.topic).split("/")
+            await self.cbpi.actor.off(topic_key[2])
+            self.logger.warning("Processed actor {} off via mqtt".format(topic_key[2]))
+        except Exception as e:
+            self.logger.warning("Failed to process actor off via mqtt: {}".format(e))
+
+    async def _actor_power(self, message):
+        try:
+            topic_key = str(message.topic).split("/")
             try:
-                topic_key = message.topic.split("/")
-                await self.cbpi.actor.on(topic_key[2])
-            except Exception as e:
-                self.logger.warning("Failed to process actor on via mqtt: {}".format(e))
+                power = int(message.payload.decode())
+                if power > 100:
+                    power = 100
+                if power < 0:
+                    power = 0
+                await self.cbpi.actor.set_power(topic_key[2], power)
+                # await self.cbpi.actor.actor_update(topic_key[2],power)
+            except:
+                self.logger.warning(
+                    "Failed to set actor power via mqtt. No valid power in message"
+                )
+        except:
+            self.logger.warning("Failed to set actor power via mqtt")
 
-    async def _actor_off(self, messages):
-        async for message in messages:
+    async def _actor_output(self, message):
+        try:
+            topic_key = str(message.topic).split("/")
             try:
-                topic_key = message.topic.split("/")
-                await self.cbpi.actor.off(topic_key[2])
-            except Exception as e:
-                self.logger.warning("Failed to process actor off via mqtt: {}".format(e))
+                output = int(message.payload.decode())
+                # if power > 100:
+                #    power = 100
+                # if power < 0:
+                #    power = 0
+                await self.cbpi.actor.set_output(topic_key[2], output)
+            except:
+                self.logger.warning(
+                    "Failed to set actor output via mqtt. No valid output in message"
+                )
+        except:
+            self.logger.warning("Failed to set actor output via mqtt")
 
-    async def _actor_power(self, messages):
-        async for message in messages:
-            try:
-                topic_key = message.topic.split("/")
-                try:
-                    power=int(message.payload.decode())
-                    if power > 100: 
-                        power = 100
-                    if power < 0:
-                        power = 0
-                    await self.cbpi.actor.set_power(topic_key[2],power)
-                    #await self.cbpi.actor.actor_update(topic_key[2],power)
-                except (ValueError, TypeError):
-                    self.logger.warning("Failed to set actor power via mqtt. No valid power in message")
-            except Exception:
-                self.logger.warning("Failed to set actor power via mqtt")
+    async def _kettleupdate(self, message):
+        try:
+            self.kettle = self.kettlecontroller.get_state()
+            for item in self.kettle["data"]:
+                self.cbpi.push_update(
+                    "cbpi/{}/{}".format("kettleupdate", item["id"]), item
+                )
+        except Exception as e:
+            self.logger.warning("Failed to send kettleupdate via mqtt: {}".format(e))
 
-    async def _kettleupdate(self, messages):
-        async for message in messages:
-            try:
-                self.kettle=self.kettlecontroller.get_state()
-                for item in self.kettle['data']:
-                    self.cbpi.push_update("cbpi/{}/{}".format("kettleupdate",item['id']), item)
-            except Exception as e:
-                self.logger.warning("Failed to send kettleupdate via mqtt: {}".format(e))
+    async def _fermenterupdate(self, message):
+        try:
+            self.fermenter = self.fermentercontroller.get_state()
+            for item in self.fermenter["data"]:
+                item_new = self.remove_key(item, "steps")
+                self.cbpi.push_update(
+                    "cbpi/{}/{}".format("fermenterupdate", item["id"]), item_new
+                )
+        except Exception as e:
+            self.logger.warning("Failed to send fermenterupdate via mqtt: {}".format(e))
 
-    async def _fermenterupdate(self, messages):
-        async for message in messages:
-            try:
-                self.fermenter=self.fermentercontroller.get_state()
-                for item in self.fermenter['data']:
-                    self.cbpi.push_update("cbpi/{}/{}".format("fermenterupdate",item['id']), item)
-            except Exception as e:
-                self.logger.warning("Failed to send fermenterupdate via mqtt: {}".format(e))
+    async def _actorupdate(self, message):
+        try:
+            self.actor = self.actorcontroller.get_state()
+            for item in self.actor["data"]:
+                self.cbpi.push_update(
+                    "cbpi/{}/{}".format("actorupdate", item["id"]), item
+                )
+        except Exception as e:
+            self.logger.warning("Failed to send actorupdate via mqtt: {}".format(e))
 
-    async def _actorupdate(self, messages):
-        async for message in messages:
-            try:
-                self.actor=self.actorcontroller.get_state()
-                for item in self.actor['data']:
-                    self.cbpi.push_update("cbpi/{}/{}".format("actorupdate",item['id']), item)
-            except Exception as e:
-                self.logger.warning("Failed to send actorupdate via mqtt: {}".format(e))
+    async def _sensorupdate(self, message):
+        try:
+            self.sensor = self.sensorcontroller.get_state()
+            for item in self.sensor["data"]:
+                self.cbpi.push_update(
+                    "cbpi/{}/{}".format("sensorupdate", item["id"]), item
+                )
+        except Exception as e:
+            self.logger.warning("Failed to send sensorupdate via mqtt: {}".format(e))
 
-    async def _sensorupdate(self, messages):
-        async for message in messages:
-            try:
-                self.sensor=self.sensorcontroller.get_state()
-                for item in self.sensor['data']:
-                    self.cbpi.push_update("cbpi/{}/{}".format("sensorupdate",item['id']), item)
-            except Exception as e:
-                self.logger.warning("Failed to send sensorupdate via mqtt: {}".format(e))
+    def subscribe(self, topic, method):
+        self.topic_filters.append((topic, method))
+        return True
 
-    def subcribe(self, topic, method):
-        task = asyncio.create_task(self._subcribe(topic, method))
-        return task
-
-    async def _subcribe(self, topic, method):
-        while True:
-            try:
-                if self.client._connected.done():
-                    async with self.client.filtered_messages(topic) as messages:
-                        await self.client.subscribe(topic)
-                        async for message in messages:
-                            await method(message.payload.decode())
-            except asyncio.CancelledError:
-                # Cancel
-                self.logger.warning("Sub Cancelled")
-            except MqttError as e:
-                self.logger.error("Sub MQTT Exception: {}".format(e))
-            except Exception as e:
-                self.logger.error("Sub Exception: {}".format(e))
-
-            # wait before try to resubscribe
-            await asyncio.sleep(5)
-
-    async def init_client(self, cbpi):
-
-        async def cancel_tasks(tasks):
-            for task in tasks:
-                if task.done():
-                    continue
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-        while True:
-            try:
-                async with AsyncExitStack() as stack:
-                    self.tasks = set()
-                    stack.push_async_callback(cancel_tasks, self.tasks)
-                    self.client = Client(self.host, port=self.port, username=self.username, password=self.password, will=Will(topic="cbpi/disconnect", payload="CBPi Server Disconnected"))
-
-                    await stack.enter_async_context(self.client)
-
-                    for topic_filter in self.topic_filters:
-                        topic = topic_filter[0]
-                        method = topic_filter[1]
-                        manager = self.client.filtered_messages(topic)
-                        messages = await stack.enter_async_context(manager)
-                        task = asyncio.create_task(method(messages))
-                        self.tasks.add(task)
-
-                    for topic_filter in self.topic_filters:
-                        topic = topic_filter[0]
-                        await self.client.subscribe(topic)
-
-                    self.logger.info("MQTT Connected to {}:{}".format(self.host, self.port))
-                    await asyncio.gather(*self.tasks)
-
-            except MqttError as e:
-                self.logger.error("MQTT Exception: {}".format(e))
-            except Exception as e:
-                self.logger.error("MQTT General Exception: {}".format(e))
-            await asyncio.sleep(5)
+    def unsubscribe(self, topic, method):
+        self.topic_filters.remove((topic, method))
+        return True

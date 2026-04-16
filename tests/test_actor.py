@@ -8,24 +8,22 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class ActorTestCase(CraftBeerPiTestCase):
 
-    @unittest_run_loop
     async def test_actor_switch(self):
 
         resp = await self.client.post(path="/login", data={"username": "cbpi", "password": "123"})
         assert resp.status == 200, "login should be successful"
 
         resp = await self.client.request("POST", "/actor/3CUJte4bkxDMFCtLX8eqsX/on")
-        assert resp.status == 204, "switching actor on should work"
+        assert resp.status == 200, "switching actor on should work"
         i = self.cbpi.actor.find_by_id("3CUJte4bkxDMFCtLX8eqsX")
 
         assert i.instance.state is True
 
         resp = await self.client.request("POST", "/actor/3CUJte4bkxDMFCtLX8eqsX/off")
-        assert resp.status == 204
+        assert resp.status == 200
         i = self.cbpi.actor.find_by_id("3CUJte4bkxDMFCtLX8eqsX")
         assert i.instance.state is False
 
-    @unittest_run_loop
     async def test_crud(self):
         data = {
             "name": "SomeActor",
@@ -51,7 +49,7 @@ class ActorTestCase(CraftBeerPiTestCase):
         sensor_id = m2["id"]
 
         resp = await self.client.request("POST", "/actor/%s/on" % sensor_id)
-        assert resp.status == 204
+        assert resp.status == 200
 
 
 
@@ -61,9 +59,8 @@ class ActorTestCase(CraftBeerPiTestCase):
 
         # # Delete Sensor
         resp = await self.client.delete(path="/actor/%s" % sensor_id)
-        assert resp.status == 204
+        assert resp.status == 200
 
-    @unittest_run_loop
     async def test_crud_negative(self):
         data = {
             "name": "CustomActor",
@@ -81,7 +78,6 @@ class ActorTestCase(CraftBeerPiTestCase):
         resp = await self.client.put(path="/actor/%s" % 9999, json=data)
         assert resp.status == 500
 
-    @unittest_run_loop
     async def test_actor_action(self):
         resp = await self.client.post(path="/actor/1/action", json=dict(name="myAction", parameter=dict(name="Manuel")))
-        assert resp.status == 204
+        assert resp.status == 200

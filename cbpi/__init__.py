@@ -1,3 +1,2 @@
-__version__ = "4.1.0+de1"
-__codename__ = "Braumeister"
-
+__version__ = "4.7.5"
+__codename__ = "Winter Bock"

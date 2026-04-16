@@ -1,15 +1,15 @@
 FROM alpine:latest as download
 RUN apk --no-cache add curl && mkdir /downloads
 # Download installation files
-RUN curl https://github.com/craftbeerpi/craftbeerpi4-ui/archive/main.zip -L -o ./downloads/cbpi-ui.zip
+RUN curl https://github.com/PiBrewing/craftbeerpi4-ui/archive/main.zip -L -o ./downloads/cbpi-ui.zip
 
-FROM python:3.11-slim as base
+FROM python:3.13 as base
 
 # Install dependencies
 RUN     apt-get update \
     &&  apt-get upgrade -y
 RUN apt-get install --no-install-recommends -y \
-    libatlas-base-dev \
+    libsystemd-dev \
     libffi-dev \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*

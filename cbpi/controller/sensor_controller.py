@@ -1,18 +1,10 @@
-"""sensor_controller.py - Verwaltung aller Sensoren im System
-
-Verwaltet Sensor-Instanzen und stellt Messwerte bereit.
-Sensoren werden automatisch beim Start initialisiert und laufen als async Tasks.
-
-MQTT-Topics: cbpi/sensorupdate/{id}
-"""
+import logging
 
 from cbpi.api.dataclasses import Sensor
 from cbpi.controller.basic_controller2 import BasicController
-import logging
 
 
 class SensorController(BasicController):
-    """Controller fuer Sensor-Verwaltung und Messwert-Zugriff."""
     def __init__(self, cbpi):
         super(SensorController, self).__init__(cbpi, Sensor, "sensor.json")
         self.update_key = "sensorupdate"
@@ -21,14 +13,22 @@ class SensorController(BasicController):
     def create_dict(self, data):
         try:
             instance = data.get("instance")
-            state =instance.get_state()
+            state = instance.get_state()
         except Exception as e:
             logging.error("Failed to create sensor dict {} ".format(e))
-            state = dict() 
+            state = dict()
 
-        return dict(name=data.get("name"), id=data.get("id"), type=data.get("type"), state=state,props=data.get("props", []))
-    
+        return dict(
+            name=data.get("name"),
+            id=data.get("id"),
+            type=data.get("type"),
+            state=state,
+            props=data.get("props", []),
+        )
+
     def get_sensor_value(self, id):
+        if id is None:
+            return None
         try:
             return self.find_by_id(id).instance.get_state()
         except Exception as e:

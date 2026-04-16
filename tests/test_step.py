@@ -4,7 +4,6 @@ from tests.cbpi_config_fixture import CraftBeerPiTestCase
 
 class StepTestCase(CraftBeerPiTestCase):
 
-    @unittest_run_loop
     async def test_get(self):
 
         resp = await self.client.request("GET", "/step2")
@@ -12,7 +11,6 @@ class StepTestCase(CraftBeerPiTestCase):
         assert resp.status == 200
 
 
-    @unittest_run_loop
     async def test_crud(self):
         data = {
             "name": "Test",
@@ -34,7 +32,7 @@ class StepTestCase(CraftBeerPiTestCase):
 
         # # Delete step
         resp = await self.client.delete(path="/step2/%s" % sensor_id)
-        assert resp.status == 204
+        assert resp.status == 200
 
     def create_wait_callback(self, topic):
         future = self.cbpi.app.loop.create_future()

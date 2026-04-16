@@ -1,21 +1,7 @@
-"""http_dashboard.py - REST-API fuer Dashboard-Verwaltung
-
-Routen:
-    GET    /dashboard/{id}/content    - Dashboard-Layout (Widget-Array)
-    POST   /dashboard/{id}/content    - Dashboard-Layout speichern
-    DELETE /dashboard/{id}/content    - Dashboard-Layout loeschen
-    GET    /dashboard/widgets         - Verfuegbare Widgets auflisten
-    GET    /dashboard/numbers         - Anzahl vorhandener Dashboards
-    GET    /dashboard/current         - Aktuelles Dashboard abrufen
-    POST   /dashboard/current/{id}    - Aktives Dashboard wechseln
-"""
-
-import logging
 import os
 
 from aiohttp import web
 from cbpi.api import *
-
 from cbpi.utils import json_dumps
 from voluptuous import Schema
 
@@ -25,8 +11,11 @@ class DashBoardHttpEndpoints:
     def __init__(self, cbpi):
         self.cbpi = cbpi
         self.controller = cbpi.dashboard
-        self.cbpi.register(self, "/dashboard", os.path.join(cbpi.config_folder.get_file_path("dashboard"), "widgets"))
-
+        self.cbpi.register(
+            self,
+            "/dashboard",
+            os.path.join(cbpi.config_folder.get_file_path("dashboard"), "widgets"),
+        )
 
     @request_mapping(path="/{id:\d+}/content", auth_required=False)
     async def get_content(self, request):
@@ -46,9 +35,10 @@ class DashBoardHttpEndpoints:
             "200":
                 description: successful operation
         """
-        dashboard_id = int(request.match_info['id'])
-        return web.json_response(await self.cbpi.dashboard.get_content(dashboard_id), dumps=json_dumps)
-
+        dashboard_id = int(request.match_info["id"])
+        return web.json_response(
+            await self.cbpi.dashboard.get_content(dashboard_id), dumps=json_dumps
+        )
 
     @request_mapping(path="/{id:\d+}/content", method="POST", auth_required=False)
     async def add_content(self, request):
@@ -80,9 +70,9 @@ class DashBoardHttpEndpoints:
                 description: successful operation
         """
         data = await request.json()
-        dashboard_id = int(request.match_info['id'])
+        dashboard_id = int(request.match_info["id"])
         await self.cbpi.dashboard.add_content(dashboard_id, data)
-        logging.debug("Dashboard %s saved", dashboard_id)
+        # print("##### SAVE")
         return web.Response(status=204)
 
     @request_mapping(path="/{id:\d+}/content", method="DELETE", auth_required=False)
@@ -103,8 +93,8 @@ class DashBoardHttpEndpoints:
             "200":
                 description: successful operation
         """
-  
-        dashboard_id = int(request.match_info['id'])
+
+        dashboard_id = int(request.match_info["id"])
         await self.cbpi.dashboard.delete_content(dashboard_id)
         return web.Response(status=204)
 
@@ -119,9 +109,10 @@ class DashBoardHttpEndpoints:
             "200":
                 description: successful operation
         """
-  
-      
-        return web.json_response(await self.cbpi.dashboard.get_custom_widgets(), dumps=json_dumps)
+
+        return web.json_response(
+            await self.cbpi.dashboard.get_custom_widgets(), dumps=json_dumps
+        )
 
     @request_mapping(path="/numbers", method="GET", auth_required=False)
     async def get_dashboard_numbers(self, request):
@@ -134,7 +125,9 @@ class DashBoardHttpEndpoints:
             "200":
                 description: successful operation
         """
-        return web.json_response(await self.cbpi.dashboard.get_dashboard_numbers(), dumps=json_dumps)
+        return web.json_response(
+            await self.cbpi.dashboard.get_dashboard_numbers(), dumps=json_dumps
+        )
 
     @request_mapping(path="/current", method="GET", auth_required=False)
     async def get_current_dashboard(self, request):
@@ -147,7 +140,9 @@ class DashBoardHttpEndpoints:
             "200":
                 description: successful operation
         """
-        return web.json_response(await self.cbpi.dashboard.get_current_dashboard(), dumps=json_dumps)
+        return web.json_response(
+            await self.cbpi.dashboard.get_current_dashboard(), dumps=json_dumps
+        )
 
     @request_mapping(path="/{id}/current", method="POST", auth_required=False)
     async def set_current_dashboard(self, request):
@@ -167,6 +162,74 @@ class DashBoardHttpEndpoints:
             "200":
                 description: successful operation
         """
-        dashboard_id = int(request.match_info['id'])
-        return web.json_response(await self.cbpi.dashboard.set_current_dashboard(dashboard_id))
+        dashboard_id = int(request.match_info["id"])
+        return web.json_response(
+            await self.cbpi.dashboard.set_current_dashboard(dashboard_id)
+        )
 
+    @request_mapping(path="/currentgrid", method="GET", auth_required=False)
+    async def get_current_grid(self, request):
+        """
+        ---
+        description: Get Dashboard Numbers
+        tags:
+        - Dashboard
+        responses:
+            "200":
+                description: successful operation
+        """
+        return web.json_response(
+            await self.cbpi.dashboard.get_current_grid(), dumps=json_dumps
+        )
+
+    @request_mapping(path="/{width}/currentgrid", method="POST", auth_required=False)
+    async def set_current_grid(self, request):
+        """
+        ---
+        description: Set Current Grid Width
+        tags:
+        - Dashboard
+        parameters:
+        - name: "width"
+          in: "path"
+          description: "Grid Width"
+          required: true
+          type: "integer"
+          format: "int64"
+        responses:
+            "200":
+                description: successful operation
+        """
+        grid_width = int(request.match_info["width"])
+        return web.json_response(await self.cbpi.dashboard.set_current_grid(grid_width))
+
+    @request_mapping(path="/slowPipeAnimation", method="GET", auth_required=False)
+    async def get_slow_pipe_animation(self, request):
+        """
+        ---
+        description: Get slow down dashboard pipe animation (Yes/No)
+        tags:
+        - Dashboard
+        responses:
+            "200":
+                description: successful operation
+        """
+        return web.json_response(
+            await self.cbpi.dashboard.get_slow_pipe_animation(), dumps=json_dumps
+        )
+
+
+    @request_mapping(path="/memory", method="GET", auth_required=False)
+    async def get_memory_limit(self, request):
+        """
+        ---
+        description: Get slow down dashboard pipe animation (Yes/No)
+        tags:
+        - Dashboard
+        responses:
+            "200":
+                description: successful operation
+        """
+        meminfo = await self.cbpi.system.get_memory_info()
+
+        return web.json_response(dict(meminfo=meminfo), dumps=json_dumps)

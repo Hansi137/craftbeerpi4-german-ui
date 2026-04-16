@@ -1,34 +1,26 @@
-"""fermentation_controller.py - Gaerungsprozess-Steuerung
-
-Verwaltet Fermenter-Entitaeten und deren Gaerungsschritte.
-Jeder Fermenter hat zugeordnete Sensoren (Temperatur, Druck),
-Aktoren (Heizer, Kuehler, Ventil) und eine optionale Regelungslogik.
-
-Schritt-Ausfuehrung analog zum StepController:
-    start() -> on_start() -> run() -> done() -> naechster Schritt
-
-Persistenz: fermenter_data.json
-MQTT-Topics: cbpi/fermenterupdate/{id}
-"""
-
-from abc import abstractmethod
 import asyncio
-import cbpi
 import copy
 import json
-import yaml
 import logging
+import os
 import os.path
 import pathlib
+import sys
+from abc import abstractmethod
 from os import listdir
 from os.path import isfile, join
+
+import cbpi
 import shortuuid
-from cbpi.api.dataclasses import  Fermenter, FermenterStep, Props, Step
+import yaml
+from cbpi.api.dataclasses import Fermenter, FermenterStep, Props, Step
 from cbpi.controller.basic_controller2 import BasicController
 from tabulate import tabulate
-import sys, os
-from ..api.step import CBPiStep, StepMove, StepResult, StepState, CBPiFermentationStep
-          
+
+from ..api.step import (CBPiFermentationStep, CBPiStep, StepMove, StepResult,
+                        StepState)
+
+
 class FermentationController:
 
     def __init__(self, cbpi):
@@ -48,20 +40,22 @@ class FermentationController:
         pass
 
     def check_fermenter_file(self):
-        if os.path.exists(self.cbpi.config_folder.get_file_path("fermenter_data.json")) is False:
-            logging.info("INIT fermenter_data.json file")
-            data = {
-                    "data": [
-                            ]
-                    }
+        if (
+            os.path.exists(self.cbpi.config_folder.get_file_path("fermenter_data.json"))
+            is False
+        ):
+            logging.warning("Missing fermenter_data.json file. INIT empty file")
+            data = {"data": []}
             destfile = self.cbpi.config_folder.get_file_path("fermenter_data.json")
-            json.dump(data,open(destfile,'w'),indent=4, sort_keys=True)
-        
-        pathlib.Path(self.cbpi.config_folder.get_file_path("fermenterrecipes")).mkdir(parents=True, exist_ok=True)
+            json.dump(data, open(destfile, "w"), indent=4, sort_keys=True)
+
+        pathlib.Path(self.cbpi.config_folder.get_file_path("fermenterrecipes")).mkdir(
+            parents=True, exist_ok=True
+        )
 
     async def shutdown(self, app=None, fermenterid=None):
         self.save()
-        if (fermenterid == None):
+        if fermenterid == None:
             for fermenter in self.data:
                 self.logger.info("Shutdown {}".format(fermenter.name))
                 for step in fermenter.steps:
@@ -82,22 +76,30 @@ class FermentationController:
                 except Exception as e:
                     self.logger.error(e)
 
-
     async def load(self):
-        with open(self.path) as json_file:
-            data = json.load(json_file)
+        try:
+            with open(self.path) as json_file:
+                data = json.load(json_file)
 
+                for i in data["data"]:
+                    self.data.append(self._create(i))
+        except:
+            logging.warning("Invalid fermenter_data.json file - Creating empty file")
+            os.remove(self.path)
+            data = {"data": []}
+            destfile = self.cbpi.config_folder.get_file_path("fermenter_data.json")
+            json.dump(data, open(destfile, "w"), indent=4, sort_keys=True)
             for i in data["data"]:
                 self.data.append(self._create(i))
-                 
+
     def _create_step(self, fermenter, item):
         id = item.get("id")
         name = item.get("name")
         props = Props(item.get("props"))
         try:
             endtime = int(item.get("endtime", 0))
-        except (ValueError, TypeError):
-            endtime=0
+        except:
+            endtime = 0
 
         status = StepState(item.get("status", "I"))
         if status == StepState.ACTIVE:
@@ -109,10 +111,19 @@ class FermentationController:
             clazz = type_cfg.get("class")
             instance = clazz(self.cbpi, fermenter, item, props, self._done)
         except Exception as e:
-            logging.warning("Failed to create step instance %s - %s"  % (id, e))
+            logging.warning("Failed to create step instance %s - %s" % (id, e))
             instance = None
 
-        step = FermenterStep(id=id, name=name, fermenter=fermenter, props=props, type=type, status=status, endtime=endtime, instance=instance)
+        step = FermenterStep(
+            id=id,
+            name=name,
+            fermenter=fermenter,
+            props=props,
+            type=type,
+            status=status,
+            endtime=endtime,
+            instance=instance,
+        )
         return step
 
     def _done(self, step_instance, result, fermenter):
@@ -130,63 +141,95 @@ class FermentationController:
             pressure_sensor = data.get("pressure_sensor")
             heater = data.get("heater")
             cooler = data.get("cooler")
-            valve = data.get("valve","") 
+            valve = data.get("valve", "")
             logictype = data.get("type")
             temp = data.get("target_temp")
             pressure = data.get("target_pressure")
             brewname = data.get("brewname")
             description = data.get("description")
             props = Props(data.get("props", {}))
-            fermenter = Fermenter(id, name, sensor, pressure_sensor, heater, cooler, valve, brewname, description, props, temp, pressure, logictype)
-            fermenter.steps = list(map(lambda item: self._create_step(fermenter, item), data.get("steps", [])))
+            fermenter = Fermenter(
+                id,
+                name,
+                sensor,
+                pressure_sensor,
+                heater,
+                cooler,
+                valve,
+                brewname,
+                description,
+                props,
+                temp,
+                pressure,
+                logictype,
+            )
+            fermenter.steps = list(
+                map(
+                    lambda item: self._create_step(fermenter, item),
+                    data.get("steps", []),
+                )
+            )
             self.push_update()
             return fermenter
-        except Exception as e:
-            logging.error("Failed to create fermenter: %s", e)
+        except:
             return
 
-        
     def _find_by_id(self, id):
         return next((item for item in self.data if item.id == id), None)
 
     async def get_all(self):
         return list(map(lambda x: x.to_dict(), self.data))
-    
+
     def get_types(self):
         result = {}
         for key, value in self.types.items():
-            result[key] = dict(name=value.get("name"), properties=value.get("properties"), actions=value.get("actions"))
+            result[key] = dict(
+                name=value.get("name"),
+                properties=value.get("properties"),
+                actions=value.get("actions"),
+            )
         return result
 
     def get_steptypes(self):
         result = {}
         for key, value in self.steptypes.items():
-            result[key] = dict(name=value.get("name"), properties=value.get("properties"), actions=value.get("actions"))
+            result[key] = dict(
+                name=value.get("name"),
+                properties=value.get("properties"),
+                actions=value.get("actions"),
+            )
         return result
 
     def get_state(self):
         if self.data == []:
             pass
-        
-        return {"data": list(map(lambda x: x.to_dict(), self.data)), "types":self.get_types(), "steptypes":self.get_steptypes()}
+
+        return {
+            "data": list(map(lambda x: x.to_dict(), self.data)),
+            "types": self.get_types(),
+            "steptypes": self.get_steptypes(),
+        }
 
     def get_step_state(self, fermenterid=None):
         if self.data == []:
             pass
-        fermentersteps=[]
-        steplist=list(map(lambda x: x.to_dict(), self.data))
+        fermentersteps = []
+        steplist = list(map(lambda x: x.to_dict(), self.data))
         for fermenter in steplist:
             if fermenterid == fermenter.get("id"):
-                fermentersteps={"id": fermenter.get("id"), "steps": fermenter.get("steps")}
+                fermentersteps = {
+                    "id": fermenter.get("id"),
+                    "steps": fermenter.get("steps"),
+                }
         return fermentersteps
 
     def get_fermenter_steps(self):
         if self.data == []:
             pass
-        fermentersteps=[]
-        steplist=list(map(lambda x: x.to_dict(), self.data))
+        fermentersteps = []
+        steplist = list(map(lambda x: x.to_dict(), self.data))
         for fermenter in steplist:
-            fermenterstep={"id": fermenter.get("id"), "steps": fermenter.get("steps")}
+            fermenterstep = {"id": fermenter.get("id"), "steps": fermenter.get("steps")}
             fermentersteps.append(fermenterstep)
         return fermentersteps
 
@@ -195,21 +238,20 @@ class FermentationController:
         for item in self.data:
             step = self._find_step_by_id(item.steps, id)
             if step is not None:
-                actionstep=step
+                actionstep = step
         return actionstep
 
-
-    async def get(self, id: str ):
+    async def get(self, id: str):
         return self._find_by_id(id)
 
-    async def create(self, data: Fermenter ):
+    async def create(self, data: Fermenter):
         data.id = shortuuid.uuid()
         self.data.append(data)
         self.save()
         self.push_update()
         return data
 
-    async def update(self, item: Fermenter ):
+    async def update(self, item: Fermenter):
 
         def _update(old_item: Fermenter, item: Fermenter):
             old_item.name = item.name
@@ -226,7 +268,9 @@ class FermentationController:
             old_item.target_pressure = item.target_pressure
             return old_item
 
-        self.data = list(map(lambda old: _update(old, item) if old.id == item.id else old, self.data))
+        self.data = list(
+            map(lambda old: _update(old, item) if old.id == item.id else old, self.data)
+        )
         self.save()
         self.push_update()
         return item
@@ -253,25 +297,25 @@ class FermentationController:
         except Exception as e:
             logging.error("Failed to set Target Pressure {} {}".format(id, e))
 
-    async def delete(self, id: str ):
+    async def delete(self, id: str):
         item = self._find_by_id(id)
         self.data = list(filter(lambda item: item.id != id, self.data))
         self.save()
         self.push_update()
 
     def save(self):
-        data = dict(data=list(map(lambda item: item.to_dict(), self.data)))         
+        data = dict(data=list(map(lambda item: item.to_dict(), self.data)))
         with open(self.path, "w") as file:
             json.dump(data, file, indent=4, sort_keys=True)
 
     def create_step(self, id, item):
         try:
             stepid = shortuuid.uuid()
-            item['id'] = stepid
+            item["id"] = stepid
             status = StepState("I")
             type = item.get("type")
             name = item.get("name")
-            endtime = item.get("endtime", 0)            
+            endtime = item.get("endtime", 0)
             props = Props(item.get("props"))
             fermenter = self._find_by_id(id)
             try:
@@ -279,9 +323,18 @@ class FermentationController:
                 clazz = type_cfg.get("class")
                 instance = clazz(self.cbpi, fermenter, item, props, self._done)
             except Exception as e:
-                logging.warning("Failed to create step instance %s - %s"  % (id, e))
+                logging.warning("Failed to create step instance %s - %s" % (id, e))
                 instance = None
-            step = FermenterStep(id=stepid, name=name, fermenter=fermenter, props=props, type=type, status=status, endtime=endtime, instance=instance)
+            step = FermenterStep(
+                id=stepid,
+                name=name,
+                fermenter=fermenter,
+                props=props,
+                type=type,
+                status=status,
+                endtime=endtime,
+                instance=instance,
+            )
 
             return step
         except Exception as e:
@@ -306,12 +359,23 @@ class FermentationController:
             instance = clazz(self.cbpi, fermenter, item, props, self._done)
             logging.info(instance)
         except Exception as e:
-            logging.warning("Failed to create step instance %s - %s "  % (item.id, e))
+            logging.warning("Failed to create step instance %s - %s " % (item.id, e))
             instance = None
-        step = FermenterStep(id=stepid, name=name, fermenter=fermenter, props=props, type=type, status=status, endtime=endtime, instance=instance)
+        step = FermenterStep(
+            id=stepid,
+            name=name,
+            fermenter=fermenter,
+            props=props,
+            type=type,
+            status=status,
+            endtime=endtime,
+            instance=instance,
+        )
 
         try:
-            fermenter.steps = list(map(lambda old: step if old.id == step.id else old, fermenter.steps))
+            fermenter.steps = list(
+                map(lambda old: step if old.id == step.id else old, fermenter.steps)
+            )
         except Exception as e:
             logging.info(e)
 
@@ -325,7 +389,7 @@ class FermentationController:
         item.steps = list(filter(lambda item: item.id != stepid, item.steps))
         self.save()
         self.push_update("fermenterstepupdate")
-    
+
     async def clearsteps(self, id):
         item = self._find_by_id(id)
         # might require later check if step is active
@@ -341,7 +405,7 @@ class FermentationController:
             step = self._find_step_by_id(item.steps, stepid)
             step.endtime = int(endtime)
             self.save()
-            self.push_update("fermenterstepupdate")          
+            self.push_update("fermenterstepupdate")
         except Exception as e:
             self.logger.error(e)
 
@@ -351,6 +415,15 @@ class FermentationController:
     def _find_step_by_id(self, data, id):
         return next((item for item in data if item.id == id), None)
 
+    async def update_endtime(self, id, stepid, endtime):
+        try:
+            item = self._find_by_id(id)
+            step = self._find_step_by_id(item.steps, stepid)
+            step.endtime = int(endtime)
+            self.save()
+            self.push_update("fermenterstepupdate")
+        except Exception as e:
+            self.logger.error(e)
 
     async def start(self, id):
         self.logger.info("Start {}".format(id))
@@ -369,18 +442,18 @@ class FermentationController:
                 logging.info("Restarting step {}".format(step.name))
                 if endtime != 0:
                     logging.info("Need to change timer")
-                step.status = StepState.ACTIVE             
+                step.status = StepState.ACTIVE
                 self.save()
                 self.push_update()
                 self.push_update("fermenterstepupdate")
-                return                     
+                return
 
             step = self._find_by_status(item.steps, StepState.INITIAL)
             logging.info(step)
             if step is None:
                 self.logger.info("No futher step to start")
             else:
-                step.instance.endtime = 0 
+                step.instance.endtime = 0
                 await step.instance.start()
                 logging.info("Starting step {}".format(step.name))
                 step.status = StepState.ACTIVE
@@ -395,8 +468,8 @@ class FermentationController:
         try:
             item = self._find_by_id(id)
             step = self._find_by_status(item.steps, StepState.ACTIVE)
-            #logging.info(step)
-            #logging.info(step.status)
+            # logging.info(step)
+            # logging.info(step.status)
             if step != None:
                 logging.info("CALLING STOP STEP")
                 try:
@@ -417,38 +490,39 @@ class FermentationController:
             logging.info("{} Start Id {} ".format(item.name, id))
             if item.instance is not None and item.instance.running is True:
                 logging.warning("{} already running {}".format(item.name, id))
-                return 
+                return
             if item.type is None:
                 logging.warning("{} No Type {}".format(item.name, id))
-                return 
+                return
             clazz = self.types[item.type]["class"]
             item.instance = clazz(self.cbpi, item.id, item.props)
-            
+
             await item.instance.start()
             item.instance.running = True
-            item.instance.task = asyncio.get_event_loop().create_task(item.instance._run())
-            
+            item.instance.task = asyncio.create_task(
+                item.instance._run()
+            )
+
             logging.info("{} started {}".format(item.name, id))
-            
+
         except Exception as e:
             logging.error("{} Cant start {} - {}".format(item.name, id, e))
 
     async def toggle(self, id):
-        
+
         try:
             item = self._find_by_id(id)
-            
-            if item.instance is None or item.instance.state == False: 
+
+            if item.instance is None or item.instance.state == False:
                 await self.start_logic(id)
             else:
                 await item.instance.stop()
             self.push_update()
-            
+
         except Exception as e:
             logging.error("Failed to switch on FermenterLogic {} {}".format(id, e))
 
-
-    async  def next(self, id):
+    async def next(self, id):
         self.logger.info("Next {} ".format(id))
         try:
             item = self._find_by_id(id)
@@ -459,7 +533,7 @@ class FermentationController:
                 if step.instance is not None:
                     step.status = StepState.DONE
                     await step.instance.next()
-        
+
             step = self._find_by_status(item.steps, StepState.STOP)
             logging.info(step)
             if step is not None:
@@ -473,10 +547,9 @@ class FermentationController:
                 logging.info("No Step is running")
             self.push_update()
             self.push_update("fermenterstepupdate")
-        
+
         except Exception as e:
             self.logger.error(e)
-
 
     async def reset(self, id):
         self.logger.info("Reset")
@@ -494,47 +567,74 @@ class FermentationController:
             self.save()
             self.push_update()
             self.push_update("fermenterstepupdate")
-            
+
         except Exception as e:
             self.logger.error(e)
 
     async def move_step(self, fermenter_id, step_id, direction):
         try:
             fermenter = self._find_by_id(fermenter_id)
-            index = next((i for i, item in enumerate(fermenter.steps) if item.id == step_id), None)
+            index = next(
+                (i for i, item in enumerate(fermenter.steps) if item.id == step_id),
+                None,
+            )
             if index == None:
-                return 
+                return
             if index == 0 and direction == -1:
                 return
-            if index == len(fermenter.steps)-1 and direction == 1:
+            if index == len(fermenter.steps) - 1 and direction == 1:
                 return
 
-            fermenter.steps[index], fermenter.steps[index+direction] = fermenter.steps[index+direction], fermenter.steps[index]
+            fermenter.steps[index], fermenter.steps[index + direction] = (
+                fermenter.steps[index + direction],
+                fermenter.steps[index],
+            )
             self.save()
             self.push_update()
             self.push_update("fermenterstepupdate")
-        
+
         except Exception as e:
             self.logger.error(e)
+
+    def remove_key(self, d, key):
+        r = dict(d)
+        del r[key]
+        return r
 
     def push_update(self, key="fermenterupdate"):
 
         if key == self.update_key:
-            self.cbpi.ws.send(dict(topic=key, data=list(map(lambda item: item.to_dict(), self.data))))
-            
+            self.cbpi.ws.send(
+                dict(topic=key, data=list(map(lambda item: item.to_dict(), self.data)))
+            )
+
             for item in self.data:
-                self.cbpi.push_update("cbpi/{}/{}".format(self.update_key,item.id), item.to_dict())
+                fermenters = self.remove_key(item.to_dict(), "steps")
+                self.cbpi.push_update(
+                    "cbpi/{}/{}".format(self.update_key, item.id), fermenters
+                )
             pass
         else:
-            fermentersteps=self.get_fermenter_steps()
+            fermentersteps = self.get_fermenter_steps()
             self.cbpi.ws.send(dict(topic=key, data=fermentersteps))
 
             # send mqtt update for active femrentersteps
             for fermenter in fermentersteps:
-                for step in fermenter['steps']:
-                    if step['status'] == 'A':
-                        self.cbpi.push_update("cbpi/{}/{}/{}".format(key,fermenter['id'],step['id']), step)
-        
+                active = False
+                for step in fermenter["steps"]:
+                    if step["status"] == "A":
+                        active = True
+                        active_step = step
+                #                        self.cbpi.push_update("cbpi/{}/{}/{}".format(key,fermenter['id'],step['id']), step)
+                # else:
+                #    self.cbpi.push_update("cbpi/{}/{}".format(key,fermenter['id']), "")
+                if active:
+                    self.cbpi.push_update(
+                        "cbpi/{}/{}".format(key, fermenter["id"]), active_step
+                    )
+                else:
+                    self.cbpi.push_update("cbpi/{}/{}".format(key, fermenter["id"]), "")
+
     async def call_action(self, id, action, parameter) -> None:
         logging.info("FermenterStep Controller - call Action {} {}".format(id, action))
         try:
@@ -542,34 +642,41 @@ class FermentationController:
             logging.info(item)
             await item.instance.__getattribute__(action)(**parameter)
         except Exception as e:
-            logging.error("FermenterStep Controller - Failed to call action on {} {} {}".format(id, action, e))
-    
+            logging.error(
+                "FermenterStep Controller - Failed to call action on {} {} {}".format(
+                    id, action, e
+                )
+            )
+
     async def savetobook(self, fermenterid):
         name = shortuuid.uuid()
         path = self.cbpi.config_folder.get_fermenter_recipe_by_id(name)
-        fermenter=self._find_by_id(fermenterid)
+        fermenter = self._find_by_id(fermenterid)
         try:
             brewname = fermenter.brewname
             description = fermenter.description
-            
-        except (AttributeError, TypeError):
+
+        except:
             brewname = ""
             description = ""
-        self.basic_data={"name": brewname, "description": description}
+        self.basic_data = {"name": brewname, "description": description}
 
         try:
             fermentersteps = fermenter.steps
-        except AttributeError:
+        except:
             fermentersteps = []
-        data = dict(basic=self.basic_data, steps=list(map(lambda item: item.to_dict(), fermentersteps)))
+        data = dict(
+            basic=self.basic_data,
+            steps=list(map(lambda item: item.to_dict(), fermentersteps)),
+        )
         with open(path, "w") as file:
             yaml.dump(data, file)
 
     async def load_recipe(self, data, fermenterid, name):
         try:
             await self.shutdown(None, fermenterid)
-        except Exception as e:
-            logging.warning("Shutdown before recipe load failed: %s", e)
+        except:
+            pass
         fermenter = self._find_by_id(fermenterid)
 
         def add_runtime_data(item):
@@ -580,24 +687,24 @@ class FermentationController:
 
         list(map(lambda item: add_runtime_data(item), data.get("steps")))
         try:
-            fermenter.description = data['basic'].get("desc")
-        except (KeyError, AttributeError):
+            fermenter.description = data["basic"].get("desc")
+        except:
             fermenter.description = "No Description"
         if name is not None:
             fermenter.brewname = name
         else:
             try:
-                fermenter.brewname = data['basic'].get("name")
-            except (KeyError, AttributeError):
+                fermenter.brewname = data["basic"].get("name")
+            except:
                 fermenter.brewname = "Fermentation"
         await self.update(fermenter)
-        fermenter.steps=[]
+        fermenter.steps = []
         for item in data.get("steps"):
             fermenter.steps.append(self.create_step(fermenterid, item))
-        
+
         self.save()
         self.push_update("fermenterstepupdate")
-        
+
     async def add_step(self, fermenterid, newstep):
         fermenter = self._find_by_id(fermenterid)
         step = self.create_step(fermenterid, newstep)
@@ -605,4 +712,3 @@ class FermentationController:
         self.save()
         self.push_update("fermenterstepupdate")
         return step
-        

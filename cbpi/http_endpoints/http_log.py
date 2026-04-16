@@ -1,24 +1,16 @@
-"""http_log.py - REST-API fuer Sensor-Logdaten
-
-Routen:
-    GET    /log/{name}                - Sensordaten als JSON (mit Resampling)
-    POST   /log/                      - Batch-Abfrage fuer mehrere Sensoren
-    POST   /log/{name}/zip            - Logdaten komprimieren
-    GET    /log/zip/download/{name}   - ZIP-Datei herunterladen
-    GET    /log/zip/names             - Verfuegbare ZIP-Dateien auflisten
-    GET    /log/names                 - Verfuegbare Logdateien auflisten
-    DELETE /log/{name}                - Logdaten loeschen
-"""
-
-import logging
-from cbpi.utils.encoder import ComplexEncoder
-from aiohttp import web
-from cbpi.utils.utils import json_dumps
-from cbpi.api import request_mapping
 import json
+import logging
+import os
+
+from aiohttp import web
+from cbpi.api import request_mapping
+from cbpi.utils.encoder import ComplexEncoder
+from cbpi.utils.utils import json_dumps
+
+
 class LogHttpEndpoints:
 
-    def __init__(self,cbpi):
+    def __init__(self, cbpi):
         self.cbpi = cbpi
         self.cbpi.register(self, url_prefix="/log")
 
@@ -43,7 +35,7 @@ class LogHttpEndpoints:
                 description: successful operation. Return "pong" text
         """
 
-        log_name = request.match_info['name']
+        log_name = request.match_info["name"]
         data = self.cbpi.log.zip_log_data(log_name)
 
         return web.json_response(dict(filename=data), dumps=json_dumps)
@@ -66,7 +58,7 @@ class LogHttpEndpoints:
             "204":
                 description: successful operation.
         """
-        log_name = request.match_info['name']
+        log_name = request.match_info["name"]
         self.cbpi.log.clear_zip(log_name)
         return web.Response(status=204)
 
@@ -91,12 +83,14 @@ class LogHttpEndpoints:
 
         response = web.StreamResponse(
             status=200,
-            reason='OK',
-            headers={'Content-Type': 'application/zip'},
+            reason="OK",
+            headers={"Content-Type": "application/zip"},
         )
         await response.prepare(request)
-        log_name = request.match_info['name']
-        with open('./logs/%s.zip' % log_name, 'rb') as file:
+        log_name = request.match_info["name"]
+        with open(
+            os.path.join(self.cbpi.logsFolderPath, "%s.zip" % log_name), "rb"
+        ) as file:
             for line in file.readlines():
                 await response.write(line)
 
@@ -123,7 +117,7 @@ class LogHttpEndpoints:
             "200":
                 description: successful operation.
         """
-        log_name = request.match_info['name']
+        log_name = request.match_info["name"]
         data = self.cbpi.log.get_all_zip_file_names(log_name)
         return web.json_response(data, dumps=json_dumps)
 
@@ -148,8 +142,8 @@ class LogHttpEndpoints:
             "200":
                 description: successful operation.
         """
-        log_name = request.match_info['name']
-        
+        log_name = request.match_info["name"]
+
         data = self.cbpi.log.get_logfile_names(log_name)
         return web.json_response(data, dumps=json_dumps)
 
@@ -173,10 +167,9 @@ class LogHttpEndpoints:
             "200":
                 description: successful operation.
         """
-        log_name = request.match_info['name']
+        log_name = request.match_info["name"]
         data = await self.cbpi.log.get_data(log_name)
         return web.json_response(data, dumps=json_dumps)
-
 
     @request_mapping(path="/", method="POST", auth_required=False)
     async def get_log2(self, request):
@@ -201,9 +194,8 @@ class LogHttpEndpoints:
                 description: successful operation.
         """
         data = await request.json()
-        logging.debug("Log data request: %s", data)
-        return web.json_response(await self.cbpi.log.get_data2(data), dumps=json_dumps)
-
+        values = await self.cbpi.log.get_data2(data)
+        return web.json_response(values, dumps=json_dumps)
 
     @request_mapping(path="/{name}", method="DELETE", auth_required=False)
     async def clear_log(self, request):
@@ -223,7 +215,7 @@ class LogHttpEndpoints:
             "204":
                 description: successful operation.
         """
-        log_name = request.match_info['name']
+        log_name = request.match_info["name"]
         self.cbpi.log.clear_log(log_name)
         return web.Response(status=204)
 
@@ -250,7 +242,9 @@ class LogHttpEndpoints:
                 description: successful operation.
         """
         data = await request.json()
-        
+
         result = await self.cbpi.log.get_data(data)
-        logging.debug("Log data result: %s entries", len(result) if isinstance(result, list) else 'n/a')
+        # print("JSON")
+        # print(json.dumps(result, cls=ComplexEncoder))
+        # print("JSON----")
         return web.json_response(result, dumps=json_dumps)

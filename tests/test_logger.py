@@ -7,14 +7,13 @@ import os
 
 class LoggerTestCase(CraftBeerPiTestCase):
 
-    @unittest_run_loop
     async def test_log_data(self):
 
-        os.makedirs("./logs", exist_ok=True)
-        log_name = "test"
+        os.makedirs(os.path.join(".", "tests", "logs"), exist_ok=True)
+        log_name = "unconfigured_test_sensor_ID"
         #clear all logs
         self.cbpi.log.clear_log(log_name)
-        assert len(glob.glob('./logs/sensor_%s.log*' % log_name)) == 0
+        assert len(glob.glob(os.path.join(self.cbpi.log.logsFolderPath, f"sensor_{log_name}.log*"))) == 0
 
         # write log entries
         for i in range(5):

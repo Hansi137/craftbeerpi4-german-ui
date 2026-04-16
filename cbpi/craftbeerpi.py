@@ -1,100 +1,69 @@
 
-"""
-craftbeerpi.py - Hauptmodul des CraftBeerPi4-Servers
-
-Dieses Modul enthält die zentrale CraftBeerPi-Klasse, die als Kern der gesamten
-Brausteuerungsanwendung fungiert. Es initialisiert den aiohttp-Webserver,
-registriert alle Controller (Aktoren, Sensoren, Kessel, Schritte etc.),
-richtet Middleware für Fehlerbehandlung und Authentifizierung ein und
-startet das Plugin-System.
-
-Architektur-Überblick:
-    CraftBeerPi (Hauptklasse)
-    ├── EventBus       - Pub/Sub Event-System für interne Kommunikation
-    ├── WebSocket      - Echtzeit-Push-Updates an verbundene Clients
-    ├── Controller     - 17 Business-Logic-Module (Actor, Sensor, Kettle, Step, ...)
-    ├── HTTP-Endpoints - REST-API für Frontend und externe Systeme
-    ├── Plugin-System  - Dynamisches Laden von Erweiterungen
-    └── MQTT/Satellite - Optionale Anbindung externer Geräte via MQTT
-"""
-
 import asyncio
+import socket
 import sys
+
 try:
-    # Windows benötigt eine spezielle Event-Loop-Policy für asyncio
-    from asyncio import set_event_loop_policy, WindowsSelectorEventLoopPolicy
+    from asyncio import WindowsSelectorEventLoopPolicy, set_event_loop_policy
 except ImportError:
     pass
 import json
-from voluptuous.schema_builder import message
-from cbpi.api.dataclasses import NotificationType
-from cbpi.controller.notification_controller import NotificationController
 import logging
-from os import urandom
 import os
-from cbpi import __version__, __codename__
+from os import urandom
+
+import shortuuid
 from aiohttp import web
 from aiohttp_auth import auth
 from aiohttp_session import session_middleware
 from aiohttp_session.cookie_storage import EncryptedCookieStorage
 from aiohttp_swagger import setup_swagger
+from cbpi import __codename__, __version__
+from cbpi.api.dataclasses import NotificationType
 from cbpi.api.exceptions import CBPiException
-from voluptuous import MultipleInvalid
-
-from cbpi.controller.dashboard_controller import DashboardController
-from cbpi.controller.job_controller import JobController
 from cbpi.controller.actor_controller import ActorController
 from cbpi.controller.config_controller import ConfigController
+from cbpi.controller.dashboard_controller import DashboardController
+from cbpi.controller.fermentation_controller import FermentationController
+from cbpi.controller.fermenter_recipe_controller import \
+    FermenterRecipeController
+from cbpi.controller.job_controller import JobController
 from cbpi.controller.kettle_controller import KettleController
+from cbpi.controller.log_file_controller import LogController
+from cbpi.controller.notification_controller import NotificationController
 from cbpi.controller.plugin_controller import PluginController
+from cbpi.controller.recipe_controller import RecipeController
+from cbpi.controller.satellite_controller import SatelliteController
 from cbpi.controller.sensor_controller import SensorController
 from cbpi.controller.step_controller import StepController
-from cbpi.controller.recipe_controller import RecipeController
-from cbpi.controller.fermenter_recipe_controller import FermenterRecipeController
-from cbpi.controller.upload_controller import UploadController
-from cbpi.controller.fermentation_controller import FermentationController
-
 from cbpi.controller.system_controller import SystemController
-from cbpi.controller.satellite_controller import SatelliteController
-
-from cbpi.controller.log_file_controller import LogController
-
+from cbpi.controller.upload_controller import UploadController
 from cbpi.eventbus import CBPiEventBus
-from cbpi.http_endpoints.http_login import Login
-from cbpi.utils import *
-from cbpi.websocket import CBPiWebSocket
 from cbpi.http_endpoints.http_actor import ActorHttpEndpoints
-
 from cbpi.http_endpoints.http_config import ConfigHttpEndpoints
 from cbpi.http_endpoints.http_dashboard import DashBoardHttpEndpoints
+from cbpi.http_endpoints.http_fermentation import FermentationHttpEndpoints
+from cbpi.http_endpoints.http_fermenterrecipe import \
+    FermenterRecipeHttpEndpoints
 from cbpi.http_endpoints.http_kettle import KettleHttpEndpoints
+from cbpi.http_endpoints.http_log import LogHttpEndpoints
+from cbpi.http_endpoints.http_login import Login
+from cbpi.http_endpoints.http_notification import NotificationHttpEndpoints
+from cbpi.http_endpoints.http_plugin import PluginHttpEndpoints
+from cbpi.http_endpoints.http_recipe import RecipeHttpEndpoints
 from cbpi.http_endpoints.http_sensor import SensorHttpEndpoints
 from cbpi.http_endpoints.http_step import StepHttpEndpoints
-from cbpi.http_endpoints.http_recipe import RecipeHttpEndpoints
-from cbpi.http_endpoints.http_fermenterrecipe import FermenterRecipeHttpEndpoints
-from cbpi.http_endpoints.http_plugin import PluginHttpEndpoints
 from cbpi.http_endpoints.http_system import SystemHttpEndpoints
-from cbpi.http_endpoints.http_log import LogHttpEndpoints
-from cbpi.http_endpoints.http_notification import NotificationHttpEndpoints
 from cbpi.http_endpoints.http_upload import UploadHttpEndpoints
-from cbpi.http_endpoints.http_fermentation import FermentationHttpEndpoints
+from cbpi.utils import *
+from cbpi.websocket import CBPiWebSocket
+from voluptuous import MultipleInvalid
+from voluptuous.schema_builder import message
 
-import shortuuid
 logger = logging.getLogger(__name__)
-
 
 @web.middleware
 async def error_middleware(request, handler):
-    """
-    Globale Fehlerbehandlungs-Middleware für alle HTTP-Anfragen.
-    
-    Fängt verschiedene Exception-Typen ab und wandelt sie in
-    einheitliche JSON-Fehlerantworten (HTTP 500) um:
-    - CBPiException: Anwendungsspezifische Fehler
-    - MultipleInvalid: Schema-Validierungsfehler (voluptuous)
-    - HTTPException: Standard-HTTP-Fehler (nur 404 wird abgefangen)
-    - Exception: Alle sonstigen unerwarteten Fehler
-    """
     try:
         response = await handler(request)
         if response.status != 404:
@@ -111,36 +80,15 @@ async def error_middleware(request, handler):
         return web.json_response(status=500, data={'error': str(ex)})
     except Exception as ex:
         return web.json_response(status=500, data={'error': str(ex)})
-
+    except web.GracefulExit:
+        return web.json_response(status=500, data={'error': "GracefulExit"})
+    except asyncio.exceptions.CancelledError:
+        return web.json_response(status=500, data={'error': "CancelledError"})
+        
     return web.json_response(status=500, data={'error': message})
 
 
 class CraftBeerPi:
-    """
-    Zentrale Klasse der CraftBeerPi4-Brausteuerung.
-    
-    Verantwortlich für:
-    - Initialisierung aller Controller und HTTP-Endpoints
-    - Konfiguration des aiohttp-Webservers mit Middleware-Stack
-    - Plugin-Registrierung und -Lifecycle
-    - WebSocket und MQTT Event-Broadcasting
-    - Startup-/Shutdown-Orchestrierung aller Subsysteme
-    
-    Attribute:
-        version (str): Aktuelle CraftBeerPi-Version (z.B. "4.0.5.a12")
-        config_folder (ConfigFolder): Verwaltung des Konfigurationsverzeichnisses
-        static_config (dict): Statische YAML-Konfiguration (Port, MQTT, etc.)
-        app (web.Application): aiohttp-Webanwendungsinstanz
-        bus (CBPiEventBus): Internes Pub/Sub Event-System
-        actor (ActorController): Verwaltung von Aktoren (Heizer, Pumpen, Ventile)
-        sensor (SensorController): Verwaltung von Sensoren (Temperatur, Druck)
-        kettle (KettleController): Verwaltung von Kesseln mit Heizlogik
-        step (StepController): Orchestrierung des Maischprozesses
-        recipe (RecipeController): Rezeptverwaltung (YAML-basiert)
-        fermenter (FermentationController): Gärungssteuerung
-        satellite (SatelliteController|None): MQTT-Anbindung (optional)
-        ws (CBPiWebSocket): WebSocket-Handler für Echtzeit-Updates
-    """
 
     def __init__(self, configFolder):
 
@@ -290,13 +238,13 @@ class CraftBeerPi:
         :return: 
         '''
         long_description = """
-        This is the api for CraftBeerPi
+        This is the api for CraftBeerPi 4
         """
         setup_swagger(self.app,
                       description=long_description,
-                      title="CraftBeerPi",
+                      title="CraftBeerPi 4",
                       api_version=self.version,
-                      contact="info@craftbeerpi.com")
+                      contact="avollkopf@web.de")
 
 
     def notify(self, title: str, message: str, type: NotificationType = NotificationType.INFO, action=[]) -> None:
@@ -305,7 +253,10 @@ class CraftBeerPi:
     def push_update(self, topic, data, retain=False) -> None:
 
         if self.satellite is not None:
-            asyncio.create_task(self.satellite.publish(topic=topic, message=json.dumps(data), retain=retain))
+            background_tasks = set()
+            task = asyncio.create_task(self.satellite.publish(topic=topic, message=json.dumps(data), retain=retain))
+            background_tasks.add(task)
+            task.add_done_callback(background_tasks.discard)
 
     async def call_initializer(self, app):
         self.initializer = sorted(self.initializer, key=lambda k: k['order'])
@@ -316,9 +267,9 @@ class CraftBeerPi:
     def _print_logo(self):
         from pyfiglet import Figlet
         f = Figlet(font='big')
-        logger.info("\n%s" % f.renderText("CraftBeerPi %s " % self.version))
-        logger.info("www.CraftBeerPi.com")
-        logger.info("(c) 2021/2022 Manuel Fritsch / Alexander Vollkopf")
+        logger.warning("\n%s" % f.renderText("CraftBeerPi %s " % self.version))
+        logger.warning("www.CraftBeerPi.com")
+        logger.warning("(c) 2021 - 2024 Manuel Fritsch / Alexander Vollkopf")
 
     def _setup_http_index(self):
         async def http_index(request):
@@ -332,6 +283,22 @@ class CraftBeerPi:
 
         self.app.add_routes([web.get('/', http_index),
                              web.static('/static', os.path.join(os.path.dirname(__file__), "static"), show_index=True)])
+        
+    def testport(self, port=8000):
+        HOST = "localhost"
+        # Creates a new socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # Try to connect to the given host and port
+        if sock.connect_ex((HOST, port)) == 0:
+            #print("Port " + str(port) + " is open") # Connected successfully
+            isrunning = True
+        else:
+            #print("Port " + str(port) + " is closed") # Failed to connect because port is in use (or bad host)
+            isrunning = False
+        # Close the connection
+        sock.close()
+        return isrunning
 
     async def init_serivces(self):
 
@@ -353,17 +320,16 @@ class CraftBeerPi:
         await self.kettle.init()
         await self.call_initializer(self.app)
         await self.dashboard.init()
-    
+
 
         self._swagger_setup()
-
-        level = logging.INFO
-        logger = logging.getLogger()
-        logger.setLevel(level)
-        for handler in logger.handlers:
-            handler.setLevel(level)
 
         return self.app
 
     def start(self):
-        web.run_app(self.init_serivces(), port=self.static_config.get("port", 2202))
+        port=self.static_config.get("port",8000)
+        if not self.testport(port):
+            web.run_app(self.init_serivces(), port=port)
+        else:
+            logging.error("Port {} is already in use! Please check, if server is already running (e.g. in automode)".format(port))
+            exit(1)

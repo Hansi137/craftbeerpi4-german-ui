@@ -1,27 +1,11 @@
-"""sensor.py - Basisklasse fuer Sensoren (Temperatur, Druck etc.)
-
-Sensoren messen physikalische Groessen und pushen ihre Werte ueber
-WebSocket und optional MQTT an alle verbundenen Clients.
-
-Datenfluss:
-    Sensor-Hardware -> push_update(value) -> WebSocket + MQTT
-    
-Plugin-Implementierung:
-    class MeinSensor(CBPiSensor):
-        async def run(self):
-            while self.running:
-                value = await self.read_hardware()
-                self.push_update(value)
-                await asyncio.sleep(1)
-"""
-
 import asyncio
 import logging
-from abc import abstractmethod, ABCMeta
-from cbpi.api.extension import CBPiExtension
-
+from abc import ABCMeta, abstractmethod
 
 from cbpi.api.base import CBPiBase
+from cbpi.api.dataclasses import DataType
+from cbpi.api.extension import CBPiExtension
+
 
 class CBPiSensor(CBPiBase, metaclass=ABCMeta):
 
@@ -33,6 +17,11 @@ class CBPiSensor(CBPiBase, metaclass=ABCMeta):
         self.data_logger = None
         self.state = False
         self.running = False
+        self.datatype = DataType.VALUE
+        self.inrange = True
+        self.temprange = 0
+        self.kettle = None
+        self.fermenter = None
 
     def init(self):
         pass
@@ -49,14 +38,53 @@ class CBPiSensor(CBPiBase, metaclass=ABCMeta):
     def get_unit(self):
         pass
 
-    def push_update(self, value, mqtt = True):
+    def checkrange(self, value):
+        # if Kettle and fermenter are selected, range check is deactivated
+        if self.kettle is not None and self.fermenter is not None:
+            return True
         try:
-            self.cbpi.ws.send(dict(topic="sensorstate", id=self.id, value=value))
+            if self.kettle is not None:
+                target_temp = float(self.kettle.target_temp)
+            if self.fermenter is not None:
+                target_temp = float(self.fermenter.target_temp)
+
+            diff = abs(target_temp - value)
+            if diff > self.temprange:
+                return False
+            else:
+                return True
+        except Exception as e:
+            return True
+
+    def push_update(self, value, mqtt=True):
+        if self.temprange != 0:
+            self.inrange = self.checkrange(value)
+        else:
+            self.inrange = True
+        try:
+            self.cbpi.ws.send(
+                dict(
+                    topic="sensorstate",
+                    id=self.id,
+                    value=value,
+                    datatype=self.datatype.value,
+                    inrange=self.inrange,
+                )
+            )
             if mqtt:
-                self.cbpi.push_update("cbpi/sensordata/{}".format(self.id), dict(id=self.id, value=value), retain=True)
-#            self.cbpi.push_update("cbpi/sensor/{}/udpate".format(self.id), dict(id=self.id, value=value), retain=True)
-        except Exception:
-            logging.error("Failed to push sensor update")
+                self.cbpi.push_update(
+                    "cbpi/sensordata/{}".format(self.id),
+                    dict(
+                        id=self.id,
+                        value=value,
+                        datatype=self.datatype.value,
+                        inrange=self.inrange,
+                    ),
+                    retain=True,
+                )
+        #            self.cbpi.push_update("cbpi/sensor/{}/udpate".format(self.id), dict(id=self.id, value=value), retain=True)
+        except:
+            logging.error("Failed to push sensor update for sensor {}".format(self.id))
 
     async def start(self):
         pass
@@ -72,7 +100,7 @@ class CBPiSensor(CBPiBase, metaclass=ABCMeta):
 
     async def run(self):
         pass
-    
+
     async def _run(self):
 
         try:

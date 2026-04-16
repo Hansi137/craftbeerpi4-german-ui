@@ -4,7 +4,7 @@ build
 dist
 .idea
 *.log
-cbpi.egg-info
+*egg-info/
 log
 venv
 cbpi/extension/ui
@@ -17,6 +17,7 @@ node_modules
 config/*
 logs/
 .coverage
-pi_backup/
-craftbeerpi-ui-widgets-master/
-Dry_Hopped_Pilsener.json
+.devcontainer/cbpi-dev-config/*
+cbpi4-*
+temp*
+*.patch

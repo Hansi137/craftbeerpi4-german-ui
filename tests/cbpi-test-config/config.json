@@ -3,22 +3,9 @@
         "description": "Author",
         "name": "AUTHOR",
         "options": null,
+        "source": "craftbeerpi",
         "type": "string",
         "value": "John Doe"
-    },
-    "BREWERY_NAME": {
-        "description": "Brewery Name",
-        "name": "BREWERY_NAME",
-        "options": null,
-        "type": "string",
-        "value": "CraftBeerPi Brewery"
-    },
-    "MASH_TUN": {
-        "description": "Default Mash Tun",
-        "name": "MASH_TUN",
-        "options": null,
-        "type": "kettle",
-        "value": ""
     },
     "AddMashInStep": {
         "description": "Add MashIn Step automatically if not defined in recipe",
@@ -33,45 +20,9 @@
                 "value": "No"
             }
         ],
+        "source": "steps",
         "type": "select",
         "value": "Yes"
-    },
-    "RECIPE_CREATION_PATH": {
-        "description": "API path to creation plugin. Default: empty",
-        "name": "RECIPE_CREATION_PATH",
-        "options": null,
-        "type": "string",
-        "value": ""
-    },
-    "brewfather_api_key": {
-        "description": "Brewfather API Kay",
-        "name": "brewfather_api_key",
-        "options": null,
-        "type": "string",
-        "value": ""
-    },
-    "brewfather_user_id": {
-        "description": "Brewfather User ID",
-        "name": "brewfather_user_id",
-        "options": null,
-        "type": "string",
-        "value": ""
-    },
-    "TEMP_UNIT": {
-        "description": "Temperature Unit",
-        "name": "TEMP_UNIT",
-        "options": [
-            {
-                "label": "C",
-                "value": "C"
-            },
-            {
-                "label": "F",
-                "value": "F"
-            }
-        ],
-        "type": "select",
-        "value": "C"
     },
     "AutoMode": {
         "description": "Use AutoMode in steps",
@@ -86,20 +37,876 @@
                 "value": "No"
             }
         ],
+        "source": "steps",
         "type": "select",
         "value": "Yes"
+    },
+    "AutoReboot": {
+        "description": "Reboot Pi once a day at selected time",
+        "name": "AutoReboot",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "cbpi4-system",
+        "type": "select",
+        "value": "No"
+    },
+    "AutoRebootTime": {
+        "description": "Time for daily reboot",
+        "name": "AutoRebootTime",
+        "options": [
+            {
+                "label": "0",
+                "value": 0
+            },
+            {
+                "label": "1",
+                "value": 1
+            },
+            {
+                "label": "2",
+                "value": 2
+            },
+            {
+                "label": "3",
+                "value": 3
+            },
+            {
+                "label": "4",
+                "value": 4
+            },
+            {
+                "label": "5",
+                "value": 5
+            },
+            {
+                "label": "6",
+                "value": 6
+            },
+            {
+                "label": "7",
+                "value": 7
+            },
+            {
+                "label": "8",
+                "value": 8
+            },
+            {
+                "label": "9",
+                "value": 9
+            },
+            {
+                "label": "10",
+                "value": 10
+            },
+            {
+                "label": "11",
+                "value": 11
+            },
+            {
+                "label": "12",
+                "value": 12
+            },
+            {
+                "label": "13",
+                "value": 13
+            },
+            {
+                "label": "14",
+                "value": 14
+            },
+            {
+                "label": "15",
+                "value": 15
+            },
+            {
+                "label": "16",
+                "value": 16
+            },
+            {
+                "label": "17",
+                "value": 17
+            },
+            {
+                "label": "18",
+                "value": 18
+            },
+            {
+                "label": "19",
+                "value": 19
+            },
+            {
+                "label": "20",
+                "value": 20
+            },
+            {
+                "label": "21",
+                "value": 21
+            },
+            {
+                "label": "22",
+                "value": 22
+            },
+            {
+                "label": "23",
+                "value": 23
+            }
+        ],
+        "source": "cbpi4-system",
+        "type": "select",
+        "value": "0"
+    },
+    "BREWERY_NAME": {
+        "description": "Brewery Name",
+        "name": "BREWERY_NAME",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": "Some New Brewery Name"
+    },
+    "BoilAutoTimer": {
+        "description": "Start Boil timer automatically if Temp does not change for 5 Minutes and is above 95C/203F",
+        "name": "BoilAutoTimer",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "steps",
+        "type": "select",
+        "value": "No"
+    },
+    "BoilKettle": {
+        "description": "Define Kettle that is used for Boil, Whirlpool and Cooldown. If not selected, MASH_TUN will be used",
+        "name": "BoilKettle",
+        "options": null,
+        "source": "steps",
+        "type": "kettle",
+        "value": ""
+    },
+    "CONFIG_STATUS": {
+        "description": "Status of the config file. Internal use for maintenance",
+        "name": "CONFIG_STATUS",
+        "options": null,
+        "source": "hidden",
+        "type": "string",
+        "value": "4.7.4.a3"
+    },
+    "CSVLOGFILES": {
+        "description": "Write sensor data to csv logfiles (enabling requires restart)",
+        "name": "CSVLOGFILES",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "Yes"
+    },
+    "INFLUXDB": {
+        "description": "Write sensor data to influxdb (enabling requires restart)",
+        "name": "INFLUXDB",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "No"
+    },
+    "INFLUXDBADDR": {
+        "description": "URL Address of your influxdb server incl. http:// and port, e.g. http://localhost:8086 (If INFLUXDBCLOUD set to Yes use URL Address of your influxdb cloud server)",
+        "name": "INFLUXDBADDR",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": "localhost"
+    },
+    "INFLUXDBCLOUD": {
+        "description": "Write sensor data to influxdb cloud (INFLUXDB must set to Yes)",
+        "name": "INFLUXDBCLOUD",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "No"
+    },
+    "INFLUXDBMEASUREMENT": {
+        "description": "Name of the measurement in your INFLUXDB database (default: measurement)",
+        "name": "INFLUXDBMEASUREMENT",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": "measurement"
+    },
+    "INFLUXDBNAME": {
+        "description": "Name of your influxdb database name (If INFLUXDBCLOUD set to Yes use bucket of your influxdb cloud database)",
+        "name": "INFLUXDBNAME",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": "cbpi4"
+    },
+    "INFLUXDBPWD": {
+        "description": "Password for your influxdb database (only if required)(If INFLUXDBCLOUD set to Yes use token of your influxdb cloud database)",
+        "name": "INFLUXDBPWD",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": " "
+    },
+    "INFLUXDBUSER": {
+        "description": "User Name for your influxdb database (only if required)(If INFLUXDBCLOUD set to Yes use organisation of your influxdb cloud database)",
+        "name": "INFLUXDBUSER",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": " "
+    },
+    "MASH_TUN": {
+        "description": "Default Mash Tun",
+        "name": "MASH_TUN",
+        "options": null,
+        "source": "steps",
+        "type": "kettle",
+        "value": ""
+    },
+    "MIN_MEMORY": {
+        "description": "Minimum required memory in MB for CraftBeerPi to run properly",
+        "name": "MIN_MEMORY",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "number",
+        "value": 200
+    },
+    "MQTTUpdate": {
+        "description": "Forced MQTT Update frequency in s for Kettle and Fermenter (no changes in payload required). Restart required after change",
+        "name": "MQTTUpdate",
+        "options": [
+            {
+                "label": "30",
+                "value": 30
+            },
+            {
+                "label": "60",
+                "value": 60
+            },
+            {
+                "label": "120",
+                "value": 120
+            },
+            {
+                "label": "300",
+                "value": 300
+            },
+            {
+                "label": "Never",
+                "value": 0
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": 0
+    },
+    "NOTIFY_ON_ERROR": {
+        "description": "Send Notification on Logging Error",
+        "name": "NOTIFY_ON_ERROR",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "No"
+    },
+    "PLAY_BUZZER": {
+        "description": "Play buzzer sound in Web interface on Notifications",
+        "name": "PLAY_BUZZER",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "No"
+    },
+    "PRESSURE_UNIT": {
+        "description": "Set unit for pressure",
+        "name": "PRESSURE_UNIT",
+        "options": [
+            {
+                "label": "kPa",
+                "value": "kPa"
+            },
+            {
+                "label": "PSI",
+                "value": "PSI"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "kPa"
+    },
+    "RECIPE_CREATION_PATH": {
+        "description": "API path to creation plugin. Default: upload . CHANGE ONLY IF USING A RECIPE CREATION PLUGIN",
+        "name": "RECIPE_CREATION_PATH",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": "upload"
+    },
+    "SENSOR_LOG_BACKUP_COUNT": {
+        "description": "Max. number of backup logs",
+        "name": "SENSOR_LOG_BACKUP_COUNT",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "number",
+        "value": 3
+    },
+    "SENSOR_LOG_MAX_BYTES": {
+        "description": "Max. number of bytes in sensor logs",
+        "name": "SENSOR_LOG_MAX_BYTES",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "number",
+        "value": 100000
+    },
+    "TEMP_UNIT": {
+        "description": "Temperature Unit",
+        "name": "TEMP_UNIT",
+        "options": [
+            {
+                "label": "C",
+                "value": "C"
+            },
+            {
+                "label": "F",
+                "value": "F"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "C"
+    },
+    "TasmotaTopic": {
+        "description": "Tasmota MQTT Topic",
+        "name": "TasmotaTopic",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": ""
+    },
+    "alarmlow": {
+        "description": "Low alarm value for iSpindle",
+        "name": "alarmlow",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "number",
+        "value": 0
+    },
+    "alarmsvg": {
+        "description": "Attenuation alarm value for iSpindle",
+        "name": "alarmsvg",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "number",
+        "value": 100
+    },
+    "brewfather_api_key": {
+        "description": "Brewfather API Key",
+        "name": "brewfather_api_key",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": ""
+    },
+    "brewfather_enable": {
+        "description": "Enable Brewfather data transfer",
+        "name": "brewfather_enable",
+        "options": [
+            {
+                "label": "No",
+                "value": "No"
+            },
+            {
+                "label": "Yes",
+                "value": "Yes"
+            }
+        ],
+        "source": "cbpi4-iSpindle",
+        "type": "select",
+        "value": "No"
+    },
+    "brewfather_list_length": {
+        "description": "Brewfather Recipe List length",
+        "name": "brewfather_list_length",
+        "options": [
+            {
+                "label": "5",
+                "value": 5
+            },
+            {
+                "label": "10",
+                "value": 10
+            },
+            {
+                "label": "25",
+                "value": 25
+            },
+            {
+                "label": "50",
+                "value": 50
+            },
+            {
+                "label": "100",
+                "value": 100
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": 50
+    },
+    "brewfather_user_id": {
+        "description": "Brewfather User ID",
+        "name": "brewfather_user_id",
+        "options": null,
+        "source": "craftbeerpi",
+        "type": "string",
+        "value": ""
+    },
+    "brewfatheraddr": {
+        "description": "Brewfather address",
+        "name": "brewfatheraddr",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "brewfatherport": {
+        "description": "Brewfather port",
+        "name": "brewfatherport",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "number",
+        "value": ""
+    },
+    "brewfathersuffix": {
+        "description": "Brewfather suffix",
+        "name": "brewfathersuffix",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "brewfathertoken": {
+        "description": "Brewfather token",
+        "name": "brewfathertoken",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "brewpiless_addr": {
+        "description": "Brewpiless Server address (IP:PORT) Port only if not 80",
+        "name": "brewpiless_addr",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "brewpiless_enable": {
+        "description": "Enable Brewpiless data transfer",
+        "name": "brewpiless_enable",
+        "options": [
+            {
+                "label": "No",
+                "value": "No"
+            },
+            {
+                "label": "Yes",
+                "value": "Yes"
+            }
+        ],
+        "source": "cbpi4-iSpindle",
+        "type": "select",
+        "value": "No"
+    },
+    "cbpi4-iSpindle_update": {
+        "description": "iSpindle Version Update",
+        "name": "cbpi4-iSpindle_update",
+        "options": null,
+        "source": "hidden",
+        "type": "string",
+        "value": "1.0.3"
+    },
+    "cbpi4-system_update": {
+        "description": "cbpi4 system version update",
+        "name": "cbpi4-system_update",
+        "options": null,
+        "source": "hidden",
+        "type": "string",
+        "value": "0.0.9a6"
+    },
+    "current_dashboard_number": {
+        "description": "Number of current Dashboard",
+        "name": "current_dashboard_number",
+        "options": null,
+        "source": "hidden",
+        "type": "number",
+        "value": 1
+    },
+    "current_grid": {
+        "description": "Dashboard Grid Width",
+        "name": "current_grid",
+        "options": null,
+        "source": "hidden",
+        "type": "number",
+        "value": 5
+    },
+    "dailyalarm": {
+        "description": "Time for daily Spindle alarm",
+        "name": "dailyalarm",
+        "options": [
+            {
+                "label": "0",
+                "value": 0
+            },
+            {
+                "label": "1",
+                "value": 1
+            },
+            {
+                "label": "2",
+                "value": 2
+            },
+            {
+                "label": "3",
+                "value": 3
+            },
+            {
+                "label": "4",
+                "value": 4
+            },
+            {
+                "label": "5",
+                "value": 5
+            },
+            {
+                "label": "6",
+                "value": 6
+            },
+            {
+                "label": "7",
+                "value": 7
+            },
+            {
+                "label": "8",
+                "value": 8
+            },
+            {
+                "label": "9",
+                "value": 9
+            },
+            {
+                "label": "10",
+                "value": 10
+            },
+            {
+                "label": "11",
+                "value": 11
+            },
+            {
+                "label": "12",
+                "value": 12
+            },
+            {
+                "label": "13",
+                "value": 13
+            },
+            {
+                "label": "14",
+                "value": 14
+            },
+            {
+                "label": "15",
+                "value": 15
+            },
+            {
+                "label": "16",
+                "value": 16
+            },
+            {
+                "label": "17",
+                "value": 17
+            },
+            {
+                "label": "18",
+                "value": 18
+            },
+            {
+                "label": "19",
+                "value": 19
+            },
+            {
+                "label": "20",
+                "value": 20
+            },
+            {
+                "label": "21",
+                "value": 21
+            },
+            {
+                "label": "22",
+                "value": 22
+            },
+            {
+                "label": "23",
+                "value": 23
+            }
+        ],
+        "source": "cbpi4-iSpindle",
+        "type": "select",
+        "value": "0"
+    },
+    "max_dashboard_number": {
+        "description": "Max Number of Dashboards",
+        "name": "max_dashboard_number",
+        "options": [
+            {
+                "label": "1",
+                "value": 1
+            },
+            {
+                "label": "2",
+                "value": 2
+            },
+            {
+                "label": "3",
+                "value": 3
+            },
+            {
+                "label": "4",
+                "value": 4
+            },
+            {
+                "label": "5",
+                "value": 5
+            },
+            {
+                "label": "6",
+                "value": 6
+            },
+            {
+                "label": "7",
+                "value": 7
+            },
+            {
+                "label": "8",
+                "value": 8
+            },
+            {
+                "label": "9",
+                "value": 9
+            },
+            {
+                "label": "10",
+                "value": 10
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": 4
+    },
+    "slow_pipe_animation": {
+        "description": "Slow down dashboard pipe animation taking up close to 100% of the CPU's capacity",
+        "name": "slow_pipe_animation",
+        "options": [
+            {
+                "label": "Yes",
+                "value": "Yes"
+            },
+            {
+                "label": "No",
+                "value": "No"
+            }
+        ],
+        "source": "craftbeerpi",
+        "type": "select",
+        "value": "Yes"
+    },
+    "spindle_SQL": {
+        "description": "Enable transfer of Spindle data to SQL database",
+        "name": "spindle_SQL",
+        "options": [
+            {
+                "label": "No",
+                "value": "No"
+            },
+            {
+                "label": "Yes",
+                "value": "Yes"
+            }
+        ],
+        "source": "cbpi4-iSpindle",
+        "type": "select",
+        "value": "No"
+    },
+    "spindle_SQL_DB": {
+        "description": "SQL database name",
+        "name": "spindle_SQL_DB",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "spindle_SQL_HOST": {
+        "description": "SQL database host. e.g: localhost or IP address",
+        "name": "spindle_SQL_HOST",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "spindle_SQL_PASSWORD": {
+        "description": "SQL database password",
+        "name": "spindle_SQL_PASSWORD",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "spindle_SQL_PORT": {
+        "description": "SQL database port number",
+        "name": "spindle_SQL_PORT",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "number",
+        "value": ""
+    },
+    "spindle_SQL_USER": {
+        "description": "SQL database user name",
+        "name": "spindle_SQL_USER",
+        "options": null,
+        "source": "cbpi4-iSpindle",
+        "type": "string",
+        "value": ""
+    },
+    "spindledata": {
+        "description": "Enable extra page for spindledata in ui",
+        "name": "spindledata",
+        "options": [
+            {
+                "label": "No",
+                "value": "No"
+            },
+            {
+                "label": "Yes",
+                "value": "Yes"
+            }
+        ],
+        "source": "cbpi4-iSpindle",
+        "type": "select",
+        "value": "No"
+    },
+    "spindleunit": {
+        "description": "Define Unit for your SPindles (Plato or SG)",
+        "name": "spindleunit",
+        "options": [
+            {
+                "label": "PLATO",
+                "value": "PLATO"
+            },
+            {
+                "label": "SG",
+                "value": "SG"
+            }
+        ],
+        "source": "cbpi4-iSpindle",
+        "type": "select",
+        "value": "PLATO"
+    },
+    "statusupdate": {
+        "description": "Send daily status update from active iSpindle",
+        "name": "statusupdate",
+        "options": [
+            {
+                "label": "No",
+                "value": "No"
+            },
+            {
+                "label": "Yes",
+                "value": "Yes"
+            }
+        ],
+        "source": "cbpi4-iSpindle",
+        "type": "select",
+        "value": "No"
     },
     "steps_boil": {
         "description": "Boil step type",
         "name": "steps_boil",
         "options": null,
+        "source": "steps",
         "type": "step",
         "value": "BoilStep"
+    },
+    "steps_boil_actor": {
+        "description": "Actor that can be toggled with lid alert to activate exhaust or steam condensor (default: None)",
+        "name": "steps_boil_actor",
+        "options": null,
+        "source": "steps",
+        "type": "actor",
+        "value": ""
     },
     "steps_boil_temp": {
         "description": "Default Boil Temperature for Recipe Creation",
         "name": "steps_boil_temp",
         "options": null,
+        "source": "steps",
         "type": "number",
         "value": "99"
     },
@@ -107,13 +914,23 @@
         "description": "Cooldown step type",
         "name": "steps_cooldown",
         "options": null,
+        "source": "steps",
         "type": "step",
         "value": "CooldownStep"
+    },
+    "steps_cooldown_actor": {
+        "description": "Actor to trigger cooldown water on and off (default: None)",
+        "name": "steps_cooldown_actor",
+        "options": null,
+        "source": "steps",
+        "type": "actor",
+        "value": ""
     },
     "steps_cooldown_sensor": {
         "description": "Alternative Sensor to monitor temperature durring cooldown (if not selected, Kettle Sensor will be used)",
         "name": "steps_cooldown_sensor",
         "options": null,
+        "source": "steps",
         "type": "sensor",
         "value": ""
     },
@@ -121,13 +938,15 @@
         "description": "Cooldown temp will send notification when this temeprature is reached",
         "name": "steps_cooldown_temp",
         "options": null,
+        "source": "steps",
         "type": "number",
-        "value": "20"
+        "value": 35
     },
     "steps_mash": {
         "description": "Mash step type",
         "name": "steps_mash",
         "options": null,
+        "source": "steps",
         "type": "step",
         "value": "MashStep"
     },
@@ -135,6 +954,7 @@
         "description": "MashIn step type",
         "name": "steps_mashin",
         "options": null,
+        "source": "steps",
         "type": "step",
         "value": "MashInStep"
     },
@@ -142,6 +962,7 @@
         "description": "MashOut step type",
         "name": "steps_mashout",
         "options": null,
+        "source": "steps",
         "type": "step",
         "value": "NotificationStep"
     }

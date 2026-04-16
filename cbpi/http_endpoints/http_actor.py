@@ -1,23 +1,14 @@
-"""http_actor.py - REST-API Endpunkte fuer Aktor-Steuerung
-
-Routen:
-    GET    /actor/            - Alle Aktoren auflisten
-    GET    /actor/{id}        - Einzelnen Aktor abrufen
-    POST   /actor/            - Neuen Aktor erstellen
-    PUT    /actor/{id}        - Aktor aktualisieren
-    DELETE /actor/{id}        - Aktor loeschen
-    POST   /actor/{id}/on     - Aktor einschalten
-    POST   /actor/{id}/off    - Aktor ausschalten
-    POST   /actor/{id}/action - Benutzerdefinierte Aktion ausfuehren
-"""
-
-import logging
-from cbpi.api.dataclasses import Actor, Props
 from aiohttp import web
 from cbpi.api import *
+import logging
+
+from cbpi.api.dataclasses import Actor, Props
+
+
 auth = False
 
-class ActorHttpEndpoints():
+
+class ActorHttpEndpoints:
 
     def __init__(self, cbpi):
         self.cbpi = cbpi
@@ -29,15 +20,32 @@ class ActorHttpEndpoints():
         """
 
         ---
-        description: Switch actor on
+        description: Get all actors
         tags:
         - Actor
         responses:
-            "204":
+            "200":
                 description: successful operation
         """
         return web.json_response(data=self.controller.get_state())
 
+    @request_mapping(path="/ws_update", auth_required=False)
+    async def http_get_ws_update(self, request):
+        """
+
+        ---
+        description: Update actor state for websocket client
+        tags:
+        - Actor
+        responses:
+            "200":
+                description: successful operation
+            "500":
+                description: failed operation
+        """
+        data = await self.controller.ws_actor_update()
+        return web.json_response(status=200 if data else 500)
+        
     @request_mapping(path="/{id:\w+}", auth_required=False)
     async def http_get_one(self, request):
         """
@@ -50,20 +58,18 @@ class ActorHttpEndpoints():
           in: "path"
           description: "Actor ID"
           required: true
-          type: "integer"
-          format: "int64"
+          type: "string"
         responses:
             "200":
                 description: successful operation
-            "404":
+            "500":
                 description: Actor not found
         """
-        actor = self.controller.find_by_id(request.match_info['id'])
-        if (actor is None):
-          return web.json_response(status=404)
+        actor = self.controller.find_by_id(request.match_info["id"])
+        if actor is None:
+            return web.json_response(status=500, data={"error": "Actor not found"})
 
         return web.json_response(data=actor.to_dict(), status=200)
-        
 
     @request_mapping(path="/", method="POST", auth_required=False)
     async def http_add(self, request):
@@ -77,10 +83,10 @@ class ActorHttpEndpoints():
           name: body
           description: Created an actor
           required: true
-          
+
           schema:
             type: object
-            
+
             properties:
               name:
                 type: string
@@ -88,21 +94,24 @@ class ActorHttpEndpoints():
                 type: string
               props:
                 type: object
-            example: 
+            example:
               name: "Actor 1"
-              type: "CustomActor"
+              type: "DummyActor"
               props: {}
-              
+
         responses:
-            "204":
+            "200":
                 description: successful operation
         """
         data = await request.json()
-        actor = Actor(name=data.get("name"), props=Props(data.get("props", {})), type=data.get("type"))
+        actor = Actor(
+            name=data.get("name"),
+            props=Props(data.get("props", {})),
+            type=data.get("type"),
+        )
         response_data = await self.controller.add(actor)
 
         return web.json_response(data=response_data.to_dict())
-        
 
     @request_mapping(path="/{id}", method="PUT", auth_required=False)
     async def http_update(self, request):
@@ -135,11 +144,16 @@ class ActorHttpEndpoints():
             "200":
                 description: successful operation
         """
-        id = request.match_info['id']
+        id = request.match_info["id"]
         data = await request.json()
-        actor = Actor(id=id, name=data.get("name"), props=Props(data.get("props", {})), type=data.get("type"))
+        actor = Actor(
+            id=id,
+            name=data.get("name"),
+            props=Props(data.get("props", {})),
+            type=data.get("type"),
+        )
         return web.json_response(data=(await self.controller.update(actor)).to_dict())
-    
+
     @request_mapping(path="/{id}", method="DELETE", auth_required=False)
     async def http_delete_one(self, request):
         """
@@ -154,12 +168,12 @@ class ActorHttpEndpoints():
           required: true
           type: "string"
         responses:
-            "204":
+            "200":
                 description: successful operation
         """
-        id = request.match_info['id']
+        id = request.match_info["id"]
         await self.controller.delete(id)
-        return web.Response(status=204)
+        return web.Response(status=200)
 
     @request_mapping(path="/{id}/on", method="POST", auth_required=False)
     async def http_on(self, request) -> web.Response:
@@ -176,23 +190,23 @@ class ActorHttpEndpoints():
           description: "Actor ID"
           required: true
           type: "string"
-          
+
         responses:
-            "204":
+            "200":
                 description: successful operation
-            "405":
-                description: invalid HTTP Met
+            "500":
+                description: failed to switch on actor
         """
-        id = request.match_info['id']
-        await self.controller.on(id)
-        return web.Response(status=204)
+        id = request.match_info["id"]
+        status = await self.controller.on(id)
+        return web.Response(status=200 if status else 500)
 
     @request_mapping(path="/{id}/off", method="POST", auth_required=False)
     async def http_off(self, request) -> web.Response:
         """
 
         ---
-        description: Switch actor on
+        description: Switch actor off
         tags:
         - Actor
 
@@ -202,24 +216,23 @@ class ActorHttpEndpoints():
           description: "Actor ID"
           required: true
           type: "string"
-          
+
         responses:
-            "204":
+            "200":
                 description: successful operation
-            "405":
-                description: invalid HTTP Met
+            "500":
+                description: failed to switch off actor
         """
-        id = request.match_info['id']
-        await self.controller.off(id)
-        return web.Response(status=204)
-    
+        id = request.match_info["id"]
+        status = await self.controller.off(id)
+        return web.Response(status=200 if status else 500)
 
     @request_mapping(path="/{id}/action", method="POST", auth_required=auth)
     async def http_action(self, request) -> web.Response:
         """
 
         ---
-        description: Toogle an actor on or off
+        description: Call an action of an actor
         tags:
         - Actor
         parameters:
@@ -231,7 +244,7 @@ class ActorHttpEndpoints():
           format: "int64"
         - in: body
           name: body
-          description: Update an actor
+          description: Call an action of an actor
           required: false
           schema:
             type: object
@@ -241,12 +254,80 @@ class ActorHttpEndpoints():
               parameter:
                 type: object
         responses:
-            "204":
+            "200":
                 description: successful operation
         """
-        actor_id = request.match_info['id']
+        actor_id = request.match_info["id"]
         data = await request.json()
-        logging.debug("Actor action request: %s", data)
-        await self.controller.call_action(actor_id, data.get("action"), data.get("parameter"))
+        # print(data)
+        await self.controller.call_action(
+            actor_id, data.get("action"), data.get("parameter")
+        )
 
-        return web.Response(status=204)
+        return web.Response(status=200)
+
+    @request_mapping(path="/{id}/set_power", method="POST", auth_required=auth)
+    async def http_set_power(self, request) -> web.Response:
+        """
+
+        ---
+        description: Set actor power
+        tags:
+        - Actor
+        parameters:
+        - name: "id"
+          in: "path"
+          description: "Actor ID"
+          required: true
+          type: "integer"
+          format: "int64"
+        - in: body
+          name: body
+          description: Set Power
+          required: true
+          schema:
+            type: object
+            properties:
+              temp:
+                type: integer
+        responses:
+            "200":
+                description: successful operation
+        """
+        id = request.match_info["id"]
+        data = await request.json()
+        await self.controller.set_power(id, data.get("power"))
+        return web.Response(status=200)
+
+    @request_mapping(path="/{id}/set_output", method="POST", auth_required=auth)
+    async def http_set_output(self, request) -> web.Response:
+        """
+
+        ---
+        description: Set actor output
+        tags:
+        - Actor
+        parameters:
+        - name: "id"
+          in: "path"
+          description: "Actor ID"
+          required: true
+          type: "integer"
+          format: "int64"
+        - in: body
+          name: body
+          description: Set Output
+          required: true
+          schema:
+            type: object
+            properties:
+              output:
+                type: integer
+        responses:
+            "200":
+                description: successful operation
+        """
+        id = request.match_info["id"]
+        data = await request.json()
+        await self.controller.set_output(id, data.get("output"))
+        return web.Response(status=200)

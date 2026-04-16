@@ -4,7 +4,6 @@ from tests.cbpi_config_fixture import CraftBeerPiTestCase
 
 class SensorTestCase(CraftBeerPiTestCase):
 
-    @unittest_run_loop
     async def test_crud(self):
 
         data = {
@@ -34,4 +33,4 @@ class SensorTestCase(CraftBeerPiTestCase):
 
         # # Delete Sensor
         resp = await self.client.delete(path="/sensor/%s" % sensor_id)
-        assert resp.status == 204
+        assert resp.status == 200

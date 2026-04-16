@@ -1,54 +1,40 @@
-"""websocket.py - WebSocket-Handler fuer Echtzeit-Kommunikation
-
-Stellt eine bidirektionale WebSocket-Verbindung unter /ws bereit.
-Verwendet WeakSet fuer automatische Bereinigung getrennter Clients.
-
-Protokoll:
-    Bei Verbindung: Server sendet {topic: 'connection/success'}
-    Client -> Server: {topic: 'string', data: {}} -> wird auf Event-Bus gefeuert
-    Server -> Client: {topic: 'event_name', data: {...}} -> Broadcast aller Events
-"""
-
 import logging
 import weakref
 from collections import defaultdict
 
 import aiohttp
 from aiohttp import web
-from voluptuous import Schema
-
 from cbpi.utils import json_dumps
+from voluptuous import Schema
 
 
 class CBPiWebSocket:
-    """WebSocket-Manager fuer Echtzeit-Push-Updates an alle verbundenen Clients."""
     def __init__(self, cbpi) -> None:
         self.cbpi = cbpi
         self._callbacks = defaultdict(set)
         self._clients = weakref.WeakSet()
         self.logger = logging.getLogger(__name__)
-        self.cbpi.app.add_routes([web.get('/ws', self.websocket_handler)])
+        self.cbpi.app.add_routes([web.get("/ws", self.websocket_handler)])
         self.cbpi.bus.register_object(self)
 
-        #if self.cbpi.config.static.get("ws_push_all", False):
+        # if self.cbpi.config.static.get("ws_push_all", False):
         self.cbpi.bus.register("#", self.listen)
-
 
     async def listen(self, topic, **kwargs):
         data = dict(topic=topic, data=dict(**kwargs))
         self.logger.debug("PUSH %s " % data)
         self.send(data)
 
-
     def send(self, data, sorting=False):
         self.logger.debug("broadcast to ws clients. Data: %s" % data)
         for ws in self._clients:
+
             async def send_data(ws, data):
                 try:
                     if sorting:
                         try:
-                            data['data'].sort(key=lambda x: x.get('name').upper())
-                        except (KeyError, AttributeError, TypeError):
+                            data["data"].sort(key=lambda x: x.get("name").upper())
+                        except:
                             pass
                     await ws.send_json(data=data, dumps=json_dumps)
                 except Exception as e:
@@ -57,25 +43,25 @@ class CBPiWebSocket:
             self.cbpi.app.loop.create_task(send_data(ws, data))
 
     async def websocket_handler(self, request):
-        
-        
 
         ws = web.WebSocketResponse()
         await ws.prepare(request)
         self._clients.add(ws)
         try:
-            peername = request.transport.get_extra_info('peername')
+            peername = request.transport.get_extra_info("peername")
             if peername is not None:
-                
+
                 host = peername[0]
                 port = peername[1]
             else:
                 host, port = "Unknowen"
-            self.logger.info("Client Connected - Host: %s Port: %s  - client count: %s " % (host, port, len(self._clients)))
+            self.logger.info(
+                "Client Connected - Host: %s Port: %s  - client count: %s "
+                % (host, port, len(self._clients))
+            )
         except Exception as e:
             pass
-        
-        
+
         try:
             await ws.send_json(data=dict(topic="connection/success"))
             async for msg in ws:
@@ -95,7 +81,9 @@ class CBPiWebSocket:
                         else:
                             await self.cbpi.bus.fire(topic=topic)
                 elif msg.type == aiohttp.WSMsgType.ERROR:
-                    self.logger.error('ws connection closed with exception %s' % ws.exception())
+                    self.logger.error(
+                        "ws connection closed with exception %s" % ws.exception()
+                    )
 
         except Exception as e:
             self.logger.error("%s - Received Data %s" % (str(e), msg.data))
@@ -106,4 +94,3 @@ class CBPiWebSocket:
         self.logger.info("Web Socket Close")
 
         return ws
-        
