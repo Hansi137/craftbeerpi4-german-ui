@@ -2003,21 +2003,21 @@
   var expertMode = localStorage.getItem(EXPERT_KEY) === '1';
 
   // Routen im Anfänger-Modus (nur das Wesentliche)
-  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge', 'fermenter', 'fermenterprofile', 'hardware', 'settings', 'system', 'help'];
+  var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge', 'fermenter', 'hardware', 'settings', 'system', 'help'];
   // Zusätzliche Routen im Experten-Modus
   var expertRoutes = ['actor', 'sensor', 'kettle', 'brewlog', 'analytics', 'data', 'plugins', 'upload', 'about'];
 
   var navGroups = {
     de: [
       { label: 'Brauen', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge'] },
-      { label: 'Gärung', routes: ['fermenter', 'fermenterprofile'] },
+      { label: 'Gärung', routes: ['fermenter'] },
       { label: 'Analyse', routes: ['brewlog', 'analytics', 'data'] },
       { label: 'Einrichtung', routes: ['hardware', 'settings'] },
       { label: 'System', routes: ['plugins', 'upload', 'system', 'about', 'help'] }
     ],
     en: [
       { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge'] },
-      { label: 'Fermentation', routes: ['fermenter', 'fermenterprofile'] },
+      { label: 'Fermentation', routes: ['fermenter'] },
       { label: 'Analysis', routes: ['brewlog', 'analytics', 'data'] },
       { label: 'Setup', routes: ['hardware', 'settings'] },
       { label: 'System', routes: ['plugins', 'upload', 'system', 'about', 'help'] }
@@ -2192,6 +2192,12 @@
         item.classList.add('cbpi-nav-hidden');
       } else {
         item.classList.remove('cbpi-nav-hidden');
+      }
+
+      // Upstream "Fermenter Profile" / "Gärprofil" verstecken –
+      // redundant mit unserem Gärungs-Dashboard (route 'fermenter')
+      if (route === 'fermenterprofile') {
+        item.classList.add('cbpi-nav-hidden');
       }
     });
 
@@ -7239,14 +7245,20 @@
     var descEl = li.querySelector('.cbpi-menu-desc');
     if (descEl) descEl.textContent = currentLang === 'de' ? 'Gärbehälter steuern & überwachen' : 'Control & monitor fermenters';
 
-    // Nach Fermenter Profile einfügen (Gärung-Gruppe)
+    // Nach dem letzten Brauen-Item einfügen (Nachgussrechner/Sparge oder Fermenter Profile)
     var items = list.querySelectorAll('.MuiListItemButton-root, .MuiListItem-root');
     var insertAfter = null;
     items.forEach(function(item) {
       var t = item.querySelector('.MuiListItemText-primary');
       if (t) {
         var txt = t.textContent.trim().toLowerCase();
-        if (txt === 'fermenter profile' || txt === 'gärprofil') insertAfter = item;
+        // Nach Nachgussrechner, Brauwasser, Rezeptbuch, oder Fermenter Profile (Reihenfolge Brauen → Gärung)
+        if (txt === 'nachgussrechner' || txt === 'sparge calculator' || item.id === 'cbpi-nav-sparge') insertAfter = item;
+      }
+      // Fallback: nach Fermenter Profile (falls Sparge nicht existiert)
+      if (!insertAfter && t) {
+        var txt2 = t.textContent.trim().toLowerCase();
+        if (txt2 === 'fermenter profile' || txt2 === 'gärprofil') insertAfter = item;
       }
     });
     if (insertAfter && insertAfter.nextSibling) {
@@ -7377,8 +7389,18 @@
         opts.body = JSON.stringify({ temp: temp });
       }
 
+      // Status-ändernde Aktionen brauchen einen Full-Rerender (Buttons/Steps ändern sich)
+      var needsRerender = ['startstep', 'stopstep', 'nextstep', 'reset', 'clearsteps'].indexOf(action) !== -1;
+
       fetch(url, opts)
-        .then(function() { setTimeout(loadFermenterData, 500); })
+        .then(function() {
+          if (needsRerender) {
+            // Karten entfernen, damit loadFermenterData einen Full-Rerender macht
+            var body = document.getElementById('fermenter-body');
+            if (body) body.querySelectorAll('.fermenter-card').forEach(function(c) { c.remove(); });
+          }
+          setTimeout(loadFermenterData, 500);
+        })
         .catch(function(err) { console.error('[Fermenter] Action failed:', err); })
         .finally(function() { btn.disabled = false; btn.style.opacity = '1'; });
       return;
@@ -7393,7 +7415,12 @@
       brewBtn.disabled = true;
       brewBtn.textContent = de ? '⏳ Wird geladen…' : '⏳ Loading…';
       fetch('/fermenterrecipe/' + encodeURIComponent(recipeId) + '/' + encodeURIComponent(fermId2) + '/' + encodeURIComponent(recipeName) + '/brew', { method: 'POST' })
-        .then(function() { setTimeout(loadFermenterData, 500); })
+        .then(function() {
+          // Full-Rerender nach Rezept-Laden (Steps ändern sich)
+          var body = document.getElementById('fermenter-body');
+          if (body) body.querySelectorAll('.fermenter-card').forEach(function(c) { c.remove(); });
+          setTimeout(loadFermenterData, 500);
+        })
         .catch(function(err) { console.error('[Fermenter] Brew failed:', err); });
       return;
     }
