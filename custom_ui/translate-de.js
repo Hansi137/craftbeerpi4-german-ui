@@ -69,7 +69,7 @@
     'Sensor not Found': { de: 'Sensor nicht gefunden', en: 'Sensor not Found' },
     'Actor': { de: 'Aktor', en: 'Actor' },
     'Actor Config': { de: 'Aktor-Konfiguration', en: 'Actor Config' },
-    'Delete Actir': { de: 'Aktor löschen', en: 'Delete Actor' },
+    'Delete Actor': { de: 'Aktor löschen', en: 'Delete Actor' },
     'Actor not found': { de: 'Aktor nicht gefunden', en: 'Actor not found' },
     'Actor not Found': { de: 'Aktor nicht gefunden', en: 'Actor not Found' },
     'Kettle': { de: 'Kessel', en: 'Kettle' },
@@ -232,9 +232,9 @@
   };
 
   var longTranslations = {
-    'Add Mashin Step automatically if not defined in recipe': {
+    'Add MashIn Step automatically if not defined in recipe': {
       de: 'Einmaisch-Schritt automatisch hinzufügen, wenn nicht im Rezept definiert',
-      en: 'Add Mashin Step automatically if not defined in recipe'
+      en: 'Add MashIn Step automatically if not defined in recipe'
     },
     'Use AutoMode in steps': {
       de: 'AutoModus in Schritten verwenden',
@@ -324,7 +324,7 @@
       de: 'Standard-Kochtemperatur für die Rezepterstellung',
       en: 'Default Boil Temperature for Recipe Creation'
     },
-    'Alternative Sensor to monitor temperature durring cooldown (if not selected, Kettle Sensor will be used)': {
+    'Alternative Sensor to monitor temperature during cooldown (if not selected, Kettle Sensor will be used)': {
       de: 'Alternativer Sensor zur Temperaturüberwachung beim Abkühlen (falls leer, wird der Kessel-Sensor verwendet)',
       en: 'Alternative Sensor to monitor temperature during cooldown (if not selected, Kettle Sensor will be used)'
     },
@@ -428,7 +428,7 @@
       de: 'Aktuelle Spindel-Daten',
       en: 'Current Spindle Data'
     },
-    'Cooldown temp will send notification when this temeprature is reached': {
+    'Cooldown temp will send notification when this temperature is reached': {
       de: 'Benachrichtigung senden, wenn diese Abkühltemperatur erreicht wird',
       en: 'Cooldown temp will send notification when this temperature is reached'
     },
