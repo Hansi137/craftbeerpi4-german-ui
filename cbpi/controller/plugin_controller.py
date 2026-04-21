@@ -1,7 +1,9 @@
+import asyncio
 import importlib
 import logging
 import os
 import pkgutil
+import sys
 from importlib import import_module
 
 from cbpi.api import *
@@ -275,6 +277,42 @@ class PluginController:
                 )
 
         return result
+
+    async def install(self, package_name):
+        try:
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, "-m", "pip", "install", package_name,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            if process.returncode == 0:
+                logger.info("Plugin %s installed successfully", package_name)
+                return True
+            else:
+                logger.error("Failed to install plugin %s: %s", package_name, stderr.decode())
+                return False
+        except Exception as e:
+            logger.error("Error installing plugin %s: %s", package_name, e)
+            return False
+
+    async def uninstall(self, package_name):
+        try:
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, "-m", "pip", "uninstall", "-y", package_name,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            if process.returncode == 0:
+                logger.info("Plugin %s uninstalled successfully", package_name)
+                return True
+            else:
+                logger.error("Failed to uninstall plugin %s: %s", package_name, stderr.decode())
+                return False
+        except Exception as e:
+            logger.error("Error uninstalling plugin %s: %s", package_name, e)
+            return False
 
     async def load_plugin_list(self, filter="cbpi"):
         result = []
