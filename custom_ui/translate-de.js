@@ -785,6 +785,162 @@
     'Pause time in seconds between valve release': {
       de: 'Pausenzeit in Sekunden zwischen Ventilöffnungen',
       en: 'Pause time in seconds between valve release'
+    },
+    'Alternative Sensor to monitor temperature durring cooldown (if not selected Kettle Sensor will be used)': {
+      de: 'Alternativer Sensor zur Temperaturüberwachung beim Abkühlen (falls nicht gewählt, wird der Kessel-Sensor verwendet)',
+      en: 'Alternative Sensor to monitor temperature durring cooldown (if not selected Kettle Sensor will be used)'
+    },
+    'Actor that can be toggled with lid alert to activate exhaust or steam condensor (default: None)': {
+      de: 'Aktor, der mit Deckelwarnung geschaltet werden kann, um Abzug oder Dampfkondensator zu aktivieren (Standard: keiner)',
+      en: 'Actor that can be toggled with lid alert to activate exhaust or steam condensor (default: None)'
+    },
+    'Cooldown temp will send notification when this temeprature is reached': {
+      de: 'Benachrichtigung senden, wenn diese Abkühltemperatur erreicht wird',
+      en: 'Cooldown temp will send notification when this temeprature is reached'
+    },
+    'Brewfather Recipe List length': {
+      de: 'Anzahl Einträge der Brewfather-Rezeptliste',
+      en: 'Brewfather Recipe List length'
+    },
+    'Define Kettle that is used for Boil Whirlpool and Cooldown. If not selected MASH_TUN will be used': {
+      de: 'Kessel festlegen, der für Kochen, Whirlpool und Abkühlen verwendet wird. Falls nicht gewählt, wird MASH_TUN verwendet.',
+      en: 'Define Kettle that is used for Boil Whirlpool and Cooldown. If not selected MASH_TUN will be used'
+    },
+    'Write sensor data to csv logfiles (enabling requires restart)': {
+      de: 'Sensordaten in CSV-Logdateien schreiben (Aktivierung erfordert Neustart)',
+      en: 'Write sensor data to csv logfiles (enabling requires restart)'
+    },
+    'Write sensor data to influxdb (enabling requires restart)': {
+      de: 'Sensordaten in InfluxDB schreiben (Aktivierung erfordert Neustart)',
+      en: 'Write sensor data to influxdb (enabling requires restart)'
+    },
+    'URL Address of your influxdb server incl. http:// and port e.g. http://localhost:8086 (If INFLUXDBCLOUD set to Yes use URL Address of your influxdb cloud server)': {
+      de: 'URL-Adresse deines InfluxDB-Servers inkl. http:// und Port, z.B. http://localhost:8086 (bei INFLUXDBCLOUD=Ja die Cloud-URL verwenden)',
+      en: 'URL Address of your influxdb server incl. http:// and port e.g. http://localhost:8086 (If INFLUXDBCLOUD set to Yes use URL Address of your influxdb cloud server)'
+    },
+    'Name of the measurement in your INFLUXDB database (default: measurement)': {
+      de: 'Name der Measurement in deiner INFLUXDB-Datenbank (Standard: measurement)',
+      en: 'Name of the measurement in your INFLUXDB database (default: measurement)'
+    },
+    'Max. number of backup logs': {
+      de: 'Maximale Anzahl Backup-Logs',
+      en: 'Max. number of backup logs'
+    },
+    'Max. number of bytes in sensor logs': {
+      de: 'Maximale Anzahl Bytes in Sensor-Logs',
+      en: 'Max. number of bytes in sensor logs'
+    },
+    'Slow down dashboard pipe animation taking up close to 100% of the CPU\'s capacity': {
+      de: 'Dashboard-Rohranimation verlangsamen, wenn sie fast 100% CPU-Leistung belegt',
+      en: 'Slow down dashboard pipe animation taking up close to 100% of the CPU\'s capacity'
+    },
+    'Send Notification on Logging Error': {
+      de: 'Benachrichtigung bei Logging-Fehler senden',
+      en: 'Send Notification on Logging Error'
+    },
+    'Play buzzer sound in Web interface on Notifications': {
+      de: 'Buzzer-Sound im Webinterface bei Benachrichtigungen abspielen',
+      en: 'Play buzzer sound in Web interface on Notifications'
+    },
+    'Start Boil timer automatically if Temp does not change for 5 Minutes and is above 95C/203F': {
+      de: 'Koch-Timer automatisch starten, wenn sich die Temperatur 5 Minuten nicht ändert und über 95C/203F liegt',
+      en: 'Start Boil timer automatically if Temp does not change for 5 Minutes and is above 95C/203F'
+    },
+    'Dashboard Grid Width': {
+      de: 'Dashboard-Rasterbreite',
+      en: 'Dashboard Grid Width'
+    },
+    'Status of the config file. Internal use for maintenance': {
+      de: 'Status der Konfigurationsdatei. Interne Wartungsnutzung',
+      en: 'Status of the config file. Internal use for maintenance'
+    },
+    'Minimum required memory in MB for CraftBeerPi to run properly': {
+      de: 'Minimal benötigter Speicher in MB für einen stabilen Betrieb von CraftBeerPi',
+      en: 'Minimum required memory in MB for CraftBeerPi to run properly'
+    },
+    'Start Pressure': {
+      de: 'Startdruck',
+      en: 'Start Pressure'
+    },
+    'Pressure increase per hour': {
+      de: 'Druckanstieg pro Stunde',
+      en: 'Pressure increase per hour'
+    },
+    'Pressure decrease per second on openm valve': {
+      de: 'Druckabfall pro Sekunde bei geöffnetem Ventil',
+      en: 'Pressure decrease per second on openm valve'
+    },
+    'Inverts PWM load if set to yes (e.g. 90% = 10%). Default: No': {
+      de: 'Invertiert die PWM-Leistung bei Ja (z.B. 90% = 10%). Standard: Nein',
+      en: 'Inverts PWM load if set to yes (e.g. 90% = 10%). Default: No'
+    },
+    'Payload that is sent as MQTT message. Available placeholders are {switch_onoff}: [on|off] {switch_10}: [1|0] {power}: [0-100].': {
+      de: 'Payload, das als MQTT-Nachricht gesendet wird. Verfügbare Platzhalter: {switch_onoff}: [on|off], {switch_10}: [1|0], {power}: [0-100].',
+      en: 'Payload that is sent as MQTT message. Available placeholders are {switch_onoff}: [on|off] {switch_10}: [1|0] {power}: [0-100].'
+    },
+    'Max Output Value': {
+      de: 'Maximaler Ausgabewert',
+      en: 'Max Output Value'
+    },
+    'Output Setting [0-MaxOutput]': {
+      de: 'Ausgabewert [0-MaxOutput]',
+      en: 'Output Setting [0-MaxOutput]'
+    },
+    'Ramp x °C/F per  day. Default: 1': {
+      de: 'Rampenrate x °C/F pro Tag. Standard: 1',
+      en: 'Ramp x °C/F per  day. Default: 1'
+    },
+    'First Wort Hop alert text': {
+      de: 'Text für Vorderwürze-Hopfen-Warnung',
+      en: 'First Wort Hop alert text'
+    },
+    'First Hop alert text': {
+      de: 'Text für 1. Hopfengabe-Warnung',
+      en: 'First Hop alert text'
+    },
+    'Second Hop alert text': {
+      de: 'Text für 2. Hopfengabe-Warnung',
+      en: 'Second Hop alert text'
+    },
+    'Third Hop alert text': {
+      de: 'Text für 3. Hopfengabe-Warnung',
+      en: 'Third Hop alert text'
+    },
+    'Fourth Hop alert text': {
+      de: 'Text für 4. Hopfengabe-Warnung',
+      en: 'Fourth Hop alert text'
+    },
+    'Fifth Hop alert text': {
+      de: 'Text für 5. Hopfengabe-Warnung',
+      en: 'Fifth Hop alert text'
+    },
+    'Sixth Hop alert text': {
+      de: 'Text für 6. Hopfengabe-Warnung',
+      en: 'Sixth Hop alert text'
+    },
+    "Slow down dashboard pipe animation taking up close to 100% of the CPU's capacity": {
+      de: 'Dashboard-Rohranimation verlangsamen, wenn sie fast 100% CPU-Leistung belegt',
+      en: "Slow down dashboard pipe animation taking up close to 100% of the CPU's capacity"
+    },
+    'Power Setting [0-100]': {
+      de: 'Leistungseinstellung [0-100]',
+      en: 'Power Setting [0-100]'
+    },
+    'Max Power [%] for Heater (default: 100)': {
+      de: 'Max. Leistung [%] für Heizer (Standard: 100)',
+      en: 'Max Power [%] for Heater (default: 100)'
+    },
+    'Max Power [%] for Cooler (default: 100)': {
+      de: 'Max. Leistung [%] für Kühlung (Standard: 100)',
+      en: 'Max Power [%] for Cooler (default: 100)'
+    },
+    'Payload that is sent as MQTT message. Available placeholders are {switch_onoff}: [on|off] {switch_10}: [1|0] {power}: [0-100].': {
+      de: 'Payload, das als MQTT-Nachricht gesendet wird. Verfügbare Platzhalter: {switch_onoff}: [on|off], {switch_10}: [1|0], {power}: [0-100].',
+      en: 'Payload that is sent as MQTT message. Available placeholders are {switch_onoff}: [on|off] {switch_10}: [1|0] {power}: [0-100].'
+    },
+    'Output Setting [0-MaxOutput]': {
+      de: 'Ausgabeeinstellung [0-MaxOutput]',
+      en: 'Output Setting [0-MaxOutput]'
     }
   };
 
