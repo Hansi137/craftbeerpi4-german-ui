@@ -65,6 +65,11 @@
     'Sensor Config': { de: 'Sensor-Konfiguration', en: 'Sensor Config' },
     'Sensor Data': { de: 'Sensor-Daten', en: 'Sensor Data' },
     'Sensor Type': { de: 'Sensor-Typ', en: 'Sensor Type' },
+    'Data Type': { de: 'Datentyp', en: 'Data Type' },
+    'Units': { de: 'Einheit', en: 'Units' },
+    'Polynomial': { de: 'Polynom', en: 'Polynomial' },
+    'Gravity/Angle': { de: 'Dichte/Winkel', en: 'Gravity/Angle' },
+    'GrainConnect_ServerURL': { de: 'GrainConnect-Server-URL', en: 'GrainConnect_ServerURL' },
     'Delete Sensor': { de: 'Sensor löschen', en: 'Delete Sensor' },
     'Sensor not Found': { de: 'Sensor nicht gefunden', en: 'Sensor not Found' },
     'Actor': { de: 'Aktor', en: 'Actor' },
@@ -90,6 +95,12 @@
     'BrewName': { de: 'Sudname', en: 'BrewName' },
     'TargetTemp': { de: 'Zieltemperatur', en: 'TargetTemp' },
     'TargetPressure': { de: 'Zieldruck', en: 'TargetPressure' },
+    'Key': { de: 'Schlüssel', en: 'Key' },
+    'Timeout': { de: 'Timeout', en: 'Timeout' },
+    'ReducedLogging': { de: 'Reduziertes Logging', en: 'ReducedLogging' },
+    'TempRange': { de: 'Temperaturbereich', en: 'TempRange' },
+    'offset': { de: 'Offset', en: 'offset' },
+    'Interval': { de: 'Intervall', en: 'Interval' },
     'HeaterOffsetOn': { de: 'Heizung Ein-Offset', en: 'HeaterOffsetOn' },
     'HeaterOffsetOff': { de: 'Heizung Aus-Offset', en: 'HeaterOffsetOff' },
     'CoolerOffsetOn': { de: 'Kühlung Ein-Offset', en: 'CoolerOffsetOn' },
@@ -423,6 +434,78 @@
     'Server based Spindle Calibration': {
       de: 'Serverbasierte Spindel-Kalibrierung',
       en: 'Server based Spindle Calibration'
+    },
+    'Enter the name of your iSpindel': {
+      de: 'Gib den Namen deiner iSpindel ein',
+      en: 'Enter the name of your iSpindel'
+    },
+    'Select which type of data to register for this sensor. For Angle, Polynomial has to be left empty': {
+      de: 'Wähle den Datentyp für diesen Sensor. Bei Winkel muss das Polynom leer bleiben.',
+      en: 'Select which type of data to register for this sensor. For Angle, Polynomial has to be left empty'
+    },
+    'Enter your iSpindel polynomial. Use the variable tilt for the angle reading from iSpindel. Does not support ^ character.': {
+      de: 'Gib dein iSpindel-Polynom ein. Verwende die Variable tilt für den Winkelwert der iSpindel. Das Zeichen ^ wird nicht unterstützt.',
+      en: 'Enter your iSpindel polynomial. Use the variable tilt for the angle reading from iSpindel. Does not support ^ character.'
+    },
+    'Displays gravity reading with this unit if the Data Type is set to Gravity. Does not convert between units, to do that modify your polynomial.': {
+      de: 'Zeigt den Dichtewert in dieser Einheit, wenn der Datentyp auf Dichte steht. Es erfolgt keine Umrechnung zwischen Einheiten, dafür muss das Polynom angepasst werden.',
+      en: 'Displays gravity reading with this unit if the Data Type is set to Gravity. Does not convert between units, to do that modify your polynomial.'
+    },
+    'Enter the GrainConnect Server URL for this Spindle (only effective for Gravity/Angle sensors)': {
+      de: 'Gib die GrainConnect-Server-URL für diese Spindel ein (nur wirksam bei Dichte/Winkel-Sensoren).',
+      en: 'Enter the GrainConnect Server URL for this Spindle (only effective for Gravity/Angle sensors)'
+    },
+    'Select Fermenter Temp Sensor that you want to provide to TCP Server': {
+      de: 'Wähle den Gärbehälter-Temperatursensor, der an den TCP-Server bereitgestellt werden soll.',
+      en: 'Select Fermenter Temp Sensor that you want to provide to TCP Server'
+    },
+    'Http Key': {
+      de: 'HTTP-Schlüssel',
+      en: 'Http Key'
+    },
+    'Timeout in seconds to send notification (default:60 | deactivated: 0)': {
+      de: 'Timeout in Sekunden bis zur Benachrichtigung (Standard: 60 | deaktiviert: 0)',
+      en: 'Timeout in seconds to send notification (default:60 | deactivated: 0)'
+    },
+    'Reduced logging if Kettle is inactive / range warning in dashboard (only Kettle or Fermenter to be selected)': {
+      de: 'Reduziertes Logging, wenn Kessel inaktiv ist / Bereichswarnung im Dashboard (nur Kessel oder Gärbehälter auswählen)',
+      en: 'Reduced logging if Kettle is inactive / range warning in dashboard (only Kettle or Fermenter to be selected)'
+    },
+    'Reduced logging if Kettle is inactive / range warning in dashboard(only Kettle or Fermenter to be selected)': {
+      de: 'Reduziertes Logging, wenn Kessel inaktiv ist / Bereichswarnung im Dashboard (nur Kessel oder Gärbehälter auswählen)',
+      en: 'Reduced logging if Kettle is inactive / range warning in dashboard(only Kettle or Fermenter to be selected)'
+    },
+    'Reduced logging in seconds if Fermenter is inactive / range warning in dashboard (only Kettle or Fermenter to be selected)': {
+      de: 'Reduziertes Logging in Sekunden, wenn Gärbehälter inaktiv ist / Bereichswarnung im Dashboard (nur Kessel oder Gärbehälter auswählen)',
+      en: 'Reduced logging in seconds if Fermenter is inactive / range warning in dashboard (only Kettle or Fermenter to be selected)'
+    },
+    'Reduced logging if Fermenter is inactive / range warning in dashboard (only Kettle or Fermenter to be selected)': {
+      de: 'Reduziertes Logging, wenn Gärbehälter inaktiv ist / Bereichswarnung im Dashboard (nur Kessel oder Gärbehälter auswählen)',
+      en: 'Reduced logging if Fermenter is inactive / range warning in dashboard (only Kettle or Fermenter to be selected)'
+    },
+    'Reduced logging frequency in seconds if selected Kettle or Fermenter is inactive (default: 60 sec | disabled: 0)': {
+      de: 'Reduzierte Logging-Frequenz in Sekunden, wenn der gewählte Kessel oder Gärbehälter inaktiv ist (Standard: 60 s | deaktiviert: 0)',
+      en: 'Reduced logging frequency in seconds if selected Kettle or Fermenter is inactive (default: 60 sec | disabled: 0)'
+    },
+    'Reduced logging frequency in seconds if selected Kettle or Fermenter is inactive (default:60 sec | 0 disabled)': {
+      de: 'Reduzierte Logging-Frequenz in Sekunden, wenn der gewählte Kessel oder Gärbehälter inaktiv ist (Standard: 60 s | deaktiviert: 0)',
+      en: 'Reduced logging frequency in seconds if selected Kettle or Fermenter is inactive (default:60 sec | 0 disabled)'
+    },
+    'Temp range in degree between reading and target temp of fermenter/kettle. Larger difference shows different color in dashboard (default:0 | deactivated: 0)': {
+      de: 'Temperaturbereich in Grad zwischen Messwert und Zieltemperatur von Gärbehälter/Kessel. Größere Abweichung zeigt andere Farbe im Dashboard (Standard: 0 | deaktiviert: 0).',
+      en: 'Temp range in degree between reading and target temp of fermenter/kettle. Larger difference shows different color in dashboard (default:0 | deactivated: 0)'
+    },
+    'MQTT Topic': {
+      de: 'MQTT-Topic',
+      en: 'MQTT Topic'
+    },
+    'Where to find msg in payload leave blank for raw payload': {
+      de: 'Pfad zur Nachricht im Payload; leer lassen für Roh-Payload',
+      en: 'Where to find msg in payload leave blank for raw payload'
+    },
+    'Offset for MQTT Sensor (default is 0). !!! Use this only with caution as offset for MQTT sensor should be defined on Sensor side !!!': {
+      de: 'Offset für MQTT-Sensor (Standard: 0). Nur mit Vorsicht verwenden, da der Offset idealerweise sensorseitig gesetzt wird!',
+      en: 'Offset for MQTT Sensor (default is 0). !!! Use this only with caution as offset for MQTT sensor should be defined on Sensor side !!!'
     },
     'Current Spindle Data': {
       de: 'Aktuelle Spindel-Daten',
@@ -10468,6 +10551,10 @@
     var dominated = false;
     for (var i = 0; i < mutations.length; i++) {
       var m = mutations[i];
+      if (m.type === 'characterData') {
+        dominated = true;
+        break;
+      }
       // Eigene Elemente ignorieren
       if (m.target && m.target.id && /^cbpi-/.test(m.target.id)) continue;
       // Mutations innerhalb eigener Overlays/Sektionen ignorieren
@@ -10499,12 +10586,18 @@
   });
 
   window.addEventListener('hashchange', onRouteChange);
-  setInterval(onRouteChange, 1000);
+  setInterval(function () {
+    onRouteChange();
+    // React-Formulare (z.B. Hardware-Properties) rendern Texte nach Updates erneut auf EN.
+    // Daher regelmäßig nachübersetzen.
+    translatePage();
+    enhanceHardwarePage();
+  }, 1200);
 
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 800); observer.observe(document.body, { childList: true, subtree: true }); });
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(init, 800); observer.observe(document.body, { childList: true, characterData: true, subtree: true }); });
   } else {
     setTimeout(init, 800);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, characterData: true, subtree: true });
   }
 })();
