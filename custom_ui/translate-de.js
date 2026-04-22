@@ -107,6 +107,7 @@
     'CoolerOffsetOff': { de: 'Kühlung Aus-Offset', en: 'CoolerOffsetOff' },
     'HeaterMaxPower': { de: 'Max. Heizleistung', en: 'HeaterMaxPower' },
     'CoolerMaxPower': { de: 'Max. Kühlleistung', en: 'CoolerMaxPower' },
+    'Autostart': { de: 'Autostart', en: 'Autostart' },
     'AutoStart': { de: 'Autostart', en: 'AutoStart' },
     'Tank': { de: 'Tank', en: 'Tank' },
     'Led': { de: 'LED', en: 'Led' },
@@ -737,9 +738,33 @@
       de: "Offset zum Einschalten der Kühlung (Dezimalzahl). Sollte größer als 'CoolerOffsetOff' sein. Beispiel: Bei Wert 2 schaltet die Kühlung ein, wenn die Temperatur 2°C über der Zieltemperatur liegt",
       en: "Offset as decimal number when the cooler is switched on. Should be greater then 'CoolerOffsetOff'. For example a value of 2 switches on the cooler if the current temperature is 2 degrees below the target temperature"
     },
+    "Offset as decimal number when the cooler is switched on. Should be greater then 'CoolerOffsetOff'. For example a value of 2 switches on the cooler if the current temperature is 2 degrees above the target temperature": {
+      de: "Offset zum Einschalten der Kühlung (Dezimalzahl). Sollte größer als 'CoolerOffsetOff' sein. Beispiel: Bei Wert 2 schaltet die Kühlung ein, wenn die Temperatur 2°C über der Zieltemperatur liegt",
+      en: "Offset as decimal number when the cooler is switched on. Should be greater then 'CoolerOffsetOff'. For example a value of 2 switches on the cooler if the current temperature is 2 degrees above the target temperature"
+    },
     "Offset as decimal number when the cooler is switched off. Should be smaller then 'CoolerOffsetOn'. For example a value of 1 switches off the cooler if the current temperature is 1 degree below the target temperature": {
       de: "Offset zum Ausschalten der Kühlung (Dezimalzahl). Sollte kleiner als 'CoolerOffsetOn' sein. Beispiel: Bei Wert 1 schaltet die Kühlung aus, wenn die Temperatur 1°C über der Zieltemperatur liegt",
       en: "Offset as decimal number when the cooler is switched off. Should be smaller then 'CoolerOffsetOn'. For example a value of 1 switches off the cooler if the current temperature is 1 degree below the target temperature"
+    },
+    "Offset as decimal number when the cooler is switched off. Should be smaller then 'CoolerOffsetOn'. For example a value of 1 switches off the cooler if the current temperature is 1 degree above the target temperature": {
+      de: "Offset zum Ausschalten der Kühlung (Dezimalzahl). Sollte kleiner als 'CoolerOffsetOn' sein. Beispiel: Bei Wert 1 schaltet die Kühlung aus, wenn die Temperatur 1°C über der Zieltemperatur liegt",
+      en: "Offset as decimal number when the cooler is switched off. Should be smaller then 'CoolerOffsetOn'. For example a value of 1 switches off the cooler if the current temperature is 1 degree above the target temperature"
+    },
+    'Max Power [%] for Heater (defult: 100)': {
+      de: 'Max. Leistung [%] für Heizer (Standard: 100)',
+      en: 'Max Power [%] for Heater (defult: 100)'
+    },
+    'Max Power [%] for Cooler (defult: 100)': {
+      de: 'Max. Leistung [%] für Kühlung (Standard: 100)',
+      en: 'Max Power [%] for Cooler (defult: 100)'
+    },
+    'Max Power [%] for Heater (default: 100)': {
+      de: 'Max. Leistung [%] für Heizer (Standard: 100)',
+      en: 'Max Power [%] for Heater (default: 100)'
+    },
+    'Max Power [%] for Cooler (default: 100)': {
+      de: 'Max. Leistung [%] für Kühlung (Standard: 100)',
+      en: 'Max Power [%] for Cooler (default: 100)'
     },
     'Autostart Fermenter on cbpi start': {
       de: 'Gärbehälter beim Systemstart automatisch starten',
@@ -780,7 +805,7 @@
       }
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       // Eigene Overlays/Formulare überspringen
-      if (node.id === 'cbpi-fermenter-page' || node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware' || node.id === 'cbpi-fermenter-config-form' || node.id === 'cbpi-help-page') return;
+      if (node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware' || node.id === 'cbpi-help-page') return;
       if (node.placeholder) {
         var pt = node.placeholder.trim();
         if (translations[pt]) node.placeholder = translations[pt][currentLang];
@@ -7424,8 +7449,8 @@
 
     // Event Delegation
     container.addEventListener('click', fermenterClickHandler);
-    container.addEventListener('input', fermenterInputHandler);
-    container.addEventListener('change', fermenterChangeHandler);
+    container.addEventListener('input', function() {});
+    container.addEventListener('change', function() {});
     _isOurDomChange = false;
 
     loadFermenterData();
@@ -10558,7 +10583,7 @@
       // Eigene Elemente ignorieren
       if (m.target && m.target.id && /^cbpi-/.test(m.target.id)) continue;
       // Mutations innerhalb eigener Overlays/Sektionen ignorieren
-      if (m.target && m.target.closest && (m.target.closest('#cbpi-fermenter-page') || m.target.closest('#cbpi-fermenter-overlay') || m.target.closest('#cbpi-fermenter-hardware') || m.target.closest('#cbpi-fermenter-config-form') || m.target.closest('#cbpi-help-page'))) continue;
+      if (m.target && m.target.closest && (m.target.closest('#cbpi-fermenter-page') || m.target.closest('#cbpi-fermenter-overlay') || m.target.closest('#cbpi-fermenter-hardware') || m.target.closest('#cbpi-help-page'))) continue;
       if (m.addedNodes.length > 0) { dominated = true; break; }
     }
     if (!dominated) return;
