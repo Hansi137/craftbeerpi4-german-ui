@@ -34,6 +34,9 @@ cp "$SCRIPT_DIR/custom.css" "$UI_DIR/static/css/custom.css"
 echo "Kopiere translate-de.js..."
 cp "$SCRIPT_DIR/translate-de.js" "$UI_DIR/static/js/translate-de.js"
 
+TRANSLATE_JS_VERSION=$(date +%s)
+TRANSLATE_JS_SRC="./static/js/translate-de.js?v=${TRANSLATE_JS_VERSION}"
+
 # index.html patchen: Inter Font laden + Custom CSS + Übersetzungs-Script
 echo "Patche index.html..."
 # Die neue index.html wird aus dem Backup erstellt
@@ -42,8 +45,8 @@ cp "$UI_DIR/index.html.bak" "$UI_DIR/index.html"
 # Inter Font hinzufügen (vor </head>)
 sed -i 's|</head>|<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700\&display=swap" rel="stylesheet"><link href="./static/css/custom.css" rel="stylesheet"></head>|' "$UI_DIR/index.html"
 
-# Übersetzungs-Script hinzufügen (vor </body>)
-sed -i 's|</body>|<script src="./static/js/translate-de.js"></script></body>|' "$UI_DIR/index.html"
+# Übersetzungs-Script mit Cache-Busting hinzufügen (vor </body>)
+sed -i "s|</body>|<script src=\"${TRANSLATE_JS_SRC}\"></script></body>|" "$UI_DIR/index.html"
 
 # HTML lang auf de setzen
 sed -i 's|<html lang="en">|<html lang="de">|' "$UI_DIR/index.html"

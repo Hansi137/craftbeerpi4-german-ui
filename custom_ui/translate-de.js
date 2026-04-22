@@ -47,6 +47,11 @@
     'Recipe Book': { de: 'Rezeptbuch', en: 'Recipe Book' },
     'Recipes': { de: 'Rezepte', en: 'Recipes' },
     'Profile': { de: 'Profil', en: 'Profile' },
+    'CraftBeerPi4 PID Kettle Control Plugin': { de: 'CraftBeerPi4 PID-Kesselregelungs-Plugin', en: 'CraftBeerPi4 PID Kettle Control Plugin' },
+    'CraftBeerPi4 iSpindle Sensor Plugin': { de: 'CraftBeerPi4 iSpindle-Sensor-Plugin', en: 'CraftBeerPi4 iSpindle Sensor Plugin' },
+    'CraftBeerPi4 User Interface': { de: 'CraftBeerPi4 Benutzeroberfläche', en: 'CraftBeerPi4 User Interface' },
+    'CraftBeerPi User Interface': { de: 'CraftBeerPi Benutzeroberfläche', en: 'CraftBeerPi User Interface' },
+    'Author:': { de: 'Autor:', en: 'Author:' },
     'Mash Profile': { de: 'Brauplan', en: 'Brew Plan' },
     'Mash Steps': { de: 'Maisch-Schritte', en: 'Mash Steps' },
     'Brew Steps': { de: 'Brau-Schritte', en: 'Brew Steps' },
@@ -170,6 +175,8 @@
     'Inactive': { de: 'Inaktiv', en: 'Inactive' },
     'Yes': { de: 'Ja', en: 'Yes' },
     'No': { de: 'Nein', en: 'No' },
+    'Never': { de: 'Nie', en: 'Never' },
+    'UNKNOWN': { de: 'UNBEKANNT', en: 'UNKNOWN' },
     'Error': { de: 'Fehler', en: 'Error' },
     'ERROR': { de: 'FEHLER', en: 'ERROR' },
     'Summary': { de: 'Zusammenfassung', en: 'Summary' },
@@ -942,8 +949,135 @@
     'Output Setting [0-MaxOutput]': {
       de: 'Ausgabeeinstellung [0-MaxOutput]',
       en: 'Output Setting [0-MaxOutput]'
+    },
+    'User Name for your influxdb database (only if required)(If INFLUXDBCLOUD set to Yes use organisation of your influxdb cloud database)': {
+      de: 'Benutzername deiner InfluxDB-Datenbank (nur falls nötig). Bei Cloud-Nutzung: Organisation eingeben.',
+      en: 'User Name for your influxdb database (only if required)(If INFLUXDBCLOUD set to Yes use organisation of your influxdb cloud database)'
+    },
+    'Sensordaten in InfluxDB speichern cloud (INFLUXDB must set to Yes)': {
+      de: 'Sensordaten in InfluxDB Cloud speichern (INFLUXDB muss auf Ja stehen)',
+      en: 'Sensordaten in InfluxDB speichern cloud (INFLUXDB must set to Yes)'
+    },
+    'Low alarm value for iSpindle': {
+      de: 'Niedriger Alarmwert für iSpindle',
+      en: 'Low alarm value for iSpindle'
+    },
+    'Attenuation alarm value for iSpindle': {
+      de: 'Endvergärungs-Alarmwert für iSpindle',
+      en: 'Attenuation alarm value for iSpindle'
+    },
+    'Enable Brewfather data transfer': {
+      de: 'Brewfather-Datenübertragung aktivieren',
+      en: 'Enable Brewfather data transfer'
+    },
+    'Brewfather address': {
+      de: 'Brewfather-Adresse',
+      en: 'Brewfather address'
+    },
+    'Brewfather port': {
+      de: 'Brewfather-Port',
+      en: 'Brewfather port'
+    },
+    'Brewfather suffix': {
+      de: 'Brewfather-Suffix',
+      en: 'Brewfather suffix'
+    },
+    'Brewfather token': {
+      de: 'Brewfather-Token',
+      en: 'Brewfather token'
+    },
+    'Brewpiless Server address (IP:PORT) Port only if not 80': {
+      de: 'Brewpiless-Serveradresse (IP:PORT), Port nur falls nicht 80',
+      en: 'Brewpiless Server address (IP:PORT) Port only if not 80'
+    },
+    'Enable Brewpiless data transfer': {
+      de: 'Brewpiless-Datenübertragung aktivieren',
+      en: 'Enable Brewpiless data transfer'
+    },
+    'Time for daily Spindle alarm': {
+      de: 'Uhrzeit für täglichen Spindle-Alarm',
+      en: 'Time for daily Spindle alarm'
+    },
+    'Enable transfer of Spindle data to SQL database': {
+      de: 'Übertragung von Spindle-Daten in SQL-Datenbank aktivieren',
+      en: 'Enable transfer of Spindle data to SQL database'
+    },
+    'SQL database name': {
+      de: 'SQL-Datenbankname',
+      en: 'SQL database name'
+    },
+    'SQL database host. e.g: localhost or IP address': {
+      de: 'SQL-Datenbank-Host, z.B. localhost oder IP-Adresse',
+      en: 'SQL database host. e.g: localhost or IP address'
+    },
+    'SQL database password': {
+      de: 'SQL-Datenbank-Passwort',
+      en: 'SQL database password'
+    },
+    'SQL database port number': {
+      de: 'SQL-Datenbank-Portnummer',
+      en: 'SQL database port number'
+    },
+    'SQL database user name': {
+      de: 'SQL-Datenbank-Benutzername',
+      en: 'SQL database user name'
+    },
+    'Enable extra page for spindledata in ui': {
+      de: 'Zusätzliche Seite für Spindledaten in der UI aktivieren',
+      en: 'Enable extra page for spindledata in ui'
+    },
+    'Define Unit for your SPindles (Plato or SG)': {
+      de: 'Einheit für deine Spindeln festlegen (Plato oder SG)',
+      en: 'Define Unit for your SPindles (Plato or SG)'
+    },
+    'Send daily status update from active iSpindle': {
+      de: 'Tägliches Status-Update von aktiver iSpindle senden',
+      en: 'Send daily status update from active iSpindle'
     }
   };
+
+  // Fallbacks für leicht abweichende/gemischte EN-Strings in dynamischen Tabellen (z.B. Settings/All)
+  var fuzzyGermanTranslations = [
+    { re: /\(enabling requires restart\)/g, de: '(Aktivierung erfordert Neustart)' },
+    { re: /Start Boil timer automatically if Temp does not change for 5 Minutes and is above 95C\/203F/g, de: 'Koch-Timer automatisch starten, wenn sich die Temperatur 5 Minuten nicht ändert und über 95C/203F liegt' },
+    { re: /URL Address of your influxdb server incl\. http:\/\/ and port, e\.g\. http:\/\/localhost:8086 \(If INFLUXDBCLOUD set to Yes use URL Address of your influxdb cloud server\)/g, de: 'URL-Adresse deines InfluxDB-Servers inkl. http:// und Port, z.B. http://localhost:8086 (bei INFLUXDBCLOUD=Ja die Cloud-URL verwenden)' },
+    { re: /User Name for your influxdb database \(only if required\)\(If INFLUXDBCLOUD set to Yes use organisation of your influxdb cloud database\)/g, de: 'Benutzername deiner InfluxDB-Datenbank (nur falls nötig). Bei Cloud-Nutzung: Organisation eingeben.' },
+    { re: /Enable Brewfather data transfer/g, de: 'Brewfather-Datenübertragung aktivieren' },
+    { re: /Brewfather address/g, de: 'Brewfather-Adresse' },
+    { re: /Brewfather port/g, de: 'Brewfather-Port' },
+    { re: /Brewfather suffix/g, de: 'Brewfather-Suffix' },
+    { re: /Brewfather token/g, de: 'Brewfather-Token' },
+    { re: /Brewpiless Server address \(IP:PORT\) Port only if not 80/g, de: 'Brewpiless-Serveradresse (IP:PORT), Port nur falls nicht 80' },
+    { re: /Enable Brewpiless data transfer/g, de: 'Brewpiless-Datenübertragung aktivieren' },
+    { re: /Time for daily Spindle alarm/g, de: 'Uhrzeit für täglichen Spindle-Alarm' },
+    { re: /Low alarm value for iSpindle/g, de: 'Niedriger Alarmwert für iSpindle' },
+    { re: /Attenuation alarm value for iSpindle/g, de: 'Endvergärungs-Alarmwert für iSpindle' },
+    { re: /Enable transfer of Spindle data to SQL database/g, de: 'Übertragung von Spindle-Daten in SQL-Datenbank aktivieren' },
+    { re: /SQL database name/g, de: 'SQL-Datenbankname' },
+    { re: /SQL database host\. e\.g: localhost or IP address/g, de: 'SQL-Datenbank-Host, z.B. localhost oder IP-Adresse' },
+    { re: /SQL database password/g, de: 'SQL-Datenbank-Passwort' },
+    { re: /SQL database port number/g, de: 'SQL-Datenbank-Portnummer' },
+    { re: /SQL database user name/g, de: 'SQL-Datenbank-Benutzername' },
+    { re: /Enable extra page for spindledata in ui/g, de: 'Zusätzliche Seite für Spindledaten in der UI aktivieren' },
+    { re: /Define Unit for your SPindles \(Plato or SG\)/g, de: 'Einheit für deine Spindeln festlegen (Plato oder SG)' },
+    { re: /Send daily status update from active iSpindle/g, de: 'Tägliches Status-Update von aktiver iSpindle senden' },
+    { re: /Minimum required memory in MB for CraftBeerPi to run properly/g, de: 'Minimal benötigter Speicher in MB für einen stabilen Betrieb von CraftBeerPi' },
+    { re: /Send Notification on Logging Error/g, de: 'Benachrichtigung bei Logging-Fehler senden' },
+    { re: /Play buzzer sound in Web interface on Notifications/g, de: 'Buzzer-Sound im Webinterface bei Benachrichtigungen abspielen' },
+    { re: /Max\. number of backup logs/g, de: 'Maximale Anzahl Backup-Logs' },
+    { re: /Max\. number of bytes in sensor logs/g, de: 'Maximale Anzahl Bytes in Sensor-Logs' },
+    { re: /Never/g, de: 'Nie' },
+    { re: /UNKNOWN/g, de: 'UNBEKANNT' }
+  ];
+
+  function applyFuzzyGermanTranslations(text) {
+    if (currentLang !== 'de' || !text) return text;
+    var out = text;
+    for (var i = 0; i < fuzzyGermanTranslations.length; i++) {
+      out = out.replace(fuzzyGermanTranslations[i].re, fuzzyGermanTranslations[i].de);
+    }
+    return out;
+  }
 
   // ============================================================
   // DOM ÜBERSETZUNG
@@ -960,6 +1094,7 @@
           node.textContent = node.textContent.replace(eng, longTranslations[eng][currentLang]);
         }
       }
+      node.textContent = applyFuzzyGermanTranslations(node.textContent);
     } else if (node.nodeType === Node.ELEMENT_NODE) {
       // Eigene Overlays/Formulare überspringen
       if (node.id === 'cbpi-fermenter-overlay' || node.id === 'cbpi-fermenter-hardware' || node.id === 'cbpi-help-page') return;
@@ -10588,6 +10723,18 @@
     });
   }
 
+  function getLocalizedInstalledPluginDescription(name, desc, de) {
+    if (!de) return null;
+    var normalized = (name || '').toLowerCase();
+    var localized = {
+      'cbpi4-pidboil': 'PID-Regler mit Kocherkennung und Schwellwert für den Kochmodus.',
+      'cbpi4-ispindle': 'iSpindle-Sensor mit Datenübertragung von der Spindel an CraftBeerPi.',
+      'cbpi4gui': 'Weboberfläche und UI-Erweiterungen für CraftBeerPi 4.',
+      'cbpi4ui': 'Benutzeroberfläche für CraftBeerPi 4.'
+    };
+    return localized[normalized] || null;
+  }
+
   function loadInstalledPlugins() {
     var de = currentLang === 'de';
     var listEl = document.getElementById('plugin-installed-list');
@@ -10605,22 +10752,27 @@
           var name = p.Name || p.name || 'Unknown';
           var version = p.Version || p.version || '';
           var desc = p.Description || p.description || '';
+          var localizedDesc = getLocalizedInstalledPluginDescription(name, desc, de);
           var shortDesc = '';
+          var fullDesc = '';
           var hasMore = false;
-          if (desc) {
+          if (localizedDesc) {
+            shortDesc = localizedDesc;
+          } else if (desc) {
             // Ersten Satz extrahieren oder bei 120 Zeichen abschneiden
             var firstSentence = desc.match(/^[^.!?\n]+[.!?]/);
             if (firstSentence && firstSentence[0].length < 200) {
-              shortDesc = firstSentence[0];
+              shortDesc = desc.match(/^[^.!?\n]+[.!?]/)[0];
             } else {
               shortDesc = desc.substring(0, 120);
             }
             hasMore = desc.length > shortDesc.length + 10;
+            fullDesc = desc;
           }
           return '<div class="plugin-item">' +
             '<div class="plugin-item-name">' + name + (version ? ' <span class="plugin-version">v' + version + '</span>' : '') + '</div>' +
             (shortDesc ? '<div class="plugin-item-desc">' + shortDesc + (hasMore ? '… <button class="plugin-more-btn" data-idx="' + pi + '">' + (de ? 'mehr' : 'more') + '</button>' : '') + '</div>' : '') +
-            (hasMore ? '<div class="plugin-item-full" id="plugin-full-' + pi + '" style="display:none"><div class="plugin-item-desc">' + desc + '</div></div>' : '') +
+            (hasMore ? '<div class="plugin-item-full" id="plugin-full-' + pi + '" style="display:none"><div class="plugin-item-desc">' + fullDesc + '</div></div>' : '') +
           '</div>';
         }).join('');
 

@@ -165,6 +165,8 @@ if [ -z "$CBPI4UI_DIR" ]; then
 fi
 
 CUSTOM_UI_DIR="$CBPI_SOURCE_DIR/custom_ui"
+TRANSLATE_JS_VERSION=$(date +%s)
+TRANSLATE_JS_SRC="./static/js/translate-de.js?v=${TRANSLATE_JS_VERSION}"
 
 if [ -f "$CUSTOM_UI_DIR/translate-de.js" ]; then
     cp "$CUSTOM_UI_DIR/translate-de.js" "$CBPI4UI_DIR/js/translate-de.js"
@@ -185,12 +187,12 @@ fi
 # index.html patchen: Custom JS + CSS einbinden
 INDEX_HTML="$(dirname "$CBPI4UI_DIR")/index.html"
 if [ -f "$INDEX_HTML" ]; then
-    # Nur patchen wenn noch nicht vorhanden
-    if ! grep -q "translate-de.js" "$INDEX_HTML"; then
-        sed -i 's|</body>|<script src="./static/js/translate-de.js"></script></body>|' "$INDEX_HTML"
-        ok "index.html: translate-de.js eingebunden"
+    if grep -q "translate-de.js" "$INDEX_HTML"; then
+        sed -i "s|<script src=\"\\./static/js/translate-de.js[^\"]*\"></script>|<script src=\"${TRANSLATE_JS_SRC}\"></script>|g" "$INDEX_HTML"
+        ok "index.html: translate-de.js Version aktualisiert"
     else
-        ok "index.html: translate-de.js bereits vorhanden"
+        sed -i "s|</body>|<script src=\"${TRANSLATE_JS_SRC}\"></script></body>|" "$INDEX_HTML"
+        ok "index.html: translate-de.js eingebunden"
     fi
     if ! grep -q "custom.css" "$INDEX_HTML"; then
         sed -i 's|</head>|<link href="./static/css/custom.css" rel="stylesheet"></head>|' "$INDEX_HTML"
