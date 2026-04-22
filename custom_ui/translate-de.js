@@ -135,6 +135,7 @@
     'Parameter': { de: 'Parameter', en: 'Parameter' },
     'Description': { de: 'Beschreibung', en: 'Description' },
     'Properties': { de: 'Eigenschaften', en: 'Properties' },
+    'Frequency': { de: 'Frequenz', en: 'Frequency' },
     'State': { de: 'Status', en: 'State' },
     'Logic': { de: 'Logik', en: 'Logic' },
     'Filter': { de: 'Filter', en: 'Filter' },
