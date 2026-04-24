@@ -9506,6 +9506,13 @@
           html += '<span class="hw-sensor-loading">…</span>';
           html += '</td>';
           html += '<td class="MuiTableCell-root MuiTableCell-body" style="text-align:right;white-space:nowrap">';
+          // Info-Button nur für HTTPSensor - ZUERST/LINKS
+          if (s.type === 'HTTPSensor') {
+            html += '<button class="MuiButtonBase-root MuiIconButton-root" data-sensor-info="' + s.id + '" data-sensor-key="' + (props.Key || '') + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Status & Verlauf' : 'Status & History') + '">';
+            html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>';
+            html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#2196f3;letter-spacing:0.05em">' + (de ? 'INFO' : 'INFO') + '</span>';
+            html += '</button>';
+          }
           html += '<button class="MuiButtonBase-root MuiIconButton-root" data-sensor-delete="' + s.id + '" style="display:inline-flex;flex-direction:column;align-items:center;background:none;border:none;color:var(--text-primary);cursor:pointer;padding:4px 8px;vertical-align:top" title="' + (de ? 'Löschen' : 'Delete') + '">';
           html += '<svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
           html += '<span class="cbpi-icon-label" style="font-size:0.65rem;color:#f44336;letter-spacing:0.05em">' + (de ? 'LÖSCHEN' : 'DELETE') + '</span>';
@@ -9539,6 +9546,15 @@
           btn.addEventListener('click', function() {
             var id = btn.getAttribute('data-sensor-view');
             window.location.hash = '#/sensor/' + id;
+          });
+        });
+
+        tbody.querySelectorAll('[data-sensor-info]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var id = btn.getAttribute('data-sensor-info');
+            var key = btn.getAttribute('data-sensor-key');
+            var sensor = sensors.find(function(s) { return s.id === id; });
+            showHTTPSensorInfo(sensor, key);
           });
         });
       }
@@ -10270,6 +10286,142 @@
   }
 
   // ============================================================
+  // HTTPSensor Status & History anzeigen
+  // ============================================================
+  function showHTTPSensorInfo(sensor, key) {
+    var de = true; // Deutsche Texte verwenden
+    
+    if (!key) {
+      showToast(de ? 'Kein Sensor-Key konfiguriert' : 'No sensor key configured', 'error');
+      return;
+    }
+
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadeIn 0.2s';
+    
+    var modal = document.createElement('div');
+    modal.style.cssText = 'background:var(--paper-bg,#1e1e1e);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.5);animation:slideUp 0.3s';
+    
+    modal.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><h3 style="margin:0;color:var(--text-primary,#fff)">' + (de ? '📊 Sensor Status' : '📊 Sensor Status') + '</h3><button id="closeModal" style="background:none;border:none;color:var(--text-primary,#fff);font-size:24px;cursor:pointer;padding:0;width:32px;height:32px">&times;</button></div><div id="sensorInfoContent" style="color:var(--text-secondary,#ccc)"><div style="text-align:center;padding:40px 0;color:var(--text-secondary,#666)">Lade Daten...</div></div>';
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    overlay.querySelector('#closeModal').addEventListener('click', function() {
+      document.body.removeChild(overlay);
+    });
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) document.body.removeChild(overlay);
+    });
+
+    // History vom Backend laden
+    fetch('/httpsensor/history/' + encodeURIComponent(key))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var content = document.getElementById('sensorInfoContent');
+        var html = '';
+        
+        html += '<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:16px;margin-bottom:16px">';
+        html += '<div style="font-size:0.85rem;color:var(--text-secondary,#999);margin-bottom:4px">' + (de ? 'Sensor' : 'Sensor') + '</div>';
+        html += '<div style="font-size:1.1rem;font-weight:500;color:#00ff00">' + (sensor.name || key) + '</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-secondary,#999);margin-top:4px">Key: <span style="font-family:monospace;color:#4fc3f7">' + key + '</span></div>';
+        html += '</div>';
+        
+        if (!data.values || data.values.length === 0) {
+          html += '<div style="text-align:center;padding:40px 0;color:var(--text-secondary,#666)">' + (de ? 'Noch keine Daten empfangen' : 'No data received yet') + '</div>';
+        } else {
+          var latest = data.values[data.values.length - 1];
+          var values = data.values.map(function(v) { return parseFloat(v.value); });
+          var min = Math.min.apply(null, values);
+          var max = Math.max.apply(null, values);
+          var avg = values.reduce(function(a, b) { return a + b; }, 0) / values.length;
+          var now = Date.now() / 1000;
+          var ageMin = Math.floor((now - latest.unix) / 60);
+          var ageText = ageMin < 1 ? (de ? 'gerade eben' : 'just now') : (de ? 'vor ' + ageMin + ' Min' : ageMin + ' min ago');
+          
+          html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px">';
+          html += '<div style="background:rgba(76,175,80,0.15);border-radius:8px;padding:12px;text-align:center">';
+          html += '<div style="font-size:0.75rem;color:var(--text-secondary,#999);margin-bottom:4px">' + (de ? 'Aktuell' : 'Current') + '</div>';
+          html += '<div style="font-size:1.8rem;font-weight:300;color:#4caf50">' + latest.value + '</div>';
+          html += '<div style="font-size:0.7rem;color:var(--text-secondary,#999);margin-top:4px">' + ageText + '</div>';
+          html += '</div>';
+          html += '<div style="background:rgba(33,150,243,0.15);border-radius:8px;padding:12px;text-align:center">';
+          html += '<div style="font-size:0.75rem;color:var(--text-secondary,#999);margin-bottom:4px">' + (de ? 'Minimum' : 'Minimum') + '</div>';
+          html += '<div style="font-size:1.8rem;font-weight:300;color:#4fc3f7">' + min.toFixed(2) + '</div>';
+          html += '</div>';
+          html += '<div style="background:rgba(255,152,0,0.15);border-radius:8px;padding:12px;text-align:center">';
+          html += '<div style="font-size:0.75rem;color:var(--text-secondary,#999);margin-bottom:4px">' + (de ? 'Maximum' : 'Maximum') + '</div>';
+          html += '<div style="font-size:1.8rem;font-weight:300;color:#ff9800">' + max.toFixed(2) + '</div>';
+          html += '</div>';
+          html += '</div>';
+          
+          html += '<div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:12px;margin-bottom:16px;display:flex;justify-content:space-around;text-align:center">';
+          html += '<div><div style="font-size:0.75rem;color:var(--text-secondary,#999)">' + (de ? 'Durchschnitt' : 'Average') + '</div><div style="font-size:1.2rem;font-weight:300;color:var(--text-primary,#fff)">' + avg.toFixed(2) + '°C</div></div>';
+          html += '<div><div style="font-size:0.75rem;color:var(--text-secondary,#999)">' + (de ? 'Spanne' : 'Range') + '</div><div style="font-size:1.2rem;font-weight:300;color:var(--text-primary,#fff)">' + (max - min).toFixed(2) + '°C</div></div>';
+          html += '<div><div style="font-size:0.75rem;color:var(--text-secondary,#999)">' + (de ? 'Werte' : 'Values') + '</div><div style="font-size:1.2rem;font-weight:300;color:var(--text-primary,#fff)">' + data.count + '</div></div>';
+          html += '</div>';
+          
+          html += '<div style="margin-bottom:8px;font-size:0.9rem;font-weight:500;color:var(--text-primary,#fff)">' + (de ? 'Letzte 10 Werte' : 'Last 10 Values') + '</div>';
+          html += '<div style="background:rgba(255,255,255,0.03);border-radius:8px;overflow:hidden">';
+          var recent = data.values.slice(-10).reverse();
+          recent.forEach(function(v, i) {
+            html += '<div style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);display:flex;justify-content:space-between;align-items:center">';
+            html += '<span style="font-family:monospace;color:#4fc3f7;font-size:1.1rem">' + v.value + '°C</span>';
+            html += '<span style="font-size:0.75rem;color:var(--text-secondary,#999)">' + v.timestamp + '</span>';
+            html += '</div>';
+          });
+          html += '</div>';
+        }
+        
+        content.innerHTML = html;
+      })
+      .catch(function(err) {
+        var content = document.getElementById('sensorInfoContent');
+        content.innerHTML = '<div style="text-align:center;padding:40px 0;color:#f44336">' + (de ? '⚠ Fehler beim Laden der Daten' : '⚠ Error loading data') + '</div>';
+      });
+  }
+
+  // ============================================================
+  // SYSTEM-SEITE übersetzen
+  // ============================================================
+  function enhanceSystemPage() {
+    var de = true;
+    var hash = window.location.hash.replace('#', '');
+    if (hash !== '/system') return;
+
+    // Übersetzungen für System-Seite
+    var translations = {
+      'System restart / Shutdown': 'System-Neustart / Herunterfahren',
+      'Restart:': 'Neustart:',
+      'Shutdown:': 'Herunterfahren:',
+      'Backup Config': 'Konfiguration sichern',
+      'Backup:': 'Sichern:',
+      'Remove Obsolete Config Parameters': 'Veraltete Config-Parameter entfernen',
+      'Remove:': 'Entfernen:',
+      'Restore Config (Max: 5 Mb). (Please restart system afterwards)': 'Konfiguration wiederherstellen (Max: 5 MB). (Bitte System danach neu starten)',
+      'Restore:': 'Wiederherstellen:',
+      'Download log (only for cbpi running as systemctl service)': 'Log herunterladen (nur wenn cbpi als systemctl-Service läuft)',
+      'Download:': 'Herunterladen:',
+      'Dashboard functions': 'Dashboard-Funktionen',
+      'Upload SVG file to widgets folder (Max: 5 Mb)': 'SVG-Datei in Widgets-Ordner hochladen (Max: 5 MB)',
+      'Upload:': 'Hochladen:',
+      'Logtime length for download': 'Log-Zeitspanne für Download',
+      'System Settings': 'System-Einstellungen'
+    };
+
+    // Warte kurz bis Seite geladen ist
+    setTimeout(function() {
+      // Übersetze alle Texte
+      document.querySelectorAll('h2, h3, div, span, label').forEach(function(el) {
+        var text = el.textContent.trim();
+        if (translations[text]) {
+          el.textContent = translations[text];
+        }
+      });
+    }, 500);
+  }
+
+  // ============================================================
   // HARDWARE-SEITE — Fermenter-Sektion injizieren
   // ============================================================
   function enhanceHardwarePage() {
@@ -10872,6 +11024,7 @@
         enhanceRecipePage();
         enhanceRecipeDetailPage();
         enhancePluginPage();
+        enhanceSystemPage();
         enhanceHardwarePage();
         enhanceFermenterDetailPage();
         enhanceSettingsPage();
@@ -10913,6 +11066,7 @@
       enhanceRecipePage();
       enhanceRecipeDetailPage();
       enhancePluginPage();
+      enhanceSystemPage();
       enhanceHardwarePage();
       enhanceFermenterDetailPage();
       enhanceSettingsPage();
@@ -10925,6 +11079,7 @@
     // React-Formulare (z.B. Hardware-Properties) rendern Texte nach Updates erneut auf EN.
     // Daher regelmäßig nachübersetzen.
     translatePage();
+    enhanceSystemPage();
     enhanceHardwarePage();
   }, 1200);
 

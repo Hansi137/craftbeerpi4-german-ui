@@ -15,12 +15,15 @@ import logging
 import re
 import time
 from datetime import datetime
+from collections import deque
 
 from aiohttp import web
 from cbpi.api import *
 from cbpi.api.dataclasses import NotificationAction, NotificationType
 
 cache = {}
+history = {}  # Key -> deque von (timestamp, value) Tupeln
+MAX_HISTORY = 100  # Maximal 100 Einträge pro Sensor
 
 
 @parameters(
@@ -128,6 +131,13 @@ class HTTPSensor(CBPiSensor):
                 if cache_value is not None:
                     self.value = float(cache_value)
                     self.push_update(self.value)
+                    
+                    # History aktualisieren
+                    global history
+                    key = self.props.get("Key")
+                    if key not in history:
+                        history[key] = deque(maxlen=MAX_HISTORY)
+                    history[key].append((time.time(), self.value))
 
                     if self.reducedlogging:
                         await self.logvalue()
@@ -244,6 +254,44 @@ class HTTPSensorEndpoint(CBPiExtension):
         cache[key] = value
 
         return web.Response(status=204)
+
+    @request_mapping(path="/history/{key}", auth_required=False)
+    async def http_get_history(self, request):
+        """
+        ---
+        description: Get value history for a sensor key
+        tags:
+        - HttpSensor
+        parameters:
+        - name: "key"
+          in: "path"
+          description: "Sensor Key"
+          required: true
+          type: "string"
+        responses:
+            "200":
+                description: successful operation
+        """
+        global history
+        key = request.match_info["key"]
+        
+        if key not in history or len(history[key]) == 0:
+            return web.json_response({"key": key, "count": 0, "values": []})
+        
+        # Convert deque to list mit formatiertem Timestamp
+        values = []
+        for ts, val in history[key]:
+            values.append({
+                "timestamp": datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S"),
+                "unix": ts,
+                "value": val
+            })
+        
+        return web.json_response({
+            "key": key,
+            "count": len(values),
+            "values": values
+        })
 
 
 def setup(cbpi):
