@@ -5716,6 +5716,8 @@
   // ZUTATEN-VERWALTUNG — Malz, Hopfen, Wasser pro Rezept
   // ============================================================
   var INGREDIENTS_KEY = 'cbpi_recipe_ingredients';
+  var INGREDIENTS_STORE_KEY = 'recipe_ingredients'; // Server-seitiger Datastore-Key
+  var _ingredientsSynced = false; // Flag: Wurde schon vom Server geladen?
 
   function loadAllIngredients() {
     try { return JSON.parse(localStorage.getItem(INGREDIENTS_KEY)) || {}; } catch(e) { return {}; }
@@ -5723,6 +5725,31 @@
 
   function saveAllIngredients(all) {
     localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(all));
+    // Asynchron auch auf dem Pi-Server speichern (geräteübergreifend)
+    fetch('/datastore/' + INGREDIENTS_STORE_KEY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(all)
+    }).catch(function(e) { console.warn('[CBPI] Zutaten-Sync zum Server fehlgeschlagen:', e); });
+  }
+
+  // Zutaten vom Server laden und in localStorage cachen
+  function syncIngredientsFromServer(callback) {
+    fetch('/datastore/' + INGREDIENTS_STORE_KEY)
+      .then(function(r) { return r.json(); })
+      .then(function(serverData) {
+        if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
+          // Server ist die maßgebliche Quelle
+          localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(serverData));
+        }
+        _ingredientsSynced = true;
+        if (callback) callback();
+      })
+      .catch(function() {
+        // Kein Server-Sync möglich → localStorage-Daten weiter nutzen
+        _ingredientsSynced = true;
+        if (callback) callback();
+      });
   }
 
   function getIngredients(recipeName) {
@@ -7372,7 +7399,7 @@
       var staleSearch = document.querySelector('.recipe-lib-search');
       if (staleSearch) staleSearch.remove();
       var staleMarker = document.getElementById('cbpi-recipe-enhance');
-      if (staleMarker) staleMarker.remove();
+      if (staleMarker) { staleMarker.remove(); _ingredientsSynced = false; } // Reset für nächsten Besuch
       return;
     }
     if (document.getElementById('cbpi-recipe-enhance')) return;
@@ -7427,8 +7454,14 @@
     // Rezept-Details nachladen und Karten anreichern
     enrichRecipeCards();
 
-    // Zutaten-Zusammenfassungen einfügen
-    setTimeout(function() { refreshIngredientSummaries(); }, 800);
+    // Zutaten-Zusammenfassungen einfügen (erst vom Server sync wenn nötig)
+    if (_ingredientsSynced) {
+      setTimeout(function() { refreshIngredientSummaries(); }, 800);
+    } else {
+      syncIngredientsFromServer(function() {
+        setTimeout(function() { refreshIngredientSummaries(); }, 100);
+      });
+    }
   }
 
   function enrichRecipeCards() {
