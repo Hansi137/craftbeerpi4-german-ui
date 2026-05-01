@@ -1067,7 +1067,29 @@
     { re: /Max\. number of backup logs/g, de: 'Maximale Anzahl Backup-Logs' },
     { re: /Max\. number of bytes in sensor logs/g, de: 'Maximale Anzahl Bytes in Sensor-Logs' },
     { re: /Never/g, de: 'Nie' },
-    { re: /UNKNOWN/g, de: 'UNBEKANNT' }
+    { re: /UNKNOWN/g, de: 'UNBEKANNT' },
+    // Backend-Notifications aus mashstep (erscheinen in React-Snackbars)
+    { re: /Hop Alert/g, de: 'Hopfengabe!' },
+    { re: /Please add Hop (\d+)/g, de: 'Hopfen $1 jetzt zugeben' },
+    { re: /Please add ([^(]+) \((\d+)\)/g, de: '$1 zugeben (Gabe $2)' },
+    { re: /First Wort Hop Addition!/g, de: 'Vorderwürzehopfung!' },
+    { re: /Please add hops for first wort/g, de: 'Hopfen für Vorderwürze zugeben' },
+    { re: /Please add ([^f][^o][^r][^ ]+) for first wort/g, de: '$1 für Vorderwürze zugeben' },
+    { re: /Timer started automatically\. Estimated completion: (\S+)/g, de: 'Timer automatisch gestartet. Voraussichtliches Ende: $1' },
+    { re: /Timer started\. Estimated completion: (\S+)/g, de: 'Timer gestartet. Voraussichtliches Ende: $1' },
+    { re: /Please remove lid!/g, de: 'Bitte Deckel abnehmen!' },
+    { re: /Reached temp close to boiling/g, de: 'Temperatur nahe Siedepunkt erreicht' },
+    { re: /Mash Process completed\. Please start lautering and press next to start boil\./g, de: 'Maischen abgeschlossen. Läutern starten und dann auf Weiter drücken.' },
+    { re: /What is the original gravity of the beer wort\?/g, de: 'Stammwürze der Bierwürze messen und notieren.' },
+    { re: /Measure Original Gravity/g, de: 'Stammwürze messen' },
+    { re: /Target Whirlpool temperature reached\. Please add Whirlpool hops\./g, de: 'Whirlpool-Temperatur erreicht. Whirlpool-Hopfen zugeben.' },
+    { re: /Cool down to (\d+) ([CF])\. Then add Whirlpool hops\./g, de: 'Auf $1 °$2 abkühlen, dann Whirlpool-Hopfen zugeben.' },
+    { re: /Cooldown for Whirlpool Hop/g, de: 'Abkühlen für Whirlpool' },
+    { re: /CoolDown for Whirlpool Hop/g, de: 'Abkühlen für Whirlpool' },
+    { re: /Whirlpool Hop/g, de: 'Whirlpool-Hopfung' },
+    { re: /Boil Step/g, de: 'Kochschritt' },
+    { re: /Add Hop in: /g, de: 'Nächste Hopfengabe in: ' },
+    { re: /Waiting for Target Temp/g, de: 'Warte auf Zieltemperatur…' }
   ];
 
   function applyFuzzyGermanTranslations(text) {
@@ -7071,11 +7093,16 @@
         ht.fired = true;
         initHopTimerAudio();
         playHopAlarm();
+        // In-App Toast
+        var hopMsg = currentLang === 'de'
+          ? '🌿 Hopfengabe jetzt: ' + ht.label
+          : '🌿 Add hops now: ' + ht.label;
+        showToast(hopMsg, 'warning', 8000);
         // Browser-Notification (falls erlaubt)
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           new Notification('🌿 ' + ht.label, {
             body: currentLang === 'de' ? 'Hopfengabe jetzt!' : 'Add hops now!',
-            icon: '/static/hops_icon.svg'
+            icon: '/static/cbpi_icon.svg'
           });
         }
       }
