@@ -9,10 +9,14 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# cbpi4ui Build-Verzeichnis automatisch finden
-UI_DIR=$(python3 -c "import cbpi4ui, os; print(os.path.join(os.path.dirname(cbpi4ui.__file__), 'build'))" 2>/dev/null)
+# cbpi4gui Build-Verzeichnis automatisch finden (Paketname ist cbpi4gui, nicht cbpi4ui)
+UI_DIR=$(python3 -c "import cbpi4gui, os; print(os.path.join(os.path.dirname(cbpi4gui.__file__), 'build'))" 2>/dev/null)
 if [ -z "$UI_DIR" ] || [ ! -d "$UI_DIR" ]; then
-    echo "FEHLER: cbpi4ui Build-Verzeichnis nicht gefunden!"
+    # Fallback: cbpi4ui versuchen (ältere Installationen)
+    UI_DIR=$(python3 -c "import cbpi4ui, os; print(os.path.join(os.path.dirname(cbpi4ui.__file__), 'build'))" 2>/dev/null)
+fi
+if [ -z "$UI_DIR" ] || [ ! -d "$UI_DIR" ]; then
+    echo "FEHLER: cbpi4gui/cbpi4ui Build-Verzeichnis nicht gefunden!"
     echo "Stelle sicher, dass CraftBeerPi4 installiert ist und die venv aktiviert ist."
     echo "  source ~/cbpi4_venv/bin/activate"
     exit 1

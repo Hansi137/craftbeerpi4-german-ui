@@ -68,7 +68,7 @@ Dieses Repository ist ein **Fork mit erweiterten Features**:
 ```
 ┌─────────────────────────────────────────────────────┐
 │                  Web-UI (React)                      │
-│  cbpi4ui + translate-de.js + custom.css              │
+│  cbpi4gui + translate-de.js + custom.css             │
 │  (Dark Theme, Deutsche Übersetzung)                  │
 └──────────────────┬──────────────────────────────────┘
                    │ HTTP REST + WebSocket (:8000)
@@ -653,11 +653,26 @@ sudo ./install_ui.sh
 ```
 
 Das Skript:
-1. Findet das cbpi4ui-Build-Verzeichnis automatisch
+1. Findet das cbpi4gui-Build-Verzeichnis automatisch (Paketname auf dem Pi: `cbpi4gui`)
 2. Erstellt Backup der Original-`index.html`
 3. Injiziert CSS, JavaScript und Google Fonts (Inter)
 4. Setzt `<html lang="de">`
 5. Startet CraftBeerPi neu
+
+### 9.1.1 Schnell-Deploy (nur translate-de.js aktualisieren)
+
+Der tatsächlich servierte Pfad auf dem Pi (cbpi4gui-Paket, **nicht** cbpi4ui):
+
+```bash
+# Von Windows (SCP):
+scp custom_ui/translate-de.js pi@192.168.178.93:/home/pi/cbpi4_venv/lib/python3.11/site-packages/cbpi4gui/build/static/js/translate-de.js
+
+# Auf dem Pi direkt:
+cp ~/craftbeerpi4-german-ui/custom_ui/translate-de.js \
+   ~/cbpi4_venv/lib/python3.11/site-packages/cbpi4gui/build/static/js/translate-de.js
+```
+
+> **Hinweis:** Kein Service-Neustart nötig — Datei wird direkt serviert. Browser-Cache mit **Ctrl+Shift+R** leeren.
 
 ### 9.2 Übersetzungssystem (translate-de.js)
 
@@ -694,7 +709,7 @@ Features:
 ```yaml
 name: CraftBeerPi           # Server-Name
 port: 8000                   # HTTP-Port
-index_url: /cbpi4ui/static/  # Frontend-URL
+index_url: /cbpi4gui/static/  # Frontend-URL
 username: cbpi               # Login-Benutzername
 password: cbpi               # Login-Passwort
 mqtt: true                   # MQTT aktivieren
@@ -870,7 +885,7 @@ sudo apt install python3-pip python3-venv
 
 # 2. CraftBeerPi installieren
 pip3 install cbpi4
-pip3 install cbpi4ui
+pip3 install cbpi4gui   # UI-Paket (Achtung: cbpi4gui, nicht cbpi4ui!)
 
 # 3. Setup ausführen
 cbpi setup
@@ -1022,7 +1037,7 @@ Die Dateien `test-startpage*.mjs` testen die UI mit Playwright:
 | numpy | 1.22.2 | Numerische Berechnungen |
 | pandas | 1.4.1 | Datenanalyse/Resampling |
 | cryptography | 36.0.1 | Session-Verschlüsselung |
-| cbpi4ui | latest | React-Frontend |
+| cbpi4gui | latest | React-Frontend (Achtung: Paketname ist cbpi4gui, nicht cbpi4ui) |
 | RPi.GPIO | 0.7.1 | GPIO (nur auf RPi) |
 | click | latest | CLI-Framework |
 | PyInquirer | latest | Interaktive CLI-Prompts |

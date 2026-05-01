@@ -127,17 +127,28 @@ class HTTPSensor(CBPiSensor):
                     await self.message()
                     self.notificationsend = True
             try:
-                cache_value = cache.pop(self.props.get("Key"), None)
-                if cache_value is not None:
-                    self.value = float(cache_value)
+                cache_data = cache.pop(self.props.get("Key"), None)
+                if cache_data is not None:
+                    # Kompatibilität: Wenn cache_data ein String ist (alte Version), konvertieren
+                    if isinstance(cache_data, str):
+                        self.value = float(cache_data)
+                        battery_data = None
+                    else:
+                        self.value = float(cache_data.get("value"))
+                        battery_data = {
+                            "battery": cache_data.get("battery"),
+                            "voltage": cache_data.get("voltage"),
+                            "charging": cache_data.get("charging")
+                        } if cache_data.get("battery") is not None else None
+                    
                     self.push_update(self.value)
                     
-                    # History aktualisieren
+                    # History aktualisieren (mit optionalen Akkudaten)
                     global history
                     key = self.props.get("Key")
                     if key not in history:
                         history[key] = deque(maxlen=MAX_HISTORY)
-                    history[key].append((time.time(), self.value))
+                    history[key].append((time.time(), self.value, battery_data))
 
                     if self.reducedlogging:
                         await self.logvalue()
@@ -251,7 +262,18 @@ class HTTPSensorEndpoint(CBPiExtension):
                 data={"error": "Data not matching pattern ^[a-zA-Z0-9,.]{0,10}$"},
             )
 
-        cache[key] = value
+        # Query-Parameter für Akkudaten auslesen (optional)
+        battery = request.query.get('battery', None)
+        voltage = request.query.get('voltage', None)
+        charging = request.query.get('charging', None)
+        
+        # Daten im Cache speichern (mit optionalen Akkudaten)
+        cache[key] = {
+            "value": value,
+            "battery": int(battery) if battery else None,
+            "voltage": float(voltage) if voltage else None,
+            "charging": charging == 'true' if charging else None
+        }
 
         return web.Response(status=204)
 
@@ -280,12 +302,27 @@ class HTTPSensorEndpoint(CBPiExtension):
         
         # Convert deque to list mit formatiertem Timestamp
         values = []
-        for ts, val in history[key]:
-            values.append({
+        for entry in history[key]:
+            # Kompatibilität: Alte Einträge (ts, val) vs neue (ts, val, battery_data)
+            if len(entry) == 2:
+                ts, val = entry
+                battery_data = None
+            else:
+                ts, val, battery_data = entry
+            
+            item = {
                 "timestamp": datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S"),
                 "unix": ts,
                 "value": val
-            })
+            }
+            
+            # Akkudaten hinzufügen wenn vorhanden
+            if battery_data:
+                item["battery"] = battery_data.get("battery")
+                item["voltage"] = battery_data.get("voltage")
+                item["charging"] = battery_data.get("charging")
+            
+            values.append(item)
         
         return web.json_response({
             "key": key,

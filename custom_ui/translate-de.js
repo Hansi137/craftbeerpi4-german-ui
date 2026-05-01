@@ -8089,7 +8089,7 @@
           var sensorList = sensorData.data || [];
           var sensorMap = {};
           sensorList.forEach(function(s) {
-            sensorMap[s.id] = { name: s.name, value: sensorValueMap[s.id] };
+            sensorMap[s.id] = { name: s.name, value: sensorValueMap[s.id], type: s.type, props: s.props };
           });
           // Auch Sensoren ergänzen die nur Werte haben aber nicht in der Liste
           Object.keys(sensorValueMap).forEach(function(sid) {
@@ -8122,6 +8122,13 @@
             });
             body.innerHTML = html;
             _fermenterLastGraphDraw = Date.now();
+
+            // Akkustand auch beim ersten Render befüllen
+            setTimeout(function() {
+              fermenters.forEach(function(f) {
+                updateFermenterCardValues(f, sensorMap, de);
+              });
+            }, 100);
 
             // Graphen initialisieren (nach kurzer Verzögerung für DOM-Rendering)
             setTimeout(function() {
@@ -8184,6 +8191,32 @@
       var s2Name = sensorMap[sensor2Id].name || 'iSpindle';
       if (!isNaN(s2Val)) {
         s2El.innerHTML = '🫧 ' + s2Name + ': <b>' + s2Val.toFixed(2) + '</b>';
+      }
+    }
+
+    // Akkustand (nur für HTTPSensor, Metadaten direkt aus sensorMap)
+    var batteryEl = document.getElementById('ferm-battery-' + f.id);
+    if (batteryEl && f.sensor && sensorMap[f.sensor]) {
+      var sensorData = sensorMap[f.sensor];
+      if (sensorData.type === 'HTTPSensor' && sensorData.props && sensorData.props.Key) {
+        var key = sensorData.props.Key;
+        fetch('/httpsensor/history/' + encodeURIComponent(key))
+          .then(function(r) { return r.json(); })
+          .then(function(histData) {
+            if (histData.values && histData.values.length > 0) {
+              var latest = histData.values[histData.values.length - 1];
+              if (latest.battery !== undefined && latest.battery !== null) {
+                var batteryIcon = latest.charging ? '🔌' : (latest.battery > 75 ? '🔋' : (latest.battery > 30 ? '🔋' : '🪫'));
+                var batteryColor = latest.charging ? '#4caf50' : (latest.battery > 30 ? '#4fc3f7' : (latest.battery > 10 ? '#ff9800' : '#f44336'));
+                var batteryText = batteryIcon + ' ' + latest.battery + '%';
+                if (latest.voltage) batteryText += ' (' + latest.voltage.toFixed(2) + 'V)';
+                if (latest.charging) batteryText += ' • ' + (de ? 'lädt' : 'charging');
+                batteryEl.innerHTML = batteryText;
+                batteryEl.style.color = batteryColor;
+                batteryEl.style.display = 'block';
+              }
+            }
+          }).catch(function() { /* Kein Akkustand verfügbar */ });
       }
     }
 
@@ -8784,6 +8817,8 @@
         html += '<div class="fermenter-ispindle" id="ferm-ispindle-' + f.id + '" style="color:#ab47bc;font-size:0.85rem;margin-top:4px">🫧 ' + s2Name + ': <b>' + s2Val.toFixed(2) + '</b></div>';
       }
     }
+    // Akkustand-Container (wird später befüllt wenn HTTPSensor mit Akkudaten)
+    html += '<div class="fermenter-battery" id="ferm-battery-' + f.id + '" style="color:#4fc3f7;font-size:0.85rem;margin-top:4px;display:none"></div>';
     html += '</div>';
 
     // Aktiver Schritt
@@ -10360,6 +10395,27 @@
           html += '<div><div style="font-size:0.75rem;color:var(--text-secondary,#999)">' + (de ? 'Spanne' : 'Range') + '</div><div style="font-size:1.2rem;font-weight:300;color:var(--text-primary,#fff)">' + (max - min).toFixed(2) + '°C</div></div>';
           html += '<div><div style="font-size:0.75rem;color:var(--text-secondary,#999)">' + (de ? 'Werte' : 'Values') + '</div><div style="font-size:1.2rem;font-weight:300;color:var(--text-primary,#fff)">' + data.count + '</div></div>';
           html += '</div>';
+          
+          // Akkustand anzeigen (falls vorhanden)
+          if (latest.battery !== undefined && latest.battery !== null) {
+            var batteryColor = latest.charging ? '#4caf50' : (latest.battery > 30 ? '#4fc3f7' : (latest.battery > 10 ? '#ff9800' : '#f44336'));
+            var batteryIcon = latest.charging ? '🔌' : (latest.battery > 75 ? '🔋' : (latest.battery > 30 ? '🔋' : '🪫'));
+            html += '<div style="background:rgba(33,150,243,0.1);border-radius:8px;padding:12px;margin-bottom:16px;display:flex;align-items:center;gap:12px">';
+            html += '<div style="font-size:2rem">' + batteryIcon + '</div>';
+            html += '<div style="flex:1">';
+            html += '<div style="font-size:0.75rem;color:var(--text-secondary,#999);margin-bottom:4px">' + (de ? 'Akku-Status' : 'Battery Status') + '</div>';
+            html += '<div style="font-size:1.5rem;font-weight:300;color:' + batteryColor + '">' + latest.battery + '%</div>';
+            if (latest.voltage) {
+              html += '<div style="font-size:0.75rem;color:var(--text-secondary,#999);margin-top:2px">' + latest.voltage.toFixed(2) + 'V';
+              if (latest.charging) html += ' • ' + (de ? 'lädt' : 'charging');
+              html += '</div>';
+            }
+            html += '</div>';
+            html += '<div style="flex:1;background:rgba(0,0,0,0.2);border-radius:6px;height:12px;overflow:hidden">';
+            html += '<div style="background:' + batteryColor + ';height:100%;width:' + latest.battery + '%;transition:width 0.3s"></div>';
+            html += '</div>';
+            html += '</div>';
+          }
           
           html += '<div style="margin-bottom:8px;font-size:0.9rem;font-weight:500;color:var(--text-primary,#fff)">' + (de ? 'Letzte 10 Werte' : 'Last 10 Values') + '</div>';
           html += '<div style="background:rgba(255,255,255,0.03);border-radius:8px;overflow:hidden">';
