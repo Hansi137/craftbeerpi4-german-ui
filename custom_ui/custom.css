@@ -1892,6 +1892,7 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 .cockpit-step-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   padding: 10px 12px;
   border-radius: 8px;
@@ -1953,6 +1954,20 @@ body:has(#cbpi-status-bar:not(.hidden)) {
 .cockpit-step-row-status.active { color: var(--accent); }
 .cockpit-step-row-status.done { color: var(--text-muted); }
 .cockpit-step-row-status.pending { color: var(--text-muted); }
+
+/* Hopfengaben-Sub-Liste im Brau-Fahrplan */
+.cockpit-step-hop-list {
+  width: 100%;
+  padding: 4px 0 2px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cockpit-step-hop-item {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0.85;
+}
 
 /* Idle-State */
 .cockpit-idle-hero {

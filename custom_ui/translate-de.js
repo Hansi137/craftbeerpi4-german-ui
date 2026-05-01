@@ -3308,6 +3308,44 @@
       // Pulse-Klasse synchron halten
       if (shouldShow && nextBtn && !nextBtn.classList.contains('pulse')) nextBtn.classList.add('pulse');
     }
+
+    // 8. Hop-Timer-Panel aktualisieren (BoilStep)
+    if (activeStep) {
+      updateHopTimers(activeStep);
+      var hopPanel = cockpit.querySelector('.cockpit-hop-timer');
+      if (_hopTimers.length > 0) {
+        if (!hopPanel) {
+          // Panel noch nicht vorhanden (z.B. Schritt hat sich geändert) → vor Schrittliste einfügen
+          var stepsCard = cockpit.querySelector('.cockpit-steps-card');
+          if (stepsCard) stepsCard.insertAdjacentHTML('beforebegin', renderHopTimerPanel());
+        } else {
+          // Panel vorhanden → Countdowns + Status aktualisieren
+          var de = currentLang === 'de';
+          _hopTimers.forEach(function(ht) {
+            var item = hopPanel.querySelector('[data-hop-id="' + ht.id + '"]');
+            if (!item) return;
+            var mins = Math.floor(ht.remainSec / 60);
+            var secs = ht.remainSec % 60;
+            var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
+            var timeEl = item.querySelector('.hop-timer-time');
+            var fillEl = item.querySelector('.hop-timer-fill');
+            if (timeEl) {
+              var newText = ht.fired ? '✅ ' + (de ? 'Zugabe!' : 'Add!') : timeStr;
+              if (timeEl.textContent !== newText) timeEl.textContent = newText;
+            }
+            if (fillEl) {
+              var pct = ht.totalSec > 0 ? Math.min(100, Math.round(((ht.totalSec - ht.remainSec) / ht.totalSec) * 100)) : (ht.fired ? 100 : 0);
+              fillEl.style.width = pct + '%';
+            }
+            var newClass = 'hop-timer-item' + (ht.fired ? ' fired' : (ht.remainSec < 60 ? ' soon' : ''));
+            if (item.className.trim() !== newClass.trim()) item.className = newClass.trim();
+          });
+        }
+      } else if (hopPanel) {
+        // BoilStep fertig oder kein Hop-Step mehr aktiv → Panel entfernen
+        hopPanel.remove();
+      }
+    }
   }
 
   // Lightgewicht-Update: Nur Temperaturwerte im DOM aktualisieren (kein innerHTML-Replace)
@@ -4261,6 +4299,23 @@
       var temp = (step.props && step.props.Temp) ? parseFloat(step.props.Temp).toFixed(0) + '°C' : '';
       var timer = (step.props && step.props.Timer) ? step.props.Timer + ' min' : '';
 
+      // Hopfengaben aus BoilStep extrahieren
+      var hopLines = [];
+      var stepType = (step.type || '').toLowerCase();
+      if (stepType.indexOf('boil') !== -1 && step.props) {
+        if (step.props.First_Wort === 'Yes') {
+          var fwTxt = (step.props.First_Wort_text || '').trim();
+          hopLines.push('🌿 ' + (fwTxt ? fwTxt + ' — ' : '') + (de ? 'Vorderwürze' : 'First Wort'));
+        }
+        for (var h = 1; h <= 6; h++) {
+          var hVal = parseInt(step.props['Hop_' + h]);
+          if (hVal > 0) {
+            var hTxt = (step.props['Hop_' + h + '_text'] || '').trim();
+            hopLines.push('🌿 ' + (hTxt ? hTxt + ' — ' : '') + hVal + ' min ' + (de ? 'vor Ende' : 'before end'));
+          }
+        }
+      }
+
       // Bei vielen Schritten: nur aktiven + Nachbarn zeigen, Rest verstecken
       var isVisible = !needsCollapse || isActive || isDone ||
         (activeIdx >= 0 && idx >= activeIdx - 1 && idx <= activeIdx + VISIBLE_AROUND) ||
@@ -4273,6 +4328,11 @@
       html += '<span class="cockpit-step-row-temp">' + temp + '</span>';
       html += '<span class="cockpit-step-row-time">' + timer + '</span>';
       html += '<span class="cockpit-step-row-status ' + statusClass + '">' + statusText + '</span>';
+      if (hopLines.length > 0) {
+        html += '<div class="cockpit-step-hop-list">';
+        hopLines.forEach(function(line) { html += '<div class="cockpit-step-hop-item">' + line + '</div>'; });
+        html += '</div>';
+      }
       html += '</div>';
     });
 
@@ -6942,11 +7002,16 @@
     // Hop_1 bis Hop_6: "Minuten vor Ende"
     for (var i = 1; i <= 6; i++) {
       var key = 'Hop_' + i;
+      var keyText = 'Hop_' + i + '_text';
       var minBefore = parseInt(step.props[key]);
       if (minBefore > 0) {
+        var sortName = (step.props[keyText] || '').trim();
+        var label = sortName
+          ? sortName + ' (' + minBefore + ' min)'
+          : (currentLang === 'de' ? 'Hopfen ' : 'Hop ') + i + ' (' + minBefore + ' min)';
         timers.push({
           id: 'hop_' + i,
-          label: (currentLang === 'de' ? 'Hopfen ' : 'Hop ') + i,
+          label: label,
           minBefore: minBefore,
           totalSec: minBefore * 60,
           remainSec: minBefore * 60,
@@ -6956,9 +7021,13 @@
     }
     // First_Wort
     if (step.props.First_Wort === 'Yes') {
+      var fwText = (step.props.First_Wort_text || '').trim();
+      var fwLabel = fwText
+        ? (currentLang === 'de' ? 'Vorderwürze: ' : 'First Wort: ') + fwText
+        : (currentLang === 'de' ? 'Vorderwürze' : 'First Wort');
       timers.unshift({
         id: 'first_wort',
-        label: currentLang === 'de' ? 'Vorderwürze' : 'First Wort',
+        label: fwLabel,
         minBefore: totalMin,
         totalSec: 0,
         remainSec: 0,
@@ -7024,10 +7093,10 @@
       var secs = ht.remainSec % 60;
       var timeStr = mins + ':' + (secs < 10 ? '0' : '') + secs;
       var statusClass = ht.fired ? 'fired' : (ht.remainSec < 60 ? 'soon' : '');
-      html += '<div class="hop-timer-item ' + statusClass + '">';
+      html += '<div class="hop-timer-item ' + statusClass + '" data-hop-id="' + ht.id + '">';
       html += '<div class="hop-timer-label">' + ht.label + '</div>';
       html += '<div class="hop-timer-time">' + (ht.fired ? '✅ ' + (de ? 'Zugabe!' : 'Add!') : timeStr) + '</div>';
-      html += '<div class="hop-timer-info">' + ht.minBefore + ' min ' + (de ? 'vor Ende' : 'before end') + '</div>';
+      html += '<div class="hop-timer-info">' + (de ? 'noch ' : 'in ') + ht.minBefore + ' min ' + (de ? 'vor Kochende' : 'before end') + '</div>';
       var pct = ht.totalSec > 0 ? Math.min(100, Math.round(((ht.totalSec - ht.remainSec) / ht.totalSec) * 100)) : (ht.fired ? 100 : 0);
       html += '<div class="hop-timer-progress"><div class="hop-timer-fill" style="width:' + pct + '%"></div></div>';
       html += '</div>';
