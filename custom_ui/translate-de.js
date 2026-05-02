@@ -4385,6 +4385,40 @@
     return 0;
   }
 
+  // Weist allen geladenen Brau-Schritten automatisch den ersten verfügbaren Kessel
+  // und dessen Sensor zu — wird nach jedem /recipe/{id}/brew POST aufgerufen.
+  function assignKettleToSteps() {
+    return fetch('/kettle/')
+      .then(function(r) { return r.json(); })
+      .then(function(resp) {
+        var kettles = resp.data || resp || [];
+        if (!kettles.length) return;
+        var kettle = kettles[0];
+        var kettleId = kettle.id;
+        var sensorId = kettle.sensor || '';
+        return fetch('/step2/')
+          .then(function(r) { return r.json(); })
+          .then(function(stepData) {
+            var steps = (stepData && stepData.steps) ? stepData.steps : [];
+            var updates = steps
+              .filter(function(s) { return 'Kettle' in s.props; })
+              .map(function(s) {
+                s.props.Kettle = kettleId;
+                if ('Sensor' in s.props) s.props.Sensor = sensorId;
+                return fetch('/step2/' + s.id, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(s)
+                });
+              });
+            return Promise.all(updates);
+          });
+      })
+      .catch(function(err) {
+        console.warn('[CBPI] assignKettleToSteps failed:', err);
+      });
+  }
+
   function executeCockpitAction(action) {
     var de = currentLang === 'de';
     _cockpitRenderLock = Date.now() + 2000;
@@ -4463,6 +4497,7 @@
       brewBtn.textContent = de ? '⏳ Wird geladen…' : '⏳ Loading…';
       brewBtn.disabled = true;
       fetch('/recipe/' + encodeURIComponent(recipeId) + '/brew', { method: 'POST' })
+        .then(function() { return assignKettleToSteps(); })
         .then(function() {
           _cockpitRenderLock = 0;
           renderCockpit(true);
