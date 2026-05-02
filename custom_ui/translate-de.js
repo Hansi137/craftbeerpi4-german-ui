@@ -5260,6 +5260,7 @@
 
   function saveSrcProfiles(profiles) {
     localStorage.setItem(WATER_SRC_PROFILES_KEY, JSON.stringify(profiles));
+    syncToServer('water_src_profiles', profiles);
   }
 
   function getActiveSrcProfileId() {
@@ -5268,6 +5269,7 @@
 
   function setActiveSrcProfileId(id) {
     localStorage.setItem(WATER_SRC_ACTIVE_KEY, id || '');
+    syncToServer('water_src_active', { id: id || '' });
   }
 
   // Salz-Beiträge pro Gramm pro Liter (mg/L)
@@ -5837,12 +5839,40 @@
 
   function saveAllIngredients(all) {
     localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(all));
-    // Asynchron auch auf dem Pi-Server speichern (geräteübergreifend)
-    fetch('/datastore/' + INGREDIENTS_STORE_KEY, {
+    syncToServer(INGREDIENTS_STORE_KEY, all);
+  }
+
+  // ── Generische Server-Sync-Helfer (Pi Datastore) ──────────────────────
+  function syncToServer(storeKey, data) {
+    fetch('/datastore/' + storeKey, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(all)
-    }).catch(function(e) { console.warn('[CBPI] Zutaten-Sync zum Server fehlgeschlagen:', e); });
+      body: JSON.stringify(data)
+    }).catch(function(e) { console.warn('[CBPI] Server-Sync fehlgeschlagen (' + storeKey + '):', e); });
+  }
+
+  function syncFromServer(storeKey, localKey, callback) {
+    fetch('/datastore/' + storeKey)
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(serverData) {
+        if (serverData && typeof serverData === 'object' && !serverData.detail && !serverData.error) {
+          localStorage.setItem(localKey, JSON.stringify(serverData));
+        }
+        if (callback) callback();
+      })
+      .catch(function() { if (callback) callback(); });
+  }
+
+  function syncFromServerArray(storeKey, localKey, callback) {
+    fetch('/datastore/' + storeKey)
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(serverData) {
+        if (serverData && Array.isArray(serverData) && serverData.length > 0) {
+          localStorage.setItem(localKey, JSON.stringify(serverData));
+        }
+        if (callback) callback();
+      })
+      .catch(function() { if (callback) callback(); });
   }
 
   // Zutaten vom Server laden und in localStorage cachen
@@ -7134,6 +7164,7 @@
 
   function saveSpargeSettings(vals) {
     localStorage.setItem(SPARGE_KEY, JSON.stringify(vals));
+    syncToServer('sparge_settings', vals);
   }
 
   function buildSpargeCalculator() {
@@ -7335,6 +7366,7 @@
 
   function saveBrewLogs(logs) {
     localStorage.setItem(BREWLOG_KEY, JSON.stringify(logs));
+    syncToServer('brewlog', logs);
   }
 
   function addBrewLogEntry(entry) {
@@ -7864,7 +7896,13 @@
   function loadRecipeMeta(key) {
     try { return JSON.parse(localStorage.getItem(key)) || {}; } catch(e) { return {}; }
   }
-  function saveRecipeMeta(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
+  function saveRecipeMeta(key, data) {
+    localStorage.setItem(key, JSON.stringify(data));
+    var storeKey = key === RECIPE_FAVORITES_KEY ? 'recipe_favorites'
+                 : key === RECIPE_TAGS_KEY      ? 'recipe_tags'
+                 : key === RECIPE_NOTES_KEY     ? 'recipe_notes' : null;
+    if (storeKey) syncToServer(storeKey, data);
+  }
 
   function toggleRecipeFavorite(recipeId) {
     var favs = loadRecipeMeta(RECIPE_FAVORITES_KEY);
@@ -8273,6 +8311,19 @@
         setTimeout(function() { refreshIngredientSummaries(); }, 100);
       });
     }
+
+    // Alle weiteren Daten vom Server laden (Braulogbuch, Wasserprofile, etc.)
+    syncFromServerArray('brewlog',          BREWLOG_KEY, null);
+    syncFromServerArray('water_src_profiles', WATER_SRC_PROFILES_KEY, null);
+    // water_src_active: { id: "..." } → nur den id-String in localStorage
+    fetch('/datastore/water_src_active')
+      .then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function(d) { if (d && d.id !== undefined && !d.detail) localStorage.setItem(WATER_SRC_ACTIVE_KEY, d.id); })
+      .catch(function() {});
+    syncFromServer('sparge_settings',   SPARGE_KEY, null);
+    syncFromServer('recipe_favorites',  RECIPE_FAVORITES_KEY, null);
+    syncFromServer('recipe_tags',       RECIPE_TAGS_KEY, null);
+    syncFromServer('recipe_notes',      RECIPE_NOTES_KEY, null);
   }
 
   function enrichRecipeCards() {
