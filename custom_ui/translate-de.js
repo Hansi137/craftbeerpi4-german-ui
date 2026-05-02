@@ -2427,7 +2427,7 @@
   // Routen im Anfänger-Modus (nur das Wesentliche)
   var beginnerRoutes = ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge', 'fermenter', 'hardware', 'settings', 'system', 'help'];
   // Zusätzliche Routen im Experten-Modus
-  var expertRoutes = ['actor', 'sensor', 'kettle', 'brewlog', 'analytics', 'data', 'plugins', 'upload', 'about'];
+  var expertRoutes = ['actor', 'sensor', 'kettle', 'brewlog', 'analytics', 'data', 'plugins', 'about'];
 
   var navGroups = {
     de: [
@@ -2435,14 +2435,14 @@
       { label: 'Gärung', routes: ['fermenter'] },
       { label: 'Analyse', routes: ['brewlog', 'analytics', 'data'] },
       { label: 'Einrichtung', routes: ['hardware', 'settings'] },
-      { label: 'System', routes: ['plugins', 'upload', 'system', 'about', 'help'] }
+      { label: 'System', routes: ['plugins', 'system', 'about', 'help'] }
     ],
     en: [
       { label: 'Brewing', routes: ['cockpit', 'dashboard', 'mashprofile', 'recipes', 'water', 'sparge'] },
       { label: 'Fermentation', routes: ['fermenter'] },
       { label: 'Analysis', routes: ['brewlog', 'analytics', 'data'] },
       { label: 'Setup', routes: ['hardware', 'settings'] },
-      { label: 'System', routes: ['plugins', 'upload', 'system', 'about', 'help'] }
+      { label: 'System', routes: ['plugins', 'system', 'about', 'help'] }
     ]
   };
 
@@ -4880,8 +4880,16 @@
     toolbar.className = 'cbpi-recipe-tools';
 
     toolbar.innerHTML =
-      '<button class="cbpi-recipe-btn export-all" id="cbpi-export-all">' +
-      '📤 ' + (de ? 'Alle Rezepte exportieren' : 'Export All Recipes') + '</button>' +
+      '<div class="cbpi-export-wrap" id="cbpi-export-wrap">' +
+        '<button class="cbpi-recipe-btn export-all" id="cbpi-export-all">' +
+          '📤 ' + (de ? 'Exportieren' : 'Export') + ' ▾</button>' +
+        '<div class="cbpi-export-menu" id="cbpi-export-menu" style="display:none">' +
+          '<button class="cbpi-export-item" id="cbpi-export-cbpi4">' + (de ? '📦 CBPi4 JSON (alle Rezepte)' : '📦 CBPi4 JSON (all recipes)') + '</button>' +
+          '<button class="cbpi-export-item" id="cbpi-export-mmum">' + (de ? '🍺 MMuM JSON (einzelnes Rezept)' : '🍺 MMuM JSON (single recipe)') + '</button>' +
+          '<button class="cbpi-export-item" id="cbpi-export-beerxml">' + (de ? '🗂️ BeerXML (einzelnes Rezept)' : '🗂️ BeerXML (single recipe)') + '</button>' +
+          '<button class="cbpi-export-item" id="cbpi-export-brewfather">' + (de ? '🌾 Brewfather JSON (einzelnes Rezept)' : '🌾 Brewfather JSON (single recipe)') + '</button>' +
+        '</div>' +
+      '</div>' +
       '<button class="cbpi-recipe-btn import" id="cbpi-import-recipe">' +
       '📥 ' + (de ? 'Rezept importieren' : 'Import Recipe') + '</button>' +
       '<input type="file" id="cbpi-recipe-file" accept=".json,.xml,.beerxml" style="display:none">';
@@ -4898,44 +4906,106 @@
 
     _isOurDomChange = true;
 
-    // Export All
-    document.getElementById('cbpi-export-all').onclick = function () {
+    // Rezeptliste cachen (einmalig laden)
+    var recipes_cache = null;
+    function loadRecipeList(cb) {
+      if (recipes_cache) { cb(recipes_cache); return; }
       fetch('/recipe/')
         .then(function (r) { return r.json(); })
-        .then(function (recipes) {
-          if (!recipes || recipes.length === 0) {
-            alert(de ? 'Keine Rezepte vorhanden.' : 'No recipes found.');
-            return;
-          }
-          // Alle Rezept-Details laden
-          var promises = recipes.map(function (r) {
-            return fetch('/recipe/' + r.file)
-              .then(function (resp) { return resp.json(); })
-              .then(function (detail) {
-                return { id: r.file, name: r.name, author: r.author, desc: r.desc, detail: detail };
-              });
-          });
-          return Promise.all(promises);
-        })
-        .then(function (fullRecipes) {
-          if (!fullRecipes) return;
-          var exportData = {
-            app: 'CraftBeerPi4',
-            version: '1.0',
-            exported: new Date().toISOString(),
-            recipes: fullRecipes
-          };
-          var blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-          var url = URL.createObjectURL(blob);
-          var a = document.createElement('a');
-          a.href = url;
-          a.download = 'cbpi4_rezepte_' + new Date().toISOString().slice(0, 10) + '.json';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        })
-        .catch(function (err) { console.error('[CBPI] Export error:', err); alert((de ? 'Export fehlgeschlagen: ' : 'Export failed: ') + err.message); });
+        .then(function (list) { recipes_cache = list || []; cb(recipes_cache); })
+        .catch(function (err) { showToast((de ? 'Rezepte konnten nicht geladen werden: ' : 'Failed to load recipes: ') + err.message, 'error'); });
+    }
+
+    // Wiederverwendbares Auswahl-Modal für Einzel-Export
+    function showExportRecipePicker(title, cb) {
+      loadRecipeList(function (recipes) {
+        if (!recipes.length) { showToast(de ? 'Keine Rezepte vorhanden.' : 'No recipes found.', 'info'); return; }
+        var overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML =
+          '<div style="background:var(--bg-surface,#1a2744);border:1px solid var(--border,rgba(255,255,255,.1));border-radius:12px;padding:24px;min-width:320px;max-width:480px;color:var(--text,#e0e0e0);font-family:Inter,sans-serif;">' +
+          '<h3 style="margin:0 0 16px;font-size:1.1rem;">' + title + '</h3>' +
+          '<label style="display:block;margin-bottom:8px;font-size:.875rem;opacity:.7;">' + (de ? 'Rezept auswählen:' : 'Select recipe:') + '</label>' +
+          '<select id="cbpi-exp-sel" style="width:100%;padding:8px;background:var(--bg-input,#0f172a);color:var(--text,#e0e0e0);border:1px solid var(--border,rgba(255,255,255,.15));border-radius:6px;font-size:.9rem;margin-bottom:20px;">' +
+          recipes.map(function (r) { return '<option value="' + r.file + '">' + (r.name || r.file) + '</option>'; }).join('') +
+          '</select>' +
+          '<div style="display:flex;gap:10px;justify-content:flex-end;">' +
+          '<button id="cbpi-exp-cancel" style="padding:8px 18px;border-radius:6px;border:1px solid var(--border,rgba(255,255,255,.15));background:transparent;color:var(--text,#e0e0e0);cursor:pointer;">' + (de ? 'Abbrechen' : 'Cancel') + '</button>' +
+          '<button id="cbpi-exp-ok" style="padding:8px 18px;border-radius:6px;border:none;background:var(--accent,#3b82f6);color:#fff;cursor:pointer;">' + (de ? 'Exportieren' : 'Export') + '</button>' +
+          '</div></div>';
+        document.body.appendChild(overlay);
+        overlay.querySelector('#cbpi-exp-cancel').onclick = function () { overlay.remove(); };
+        overlay.onclick = function (e) { if (e.target === overlay) overlay.remove(); };
+        overlay.querySelector('#cbpi-exp-ok').onclick = function () {
+          var fileId = overlay.querySelector('#cbpi-exp-sel').value;
+          var rec = recipes.find(function (r) { return r.file === fileId; });
+          overlay.remove();
+          cb(fileId, rec ? rec.name : fileId);
+        };
+      });
+    }
+
+    // Export Dropdown toggle
+    document.getElementById('cbpi-export-all').onclick = function (e) {
+      var menu = document.getElementById('cbpi-export-menu');
+      menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+      e.stopPropagation();
+      // Rezeptliste voraufladen
+      loadRecipeList(function () {});
+    };
+    document.addEventListener('click', function () {
+      var menu = document.getElementById('cbpi-export-menu');
+      if (menu) menu.style.display = 'none';
+    });
+
+    // CBPi4 JSON – alle Rezepte
+    document.getElementById('cbpi-export-cbpi4').onclick = function () {
+      document.getElementById('cbpi-export-menu').style.display = 'none';
+      loadRecipeList(function (recipes) {
+        if (!recipes.length) { showToast(de ? 'Keine Rezepte vorhanden.' : 'No recipes found.', 'info'); return; }
+        var promises = recipes.map(function (r) {
+          return fetch('/recipe/' + r.file)
+            .then(function (resp) { return resp.json(); })
+            .then(function (detail) { return { id: r.file, name: r.name, author: r.author, desc: r.desc, detail: detail }; });
+        });
+        Promise.all(promises).then(function (fullRecipes) {
+          var exportData = { app: 'CraftBeerPi4', version: '1.0', exported: new Date().toISOString(), recipes: fullRecipes };
+          triggerDownload(JSON.stringify(exportData, null, 2), 'cbpi4_rezepte_' + new Date().toISOString().slice(0, 10) + '.json', 'application/json');
+        }).catch(function (err) { showToast((de ? 'Export fehlgeschlagen: ' : 'Export failed: ') + err.message, 'error'); });
+      });
+    };
+
+    // MMuM JSON
+    document.getElementById('cbpi-export-mmum').onclick = function () {
+      document.getElementById('cbpi-export-menu').style.display = 'none';
+      showExportRecipePicker(de ? '🍺 Als MMuM JSON exportieren' : '🍺 Export as MMuM JSON', function (fileId, recipeName) {
+        fetch('/recipe/' + fileId).then(function (r) { return r.json(); }).then(function (detail) {
+          var mmum = convertCbpi4ToMmum(detail, recipeName);
+          triggerDownload(JSON.stringify(mmum, null, 2), (recipeName || 'rezept').replace(/[^\w\-äöüÄÖÜ ]/g, '_') + '_mmum.json', 'application/json');
+        }).catch(function (err) { showToast((de ? 'Export fehlgeschlagen: ' : 'Export failed: ') + err.message, 'error'); });
+      });
+    };
+
+    // BeerXML
+    document.getElementById('cbpi-export-beerxml').onclick = function () {
+      document.getElementById('cbpi-export-menu').style.display = 'none';
+      showExportRecipePicker(de ? '🗂️ Als BeerXML exportieren' : '🗂️ Export as BeerXML', function (fileId, recipeName) {
+        fetch('/recipe/' + fileId).then(function (r) { return r.json(); }).then(function (detail) {
+          var xml = convertCbpi4ToBeerXml(detail, recipeName);
+          triggerDownload(xml, (recipeName || 'rezept').replace(/[^\w\-äöüÄÖÜ ]/g, '_') + '.xml', 'application/xml');
+        }).catch(function (err) { showToast((de ? 'Export fehlgeschlagen: ' : 'Export failed: ') + err.message, 'error'); });
+      });
+    };
+
+    // Brewfather JSON
+    document.getElementById('cbpi-export-brewfather').onclick = function () {
+      document.getElementById('cbpi-export-menu').style.display = 'none';
+      showExportRecipePicker(de ? '🌾 Als Brewfather JSON exportieren' : '🌾 Export as Brewfather JSON', function (fileId, recipeName) {
+        fetch('/recipe/' + fileId).then(function (r) { return r.json(); }).then(function (detail) {
+          var bf = convertCbpi4ToBrewfather(detail, recipeName);
+          triggerDownload(JSON.stringify(bf, null, 2), (recipeName || 'rezept').replace(/[^\w\-äöüÄÖÜ ]/g, '_') + '_brewfather.json', 'application/json');
+        }).catch(function (err) { showToast((de ? 'Export fehlgeschlagen: ' : 'Export failed: ') + err.message, 'error'); });
+      });
     };
 
     // Import
@@ -4950,15 +5020,12 @@
         var fileContent = ev.target.result;
         var fileName = file.name.toLowerCase();
 
-        // BeerXML-Datei? → via Upload-API
+        // ── BeerXML ──────────────────────────────────────────────
         if (fileName.endsWith('.xml') || fileName.endsWith('.beerxml')) {
           var xmlBlob = new Blob([fileContent], { type: 'text/xml' });
-          var xmlFormData = new FormData();
-          xmlFormData.append('File', xmlBlob, file.name);
-          fetch('/upload/', {
-            method: 'POST',
-            body: xmlFormData
-          })
+          var xmlForm = new FormData();
+          xmlForm.append('File', xmlBlob, file.name);
+          fetch('/upload/', { method: 'POST', body: xmlForm })
             .then(function () { return fetch('/upload/xml'); })
             .then(function (r) { return r.json(); })
             .then(function (list) {
@@ -4966,23 +5033,19 @@
                 showToast(de ? 'Keine Rezepte in der XML-Datei gefunden' : 'No recipes found in XML file', 'error');
                 return;
               }
-              // Alle Rezepte importieren
-              var imported = 0;
+              var done = 0;
               list.forEach(function (item) {
                 fetch('/upload/xml', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ id: item.value })
-                })
-                  .then(function () {
-                    imported++;
-                    if (imported === list.length) {
-                      showToast(de ? imported + ' BeerXML-Rezept(e) importiert!' : imported + ' BeerXML recipe(s) imported!', 'success');
-                      window.location.hash = '#/';
-                      setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
-                    }
-                  })
-                  .catch(function (err) { console.error('[CBPI] BeerXML import error:', err); });
+                }).then(function () {
+                  done++;
+                  if (done === list.length) {
+                    showToast(de ? done + ' BeerXML-Rezept(e) importiert!' : done + ' BeerXML recipe(s) imported!', 'success');
+                    window.location.hash = '#/'; setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
+                  }
+                }).catch(function (err) { console.error('[CBPI] BeerXML import error:', err); });
               });
             })
             .catch(function (err) {
@@ -4995,92 +5058,33 @@
           var data = JSON.parse(fileContent);
           var recipes = [];
 
-          // Format erkennen
+          // ── CBPi4 Multi-Export ────────────────────────────────
           if (data.recipes && Array.isArray(data.recipes)) {
-            // Unser eigenes Export-Format
             recipes = data.recipes;
+
+          // ── CBPi4 Einzelrezept ────────────────────────────────
           } else if (data.basic && data.steps) {
-            // Einzelnes Rezept (CBPi4-Format)
             recipes = [{ name: data.basic.name || 'Import', detail: data }];
-          } else if (data.Name && (data.Rasten || data.Infusion_Rasttemperatur1 !== undefined || data.Maischform)) {
-            // MaischeMalzUndMehr (MMuM) JSON-Format
-            var blob = new Blob([fileContent], { type: 'application/json' });
-            var formData = new FormData();
-            formData.append('File', blob, 'mmum.json');
-            fetch('/upload/', {
-              method: 'POST',
-              body: formData
-            })
-              .then(function () { return fetch('/upload/json'); })
-              .then(function (r) { return r.json(); })
-              .then(function (list) {
-                if (!list || list.length === 0) {
-                  showToast(de ? 'Keine Rezepte in der MMuM-Datei gefunden' : 'No recipes found in MMuM file', 'error');
-                  return;
-                }
-                // Rezept importieren (das zuletzt hochgeladene = letzter Eintrag oder Namens-Match)
-                var target = list[list.length - 1];
-                for (var li = 0; li < list.length; li++) {
-                  if (list[li].label === data.Name) { target = list[li]; break; }
-                }
-                return fetch('/upload/json', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: target.value })
-                });
-              })
-              .then(function () {
-                showToast(de ? 'MMuM-Rezept "' + data.Name + '" importiert!' : 'MMuM recipe "' + data.Name + '" imported!', 'success');
 
-                // Zutaten aus MMuM-JSON extrahieren und in localStorage speichern
-                extractMmumIngredients(data);
+          // ── MMuM JSON (v1 + v2) ───────────────────────────────
+          } else if (data.Name && (data.Rasten || data.Maischform || data.Infusion_Rasttemperatur1 !== undefined)) {
+            recipes = [{ name: data.Name, detail: convertMmumToCbpi4(data) }];
+            extractMmumIngredients(data);
 
-                window.location.hash = '#/';
-                setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
-              })
-              .catch(function (err) {
-                showToast(de ? 'Fehler beim MMuM-Import: ' + err.message : 'MMuM import error: ' + err.message, 'error');
-              });
-            return;
+          // ── Brewfather JSON ───────────────────────────────────
           } else if (data.mash && data.fermentables) {
-            // Brewfather JSON-Format (Datei-Export)
-            var bfName = data.name || 'Brewfather Import';
-            var blob = new Blob([fileContent], { type: 'application/json' });
-            var formData = new FormData();
-            formData.append('File', blob, 'mmum.json');
-            fetch('/upload/', {
-              method: 'POST',
-              body: formData
-            })
-              .then(function () { return fetch('/upload/json'); })
-              .then(function (r) { return r.json(); })
-              .then(function (list) {
-                if (!list || list.length === 0) {
-                  showToast(de ? 'Keine Rezepte in der Brewfather-Datei gefunden' : 'No recipes found in Brewfather file', 'error');
-                  return;
-                }
-                var target = list[list.length - 1];
-                return fetch('/upload/json', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: target.value })
-                });
-              })
-              .then(function () {
-                showToast(de ? 'Brewfather-Rezept "' + bfName + '" importiert!' : 'Brewfather recipe "' + bfName + '" imported!', 'success');
+            recipes = [{ name: data.name || 'Brewfather Import', detail: convertBrewfatherToCbpi4(data) }];
+            extractBrewfatherIngredients(data);
 
-                // Zutaten aus Brewfather-JSON extrahieren und in localStorage speichern
-                extractBrewfatherIngredients(data);
+          // ── Kleines Brauhelfer 2 (KBH2) JSON ─────────────────
+          } else if (data.Anlage && data.Sudname !== undefined) {
+            recipes = [{ name: data.Sudname || 'KBH Import', detail: convertKbhToCbpi4(data) }];
 
-                window.location.hash = '#/';
-                setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
-              })
-              .catch(function (err) {
-                showToast(de ? 'Fehler beim Brewfather-Import: ' + err.message : 'Brewfather import error: ' + err.message, 'error');
-              });
-            return;
           } else {
-            showToast(de ? 'Unbekanntes Dateiformat. Unterst\u00fctzt: CBPi4-JSON, MMuM-JSON, Brewfather-JSON, BeerXML' : 'Unknown format. Supported: CBPi4 JSON, MMuM JSON, Brewfather JSON, BeerXML', 'error');
+            showToast(de
+              ? 'Unbekanntes Format. Unterst\u00fctzt: CBPi4-JSON, MMuM-JSON, Brewfather-JSON, KBH2-JSON, BeerXML'
+              : 'Unknown format. Supported: CBPi4 JSON, MMuM JSON, Brewfather JSON, KBH2 JSON, BeerXML',
+              'error');
             return;
           }
 
@@ -5100,18 +5104,25 @@
             };
 
             // 1. Rezept erstellen (POST → ID), 2. Steps speichern (PUT)
-            fetch('/recipe/', {
+            fetch('/recipe/create', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ name: recipeName })
             })
-              .then(function (resp) { return resp.json(); })
+              .then(function (resp) {
+                if (!resp.ok) throw new Error('Create failed: ' + resp.status);
+                return resp.json();
+              })
               .then(function (created) {
                 var recipeId = created.id;
+                if (!recipeId) throw new Error('No recipe ID returned');
                 return fetch('/recipe/' + recipeId, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify(recipeData)
+                }).then(function (r) {
+                  if (!r.ok && r.status !== 204) throw new Error('Save failed: ' + r.status);
+                  return recipeId;
                 });
               })
               .then(function () {
@@ -5119,10 +5130,13 @@
                 if (imported === total) {
                   showToast((de ? 'Erfolgreich importiert: ' : 'Successfully imported: ') + imported + (de ? ' Rezept(e)' : ' recipe(s)'), 'success');
                   window.location.hash = '#/';
-                  setTimeout(function () { window.location.hash = '#/recipes'; }, 200);
+                  setTimeout(function () { window.location.hash = '#/recipes'; }, 300);
                 }
               })
-              .catch(function (err) { console.error('[CBPI] Import error:', err); });
+              .catch(function (err) {
+                console.error('[CBPI] Import error:', err);
+                showToast((de ? 'Import fehlgeschlagen: ' : 'Import failed: ') + err.message, 'error');
+              });
           });
         } catch (err) {
           showToast((de ? 'Fehler beim Lesen der Datei: ' : 'Error reading file: ') + err.message, 'error');
@@ -5198,6 +5212,22 @@
       '#cbpi-fermenter-config-form span[style*="font-size:0.7rem"] {',
       '  color: var(--text-muted, rgba(255,255,255,0.45)) !important;',
       '}',
+      '/* Export Dropdown */',
+      '.cbpi-export-wrap { position: relative; display: inline-block; }',
+      '.cbpi-export-menu {',
+      '  position: absolute; top: calc(100% + 4px); left: 0; z-index: 1000;',
+      '  background: var(--bg-surface, #1a2744);',
+      '  border: 1px solid var(--border, rgba(255,255,255,.12));',
+      '  border-radius: 8px; overflow: hidden; min-width: 220px;',
+      '  box-shadow: 0 8px 24px rgba(0,0,0,.5);',
+      '}',
+      '.cbpi-export-item {',
+      '  display: block; width: 100%; padding: 10px 16px;',
+      '  background: none; border: none; text-align: left;',
+      '  color: var(--text, #e0e0e0); cursor: pointer; font-size: .875rem;',
+      '  font-family: inherit;',
+      '}',
+      '.cbpi-export-item:hover { background: var(--accent, #3b82f6); color: #fff; }',
     ].join('\n');
     document.head.appendChild(style);
   }
@@ -5858,11 +5888,650 @@
       hops: [],
       others: [],
       water: { hauptguss: '', nachguss: '' },
+      stats: { stammwuerze: '', bittere: '', farbe: '', alkohol: '', karbonisierung: '', hefe: '', gaertemperatur: '' },
       notes: ''
     };
   }
 
-  // MMuM-JSON Zutaten extrahieren und in localStorage speichern
+  // ============================================================
+  // FORMAT-KONVERTER: Drittformat → CBPi4 Rezeptstruktur
+  // ============================================================
+
+  function triggerDownload(content, filename, mimeType) {
+    var blob = new Blob([content], { type: mimeType });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // CBPi4 Rezept → MMuM JSON (ExportVersion 2.0)
+  function convertCbpi4ToMmum(recipe, recipeName) {
+    var basic = recipe.basic || {};
+    var steps = recipe.steps || [];
+    var name = basic.name || recipeName || 'Rezept';
+
+    var ingr = null;
+    try { ingr = getIngredients(name); } catch (e) {}
+    ingr = ingr || { batchSize: 20, grains: [], hops: [], others: [], water: { hauptguss: '', nachguss: '' }, stats: {}, notes: '' };
+    if (!ingr.stats) ingr.stats = {};
+
+    var st = ingr.stats;
+    function stNum(k) { var v = st[k]; return (v !== '' && v != null) ? parseFloat(v) || 0 : 0; }
+
+    var mashInTemp = 63;
+    var abmaischTemp = 78;
+    var rasten = [];
+    var boilTime = 60;
+    var stepsHops = [];
+    var stepsWhirlpool = [];
+
+    steps.forEach(function (s) {
+      var p = s.props || {};
+      var type = s.type || '';
+      if (type === 'MashInStep') {
+        mashInTemp = parseFloat(p.Temp) || 63;
+      } else if (type === 'MashStep') {
+        var temp = parseFloat(p.Temp) || 65;
+        var zeit = parseInt(p.Timer) || 0;
+        if (s.name === 'Abmaischen' || s.name === 'MashOut') {
+          abmaischTemp = temp;
+        } else if (s.name !== 'L\u00e4utern') {
+          rasten.push({ Temperatur: temp, Zeit: zeit, Name: s.name });
+        }
+      } else if (type === 'BoilStep') {
+        boilTime = parseInt(p.Timer) || 60;
+        for (var i = 1; i <= 6; i++) {
+          var zeit = parseInt(p['Hop_' + i]);
+          var text = p['Hop_' + i + '_text'];
+          if (text && text.trim()) {
+            var match = text.match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+            stepsHops.push({ Sorte: match ? match[1].trim() : text.trim(), Menge: match ? parseFloat(match[2]) : 0, Alpha: 0, Zeit: zeit, Typ: 'Standard' });
+          }
+        }
+        if (p.First_Wort_text && p.First_Wort_text.trim()) {
+          p.First_Wort_text.split(',').forEach(function (h) {
+            var m = h.trim().match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+            stepsHops.push({ Sorte: m ? m[1].trim() : h.trim(), Menge: m ? parseFloat(m[2]) : 0, Alpha: 0, Zeit: boilTime, Typ: 'Vorderwuerze' });
+          });
+        }
+      } else if (type === 'NotificationStep' && s.name === 'Whirlpool-Hopfen') {
+        var notif = (p.Notification || '');
+        var hopPart = notif.replace(/^[^:]*:\s*/, '');
+        hopPart.split(',').forEach(function (h) {
+          h = h.trim();
+          if (!h) return;
+          var mw = h.match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+          stepsWhirlpool.push({ Sorte: mw ? mw[1].trim() : h, Menge: mw ? parseFloat(mw[2]) : 0, Alpha: 0, Zeit: 0, Typ: 'Whirlpool' });
+        });
+      }
+    });
+
+    // Hopfen: localStorage bevorzugen (hat Alpha-Werte), sonst Step-Daten
+    var hopfenkochen = [];
+    var stopfhopfen = [];
+    if (ingr.hops && ingr.hops.length > 0) {
+      ingr.hops.forEach(function (h) {
+        var typ = h.type || 'Standard';
+        if (typ === 'Dry Hop') {
+          stopfhopfen.push({ Sorte: h.name || '', Menge: parseFloat(h.amount) || 0, Alpha: parseFloat(h.alpha) || 0 });
+        } else {
+          hopfenkochen.push({ Sorte: h.name || '', Menge: parseFloat(h.amount) || 0, Alpha: parseFloat(h.alpha) || 0, Zeit: parseInt(h.time) || 0, Typ: typ });
+        }
+      });
+    } else {
+      stepsHops.forEach(function (h) { hopfenkochen.push(h); });
+      stepsWhirlpool.forEach(function (h) { hopfenkochen.push(h); });
+    }
+
+    var gewuerze = [];
+    (ingr.others || []).forEach(function (o) {
+      gewuerze.push({ Name: o.name || '', Menge: o.amount || '', Kochzeit: parseInt(o.time) || 0 });
+    });
+
+    var malze = [];
+    (ingr.grains || []).forEach(function (g) {
+      malze.push({ Name: g.name || '', Menge: parseFloat(g.amount) || 0, Einheit: 'kg' });
+    });
+
+    var mmum = {
+      ExportVersion: '2.0',
+      Name: name,
+      Datum: new Date().toLocaleDateString('de-DE'),
+      Sorte: basic.desc || '',
+      Autor: basic.author || '',
+      Ausschlagwuerze: parseFloat(ingr.batchSize) || 20,
+      Stammwuerze: stNum('stammwuerze'),
+      Bittere: stNum('bittere'),
+      Farbe: stNum('farbe'),
+      Alkohol: stNum('alkohol'),
+      Kurzbeschreibung: basic.desc || ''
+    };
+
+    if (malze.length > 0) mmum.Malze = malze;
+    mmum.Maischform = 'infusion';
+    mmum.Hauptguss = parseFloat(ingr.water && ingr.water.hauptguss) || 0;
+    mmum.Einmaischtemperatur = mashInTemp;
+    mmum.Rasten = rasten.map(function (r) { return { Temperatur: r.Temperatur, Zeit: r.Zeit }; });
+    mmum.Abmaischtemperatur = abmaischTemp;
+    mmum.Nachguss = parseFloat(ingr.water && ingr.water.nachguss) || 0;
+    mmum.Kochzeit_Wuerze = boilTime;
+    mmum.Hopfenkochen = hopfenkochen;
+    if (stopfhopfen.length > 0) mmum.Stopfhopfen = stopfhopfen;
+    if (gewuerze.length > 0) mmum.Gewuerze_etc = gewuerze;
+    mmum.Hefe = st.hefe || '';
+    if (st.gaertemperatur) mmum.Gaertemperatur = st.gaertemperatur;
+    if (stNum('karbonisierung')) mmum.Karbonisierung = stNum('karbonisierung');
+
+    return mmum;
+  }
+
+  // CBPi4 → BeerXML 1.0
+  function convertCbpi4ToBeerXml(recipe, recipeName) {
+    var basic = recipe.basic || {};
+    var steps = recipe.steps || [];
+    var name = basic.name || recipeName || 'Rezept';
+    var ingr = null;
+    try { ingr = getIngredients(name); } catch (e) {}
+    ingr = ingr || { batchSize: 20, grains: [], hops: [], others: [], water: { hauptguss: '' }, stats: {}, notes: '' };
+    if (!ingr.stats) ingr.stats = {};
+    var st = ingr.stats;
+
+    var boilTime = 60;
+    var mashSteps = [];
+    var stepsHops = [];
+
+    steps.forEach(function (s) {
+      var p = s.props || {};
+      var type = s.type || '';
+      if (type === 'MashInStep' || type === 'MashStep') {
+        if (s.name !== 'L\u00e4utern') mashSteps.push({ name: s.name, temp: parseFloat(p.Temp) || 65, time: parseInt(p.Timer) || 0 });
+      } else if (type === 'BoilStep') {
+        boilTime = parseInt(p.Timer) || 60;
+        for (var i = 1; i <= 6; i++) {
+          var text = p['Hop_' + i + '_text'];
+          var zeit = parseInt(p['Hop_' + i]);
+          if (text && text.trim()) {
+            var m = text.match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+            stepsHops.push({ name: m ? m[1].trim() : text.trim(), amount: m ? parseFloat(m[2]) : 0, alpha: 0, time: zeit, use: 'Boil' });
+          }
+        }
+        if (p.First_Wort_text && p.First_Wort_text.trim()) {
+          p.First_Wort_text.split(',').forEach(function (h) {
+            var m2 = h.trim().match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+            stepsHops.push({ name: m2 ? m2[1].trim() : h.trim(), amount: m2 ? parseFloat(m2[2]) : 0, alpha: 0, time: boilTime, use: 'First Wort' });
+          });
+        }
+      } else if (type === 'NotificationStep' && s.name === 'Whirlpool-Hopfen') {
+        var notif = (p.Notification || '');
+        var hopPart = notif.replace(/^[^:]*:\s*/, '');
+        hopPart.split(',').forEach(function (h) {
+          h = h.trim();
+          if (!h) return;
+          var mw = h.match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+          stepsHops.push({ name: mw ? mw[1].trim() : h, amount: mw ? parseFloat(mw[2]) : 0, alpha: 0, time: 0, use: 'Whirlpool' });
+        });
+      }
+    });
+
+    // Hopfen: localStorage bevorzugen (hat Alpha-Werte)
+    var hopfenkochen = [];
+    if (ingr.hops && ingr.hops.length > 0) {
+      var useMap = { 'Standard': 'Boil', 'Vorderwuerze': 'First Wort', 'Whirlpool': 'Whirlpool', 'Dry Hop': 'Dry Hop', 'First Wort': 'First Wort' };
+      ingr.hops.forEach(function (h) {
+        hopfenkochen.push({ name: h.name || '', amount: parseFloat(h.amount) || 0, alpha: parseFloat(h.alpha) || 0, time: parseInt(h.time) || 0, use: useMap[h.type || 'Standard'] || 'Boil' });
+      });
+    } else {
+      stepsHops.forEach(function (h) { hopfenkochen.push(h); });
+    }
+
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function tag(t, v) { return '<' + t + '>' + esc(v) + '</' + t + '>'; }
+
+    var hopsXml = hopfenkochen.map(function (h) {
+      return '<HOP>' + tag('NAME', h.name) + tag('VERSION', 1) + tag('AMOUNT', (h.amount / 1000).toFixed(4)) +
+        tag('USE', h.use || 'Boil') + tag('TIME', h.time) + tag('ALPHA', h.alpha || 0) + '</HOP>';
+    }).join('\n    ');
+
+    var fermentablesXml = ingr.grains.map(function (g) {
+      return '<FERMENTABLE>' + tag('NAME', g.name) + tag('VERSION', 1) + tag('AMOUNT', parseFloat(g.amount) || 0) +
+        tag('TYPE', 'Grain') + tag('YIELD', 75) + tag('COLOR', 3) + '</FERMENTABLE>';
+    }).join('\n    ');
+
+    var mashStepsXml = mashSteps.map(function (ms) {
+      return '<MASH_STEP>' + tag('NAME', ms.name) + tag('VERSION', 1) + tag('TYPE', ms.time === 0 ? 'Temperature' : 'Infusion') +
+        tag('STEP_TEMP', ms.temp) + tag('STEP_TIME', ms.time) + tag('INFUSE_AMOUNT', parseFloat(ingr.water && ingr.water.hauptguss) || 15) + '</MASH_STEP>';
+    }).join('\n      ');
+
+    var hefe = st.hefe || '';
+    var yeastXml = hefe ? '<YEASTS>\n    <YEAST>' + tag('NAME', hefe) + tag('VERSION', 1) + tag('TYPE', 'Ale') + tag('FORM', 'Dry') + tag('AMOUNT', 0.01) + '</YEAST>\n    </YEASTS>\n    ' : '';
+
+    return '<?xml version="1.0" encoding="UTF-8"?>\n<RECIPES>\n  <RECIPE>\n    ' +
+      tag('NAME', name) + '\n    ' + tag('VERSION', 1) + '\n    ' + tag('TYPE', 'All Grain') + '\n    ' +
+      tag('BREWER', basic.author || '') + '\n    ' +
+      tag('BATCH_SIZE', parseFloat(ingr.batchSize) || 20) + '\n    ' +
+      tag('BOIL_SIZE', (parseFloat(ingr.water && ingr.water.hauptguss) || 25)) + '\n    ' +
+      tag('BOIL_TIME', boilTime) + '\n    ' +
+      tag('NOTES', ingr.notes || basic.desc || '') + '\n    ' +
+      '<HOPS>\n    ' + hopsXml + '\n    </HOPS>\n    ' +
+      '<FERMENTABLES>\n    ' + fermentablesXml + '\n    </FERMENTABLES>\n    ' +
+      yeastXml +
+      '<MASH>\n      ' + tag('NAME', 'Mash') + '\n      ' + tag('VERSION', 1) + '\n      ' + tag('GRAIN_TEMP', 20) + '\n      ' +
+      '<MASH_STEPS>\n      ' + mashStepsXml + '\n      </MASH_STEPS>\n    </MASH>\n  </RECIPE>\n</RECIPES>';
+  }
+
+  // CBPi4 → Brewfather JSON
+  function convertCbpi4ToBrewfather(recipe, recipeName) {
+    var basic = recipe.basic || {};
+    var steps = recipe.steps || [];
+    var name = basic.name || recipeName || 'Rezept';
+    var ingr = null;
+    try { ingr = getIngredients(name); } catch (e) {}
+    ingr = ingr || { batchSize: 20, grains: [], hops: [], others: [], water: {}, stats: {}, notes: '' };
+    if (!ingr.stats) ingr.stats = {};
+    var st = ingr.stats;
+
+    var boilTime = 60;
+    var mashSteps = [];
+    var stepsHops = [];
+    var miscs = [];
+
+    steps.forEach(function (s) {
+      var p = s.props || {};
+      var type = s.type || '';
+      if (type === 'MashInStep') {
+        mashSteps.push({ name: s.name, stepTemp: parseFloat(p.Temp) || 63, stepTime: 0, type: 'Temperature' });
+      } else if (type === 'MashStep' && s.name !== 'L\u00e4utern' && s.name !== 'Abmaischen' && s.name !== 'MashOut') {
+        mashSteps.push({ name: s.name, stepTemp: parseFloat(p.Temp) || 65, stepTime: parseInt(p.Timer) || 60, type: 'Infusion' });
+      } else if (type === 'BoilStep') {
+        boilTime = parseInt(p.Timer) || 60;
+        for (var i = 1; i <= 6; i++) {
+          var text = p['Hop_' + i + '_text'];
+          var zeit = parseInt(p['Hop_' + i]);
+          if (text && text.trim()) {
+            var m = text.match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+            stepsHops.push({ name: m ? m[1].trim() : text.trim(), amount: m ? parseFloat(m[2]) : 0, alpha: 0, use: 'Boil', time: zeit, type: 'Pellet' });
+          }
+        }
+        if (p.First_Wort_text && p.First_Wort_text.trim()) {
+          p.First_Wort_text.split(',').forEach(function (h) {
+            var m2 = h.trim().match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+            stepsHops.push({ name: m2 ? m2[1].trim() : h.trim(), amount: m2 ? parseFloat(m2[2]) : 0, alpha: 0, use: 'First Wort', time: boilTime, type: 'Pellet' });
+          });
+        }
+      } else if (type === 'NotificationStep' && s.name === 'Whirlpool-Hopfen') {
+        var notif = (p.Notification || '');
+        var hopPart = notif.replace(/^[^:]*:\s*/, '');
+        hopPart.split(',').forEach(function (h) {
+          h = h.trim();
+          if (!h) return;
+          var mw = h.match(/^(.*?)\s+(\d+(?:\.\d+)?)g?$/);
+          stepsHops.push({ name: mw ? mw[1].trim() : h, amount: mw ? parseFloat(mw[2]) : 0, alpha: 0, use: 'Whirlpool', time: 0, type: 'Pellet' });
+        });
+      }
+    });
+
+    // Hopfen: localStorage bevorzugen (hat Alpha-Werte)
+    var hops = [];
+    if (ingr.hops && ingr.hops.length > 0) {
+      var useMapBf = { 'Standard': 'Boil', 'Vorderwuerze': 'First Wort', 'Whirlpool': 'Whirlpool', 'Dry Hop': 'Dry Hop', 'First Wort': 'First Wort' };
+      ingr.hops.forEach(function (h) {
+        hops.push({ name: h.name || '', amount: parseFloat(h.amount) || 0, alpha: parseFloat(h.alpha) || 0, use: useMapBf[h.type || 'Standard'] || 'Boil', time: parseInt(h.time) || 0, type: 'Pellet' });
+      });
+    } else {
+      stepsHops.forEach(function (h) { hops.push(h); });
+    }
+
+    var fermentables = ingr.grains.map(function (g) {
+      return { name: g.name || '', amount: Math.round((parseFloat(g.amount) || 0) * 1000), type: 'Grain', color: 3, yield: 75, origin: '' };
+    });
+
+    (ingr.others || []).forEach(function (o) {
+      miscs.push({ name: o.name || '', amount: parseFloat(o.amount) || 0, unit: o.unit || 'g', use: 'Boil', time: parseInt(o.time) || 0, type: 'Other' });
+    });
+
+    var yeasts = [];
+    var hefe = st.hefe || '';
+    if (hefe) yeasts.push({ name: hefe, type: 'Lager', form: 'Dry', amount: 0.01 });
+
+    return {
+      name: name,
+      author: basic.author || '',
+      batchSize: parseFloat(ingr.batchSize) || 20,
+      boilSize: parseFloat(ingr.water && ingr.water.hauptguss) || 25,
+      boilTime: boilTime,
+      efficiency: 75,
+      notes: ingr.notes || basic.desc || '',
+      style: { name: basic.desc || '' },
+      mash: { name: 'Mash', steps: mashSteps },
+      hops: hops,
+      fermentables: fermentables,
+      miscs: miscs,
+      yeasts: yeasts
+    };
+  }
+
+  function buildBoilProps(boilTime, hopfenkochen, gewuerze) {
+    var firstWortHops = [];
+    var hops = [];
+    var whirlpoolHops = [];
+
+    (hopfenkochen || []).forEach(function (h) {
+      var label = h.Sorte || h.name || 'Hopfen';
+      var menge = h.Menge !== undefined ? ' ' + h.Menge + 'g' : '';
+      var zeit = parseInt(h.Zeit) || 0;
+      var typ = (h.Typ || '').toLowerCase();
+      if (typ === 'vorderwuerze' || typ === 'first wort') {
+        firstWortHops.push(label + menge);
+      } else if (typ === 'whirlpool') {
+        whirlpoolHops.push(label + menge);
+      } else {
+        hops.push({ label: label + menge, time: zeit });
+      }
+    });
+
+    // Sort by time descending (first addition = most time left in boil)
+    hops.sort(function (a, b) { return b.time - a.time; });
+
+    var props = {
+      AutoMode: 'Yes',
+      Kettle: '',
+      Sensor: '',
+      Temp: 98,
+      Timer: boilTime,
+      First_Wort: firstWortHops.join(', '),
+      First_Wort_text: firstWortHops.length > 0 ? 'Vorderwürze: ' + firstWortHops.join(', ') : '',
+      LidAlert: 'Yes',
+      Hop_1: '', Hop_1_text: '',
+      Hop_2: '', Hop_2_text: '',
+      Hop_3: '', Hop_3_text: '',
+      Hop_4: '', Hop_4_text: '',
+      Hop_5: '', Hop_5_text: '',
+      Hop_6: '', Hop_6_text: '',
+    };
+
+    hops.slice(0, 6).forEach(function (h, i) {
+      props['Hop_' + (i + 1)] = String(h.time);
+      props['Hop_' + (i + 1) + '_text'] = h.label;
+    });
+
+    // Misc/Gewürze nach der Hopfengabe einbauen (falls noch Slots frei)
+    var usedSlots = Math.min(hops.length, 6);
+    (gewuerze || []).forEach(function (z) {
+      if (usedSlots >= 6) return;
+      usedSlots++;
+      var label = (z.Name || z.name || 'Zusatz') + (z.Menge !== undefined ? ' ' + z.Menge + (z.Einheit || '') : '');
+      var zeit = parseInt(z.Kochzeit || z.Zeit || 0);
+      props['Hop_' + usedSlots] = String(zeit);
+      props['Hop_' + usedSlots + '_text'] = label;
+    });
+
+    return { props: props, whirlpoolHops: whirlpoolHops };
+  }
+
+  function buildPostMashSteps() {
+    return [{
+      name: 'Läutern',
+      type: 'NotificationStep',
+      props: {
+        AutoNext: 'No',
+        Kettle: '',
+        Notification: 'Maischen abgeschlossen. Bitte läutern und dann Weiterschalten.'
+      },
+      status: 'I',
+      status_text: ''
+    }];
+  }
+
+  function buildWhirlpoolSteps(whirlpoolHops) {
+    if (!whirlpoolHops || whirlpoolHops.length === 0) return [];
+    return [
+      {
+        name: 'Whirlpool kühlen',
+        type: 'NotificationStep',
+        props: {
+          AutoNext: 'No',
+          Kettle: '',
+          Notification: 'Auf Whirlpool-Temperatur abkühlen, dann Weiterschalten.'
+        },
+        status: 'I',
+        status_text: ''
+      },
+      {
+        name: 'Whirlpool-Hopfen',
+        type: 'NotificationStep',
+        props: {
+          AutoNext: 'No',
+          Kettle: '',
+          Notification: 'Whirlpool-Hopfen zugeben: ' + whirlpoolHops.join(', ')
+        },
+        status: 'I',
+        status_text: ''
+      }
+    ];
+  }
+
+  function convertMmumToCbpi4(data) {
+    var name = data.Name || 'MMuM Import';
+    var mashInTemp = parseFloat(data.Einmaischtemperatur) || 63;
+    var mashOutTemp = parseFloat(data.Abmaischtemperatur) || 78;
+    var boilTime = parseInt(data.Kochzeit_Wuerze) || 60;
+    var rasten = data.Rasten || [];
+    var hopfenkochen = data.Hopfenkochen || [];
+    var gewuerze = data.Gewuerze_etc || [];
+    var steps = [];
+
+    // MashIn
+    steps.push({
+      name: 'Einmaischen',
+      type: 'MashInStep',
+      props: {
+        AutoMode: 'Yes',
+        Kettle: '',
+        Sensor: '',
+        Temp: mashInTemp,
+        Timer: 0,
+        Notification: 'Zieltemperatur erreicht. Bitte Malz einmaischen.'
+      },
+      status: 'I',
+      status_text: ''
+    });
+
+    // Rasten
+    rasten.forEach(function (rast, i) {
+      var temp = parseFloat(rast.Temperatur || rast.temp || 65);
+      var zeit = parseInt(rast.Zeit || rast.timer || 60);
+      var rastName = rast.Name || rast.name || ('Rast ' + (i + 1));
+      steps.push({
+        name: rastName,
+        type: 'MashStep',
+        props: {
+          AutoMode: 'Yes',
+          Kettle: '',
+          Sensor: '',
+          Temp: temp,
+          Timer: zeit,
+          Notification: ''
+        },
+        status: 'I',
+        status_text: ''
+      });
+    });
+
+    // Abmaischen (wenn nötig)
+    var lastRastTemp = rasten.length > 0 ? parseFloat(rasten[rasten.length - 1].Temperatur || rasten[rasten.length - 1].temp || 0) : 0;
+    if (Math.abs(mashOutTemp - lastRastTemp) > 0.5) {
+      steps.push({
+        name: 'Abmaischen',
+        type: 'MashStep',
+        props: {
+          AutoMode: 'Yes',
+          Kettle: '',
+          Sensor: '',
+          Temp: mashOutTemp,
+          Timer: 1,
+          Notification: ''
+        },
+        status: 'I',
+        status_text: ''
+      });
+    }
+
+    // Läutern
+    buildPostMashSteps().forEach(function (s) { steps.push(s); });
+
+    // Kochen
+    var boilResult = buildBoilProps(boilTime, hopfenkochen, gewuerze);
+    steps.push({
+      name: 'Kochen',
+      type: 'BoilStep',
+      props: boilResult.props,
+      status: 'I',
+      status_text: ''
+    });
+
+    // Whirlpool
+    buildWhirlpoolSteps(boilResult.whirlpoolHops).forEach(function (s) { steps.push(s); });
+
+    return {
+      basic: { name: name, author: data.Autor || '', desc: data.Kurzbeschreibung || data.Sorte || '' },
+      steps: steps
+    };
+  }
+
+  function convertBrewfatherToCbpi4(data) {
+    var name = data.name || 'Brewfather Import';
+    var mashSteps = (data.mash && data.mash.steps) || [];
+    var boilTime = parseInt(data.boilTime || 60);
+    var hops = data.hops || [];
+    var miscs = data.miscs || [];
+    var steps = [];
+
+    // Maischeschritte
+    mashSteps.forEach(function (ms, i) {
+      var temp = parseFloat(ms.stepTemp || ms.temperature || 65);
+      var zeit = parseInt(ms.stepTime || ms.time || 60);
+      var msName = ms.name || ('Rast ' + (i + 1));
+      var type = i === 0 ? 'MashInStep' : 'MashStep';
+      var notif = i === 0 ? 'Zieltemperatur erreicht. Bitte Malz einmaischen.' : '';
+      steps.push({
+        name: msName,
+        type: type,
+        props: {
+          AutoMode: 'Yes',
+          Kettle: '',
+          Sensor: '',
+          Temp: temp,
+          Timer: i === 0 ? 0 : zeit,
+          Notification: notif
+        },
+        status: 'I',
+        status_text: ''
+      });
+    });
+
+    // Hop-Gaben für Kochen konvertieren
+    var hopfenkochen = hops.filter(function (h) {
+      return (h.use || '').toLowerCase() === 'boil';
+    }).map(function (h) {
+      return { Sorte: h.name, Menge: h.amount, Zeit: h.time, Typ: 'Standard' };
+    });
+    hops.filter(function (h) {
+      return (h.use || '').toLowerCase() === 'first wort';
+    }).forEach(function (h) {
+      hopfenkochen.push({ Sorte: h.name, Menge: h.amount, Zeit: boilTime, Typ: 'Vorderwuerze' });
+    });
+    hops.filter(function (h) {
+      return (h.use || '').toLowerCase() === 'whirlpool';
+    }).forEach(function (h) {
+      hopfenkochen.push({ Sorte: h.name, Menge: h.amount, Typ: 'Whirlpool' });
+    });
+
+    var gewuerze = miscs.filter(function (m) {
+      return (m.use || '').toLowerCase() === 'boil';
+    }).map(function (m) {
+      return { Name: m.name, Menge: m.amount, Einheit: m.unit || '', Kochzeit: m.time || 0 };
+    });
+
+    // Läutern
+    buildPostMashSteps().forEach(function (s) { steps.push(s); });
+
+    var bfBoilResult = buildBoilProps(boilTime, hopfenkochen, gewuerze);
+    steps.push({
+      name: 'Kochen',
+      type: 'BoilStep',
+      props: bfBoilResult.props,
+      status: 'I',
+      status_text: ''
+    });
+
+    // Whirlpool
+    buildWhirlpoolSteps(bfBoilResult.whirlpoolHops).forEach(function (s) { steps.push(s); });
+
+    return {
+      steps: steps
+    };
+  }
+
+  function convertKbhToCbpi4(data) {
+    var name = data.Sudname || 'KBH Import';
+    var boilTime = parseInt(data.Kochzeit || 60);
+    // KBH2 Rasten: data.Maischplan (array) or flat Rasten
+    var rasten = data.Maischplan || data.Rasten || [];
+    var hopfenkochen = [];
+    (data.Hopfengaben || []).forEach(function (h) {
+      var typ = h.Typ === -1 ? 'Vorderwuerze' : h.Typ === 0 ? 'Standard' : 'Whirlpool';
+      hopfenkochen.push({ Sorte: h.Sorte || h.name || 'Hopfen', Menge: h.Menge || h.amount, Zeit: Math.abs(parseInt(h.Zeit || h.time || 0)), Typ: typ });
+    });
+    var steps = [];
+
+    var mashInTemp = parseFloat(data.Einmaischtemperatur || (rasten.length > 0 ? (rasten[0].Temperatur || rasten[0].temp) : 63)) || 63;
+    steps.push({
+      name: 'Einmaischen',
+      type: 'MashInStep',
+      props: {
+        AutoMode: 'Yes', Kettle: '', Sensor: '',
+        Temp: mashInTemp, Timer: 0,
+        Notification: 'Zieltemperatur erreicht. Bitte Malz einmaischen.'
+      },
+      status: 'I', status_text: ''
+    });
+
+    rasten.forEach(function (rast, i) {
+      var temp = parseFloat(rast.Temperatur || rast.temp || 65);
+      var zeit = parseInt(rast.Zeit || rast.time || rast.Dauer || 60);
+      steps.push({
+        name: rast.Name || rast.name || ('Rast ' + (i + 1)),
+        type: 'MashStep',
+        props: { AutoMode: 'Yes', Kettle: '', Sensor: '', Temp: temp, Timer: zeit, Notification: '' },
+        status: 'I', status_text: ''
+      });
+    });
+
+    // Läutern
+    buildPostMashSteps().forEach(function (s) { steps.push(s); });
+
+    var kbhBoilResult = buildBoilProps(boilTime, hopfenkochen, []);
+    steps.push({
+      name: 'Kochen',
+      type: 'BoilStep',
+      props: kbhBoilResult.props,
+      status: 'I', status_text: ''
+    });
+
+    // Whirlpool
+    buildWhirlpoolSteps(kbhBoilResult.whirlpoolHops).forEach(function (s) { steps.push(s); });
+
+    return {
+      basic: { name: name, author: data.Autor || '', desc: data.Kurzbeschreibung || data.Sorte || '' },
+      steps: steps
+    };
+  }
+
   function extractMmumIngredients(data) {
     if (!data || !data.Name) return;
     var recipeName = data.Name;
@@ -5934,20 +6603,21 @@
     }
 
     // Wasser
-    if (data.Hauptguss) ingr.water.hauptguss = parseFloat(data.Hauptguss) || '';
-    if (data.Nachguss) ingr.water.nachguss = parseFloat(data.Nachguss) || '';
+    ingr.water.hauptguss = data.Hauptguss != null && data.Hauptguss !== '' ? parseFloat(data.Hauptguss) : '';
+    ingr.water.nachguss  = data.Nachguss  != null && data.Nachguss  !== '' ? parseFloat(data.Nachguss)  : '';
 
-    // Hefe und weitere Infos als Notizen
-    var notes = [];
-    if (data.Hefe) notes.push('Hefe: ' + data.Hefe);
-    if (data.Gaertemperatur) notes.push('G\u00e4rtemperatur: ' + data.Gaertemperatur + '\u00b0C');
-    if (data.Stammwuerze) notes.push('Stammw\u00fcrze: ' + data.Stammwuerze + '\u00b0P');
-    if (data.Bittere) notes.push('Bittere: ' + data.Bittere + ' IBU');
-    if (data.Farbe) notes.push('Farbe: ' + data.Farbe + ' EBC');
-    if (data.Alkohol) notes.push('Alkohol: ' + data.Alkohol + '%');
-    if (data.Karbonisierung) notes.push('Karbonisierung: ' + data.Karbonisierung + ' g/L CO\u2082');
-    if (data.Kurzbeschreibung) notes.push('\n' + data.Kurzbeschreibung);
-    ingr.notes = notes.join('\n');
+    // Rezept-Statistiken als eigene Felder speichern
+    ingr.stats = {
+      hefe:           data.Hefe           != null ? String(data.Hefe)          : '',
+      gaertemperatur: data.Gaertemperatur != null ? String(data.Gaertemperatur) : '',
+      stammwuerze:    data.Stammwuerze    != null ? parseFloat(data.Stammwuerze) || '' : '',
+      bittere:        data.Bittere        != null ? parseFloat(data.Bittere)     || '' : '',
+      farbe:          data.Farbe          != null ? parseFloat(data.Farbe)       || '' : '',
+      alkohol:        data.Alkohol        != null ? parseFloat(data.Alkohol)     || '' : '',
+      karbonisierung: data.Karbonisierung != null ? parseFloat(data.Karbonisierung) || '' : ''
+    };
+
+    if (data.Kurzbeschreibung) ingr.notes = data.Kurzbeschreibung;
 
     saveIngredients(recipeName, ingr);
     console.log('[CBPI] MMuM-Zutaten f\u00fcr "' + recipeName + '" gespeichert:', ingr);
@@ -5990,24 +6660,28 @@
     if (bfData.mashWaterAmount) ingr.water.hauptguss = parseFloat(bfData.mashWaterAmount) || '';
     if (bfData.spargeWaterAmount) ingr.water.nachguss = parseFloat(bfData.spargeWaterAmount) || '';
 
-    // Hefe und weitere Infos als Notizen
-    var notes = [];
+    // Hefe
+    var hefe = '';
+    var gaertemp = '';
     if (data.yeasts && data.yeasts.length > 0) {
       var y = data.yeasts[0];
-      var yeastInfo = y.name || '';
-      if (y.laboratory) yeastInfo += ' (' + y.laboratory;
-      if (y.productId) yeastInfo += ' ' + y.productId;
-      if (y.laboratory) yeastInfo += ')';
-      notes.push('Hefe: ' + yeastInfo);
-      if (y.minTemp && y.maxTemp) notes.push('G\u00e4rtemperatur: ' + y.minTemp + '-' + y.maxTemp + '\u00b0C');
+      hefe = y.name || '';
+      if (y.laboratory) hefe += ' (' + y.laboratory + (y.productId ? ' ' + y.productId : '') + ')';
+      if (y.minTemp && y.maxTemp) gaertemp = y.minTemp + '-' + y.maxTemp;
     }
-    if (data.og) notes.push('Stammw\u00fcrze: ' + (Math.round((-463.371 + 668.72 * data.og - 205.347 * data.og * data.og) * 10) / 10) + '\u00b0P');
-    if (data.ibu) notes.push('Bittere: ' + Math.round(data.ibu) + ' IBU');
-    if (data.color) notes.push('Farbe: ' + Math.round(data.color) + ' EBC');
-    if (data.abv) notes.push('Alkohol: ' + (Math.round(data.abv * 10) / 10) + '%');
-    if (data.boilTime) notes.push('Kochzeit: ' + data.boilTime + ' Min.');
-    if (data.notes) notes.push('\n' + data.notes);
-    ingr.notes = notes.join('\n');
+    // Stammw\u00fcrze aus OG (Brix-N\u00e4herung)
+    var sw = data.og ? Math.round((-463.371 + 668.72 * data.og - 205.347 * data.og * data.og) * 10) / 10 : '';
+
+    ingr.stats = {
+      hefe:           hefe,
+      gaertemperatur: gaertemp,
+      stammwuerze:    sw !== '' ? sw : '',
+      bittere:        data.ibu   ? Math.round(data.ibu)          : '',
+      farbe:          data.color ? Math.round(data.color)         : '',
+      alkohol:        data.abv   ? Math.round(data.abv * 10) / 10 : '',
+      karbonisierung: data.carbonation != null ? data.carbonation : ''
+    };
+    if (data.notes) ingr.notes = data.notes;
 
     saveIngredients(recipeName, ingr);
     console.log('[CBPI] Brewfather-Zutaten f\u00fcr "' + recipeName + '" gespeichert:', ingr);
@@ -6248,6 +6922,30 @@
               '</div>' +
             '</div>' +
 
+            // Rezept-Kennzahlen
+            (function() {
+              var st = data.stats || {};
+              return '<div class="ingr-section">' +
+                '<div class="ingr-section-title">\ud83d\udcca ' + (de ? 'Rezept-Kennzahlen' : 'Recipe Stats') + '</div>' +
+                '<div class="sparge-input-grid">' +
+                  '<div class="sparge-input-item"><label>' + (de ? 'Hefe' : 'Yeast') + '</label>' +
+                    '<input type="text" id="ingr-stats-hefe" value="' + (st.hefe || '').replace(/"/g, '&quot;') + '" placeholder="' + (de ? 'z.B. W-34/70' : 'e.g. W-34/70') + '"></div>' +
+                  '<div class="sparge-input-item"><label>' + (de ? 'G\u00e4rtemperatur (\u00b0C)' : 'Ferm. Temp (\u00b0C)') + '</label>' +
+                    '<input type="text" id="ingr-stats-gaer" value="' + (st.gaertemperatur || '') + '" placeholder="' + (de ? 'z.B. 10-12' : 'e.g. 10-12') + '"></div>' +
+                  '<div class="sparge-input-item"><label>' + (de ? 'Stammw\u00fcrze (\u00b0P)' : 'OG (\u00b0P)') + '</label>' +
+                    '<input type="number" id="ingr-stats-sw" value="' + (st.stammwuerze || '') + '" step="0.1" min="0" placeholder="\u00b0P"></div>' +
+                  '<div class="sparge-input-item"><label>' + (de ? 'Bittere (IBU)' : 'Bitterness (IBU)') + '</label>' +
+                    '<input type="number" id="ingr-stats-ibu" value="' + (st.bittere || '') + '" step="1" min="0" placeholder="IBU"></div>' +
+                  '<div class="sparge-input-item"><label>' + (de ? 'Farbe (EBC)' : 'Color (EBC)') + '</label>' +
+                    '<input type="number" id="ingr-stats-ebc" value="' + (st.farbe || '') + '" step="1" min="0" placeholder="EBC"></div>' +
+                  '<div class="sparge-input-item"><label>' + (de ? 'Alkohol (% vol)' : 'Alcohol (% vol)') + '</label>' +
+                    '<input type="number" id="ingr-stats-alc" value="' + (st.alkohol || '') + '" step="0.1" min="0" placeholder="%"></div>' +
+                  '<div class="sparge-input-item"><label>' + (de ? 'Karbonisierung (g/L)' : 'Carbonation (g/L)') + '</label>' +
+                    '<input type="number" id="ingr-stats-co2" value="' + (st.karbonisierung || '') + '" step="0.1" min="0" placeholder="g/L"></div>' +
+                '</div>' +
+              '</div>';
+            })() +
+
             // Notizen
             '<div class="ingr-section">' +
               '<div class="ingr-section-title">\ud83d\udcdd ' + (de ? 'Notizen' : 'Notes') + '</div>' +
@@ -6274,6 +6972,15 @@
         nachguss: document.getElementById('ingr-water-ng').value
       };
       data.notes = document.getElementById('ingr-notes').value;
+      data.stats = {
+        hefe:           (document.getElementById('ingr-stats-hefe') || {}).value || '',
+        gaertemperatur: (document.getElementById('ingr-stats-gaer') || {}).value || '',
+        stammwuerze:    (document.getElementById('ingr-stats-sw')   || {}).value || '',
+        bittere:        (document.getElementById('ingr-stats-ibu')   || {}).value || '',
+        farbe:          (document.getElementById('ingr-stats-ebc')   || {}).value || '',
+        alkohol:        (document.getElementById('ingr-stats-alc')   || {}).value || '',
+        karbonisierung: (document.getElementById('ingr-stats-co2')   || {}).value || ''
+      };
 
       // Inputs sammeln
       overlay.querySelectorAll('[data-field]').forEach(function(inp) {
