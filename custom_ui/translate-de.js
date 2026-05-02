@@ -5848,11 +5848,19 @@
   // Zutaten vom Server laden und in localStorage cachen
   function syncIngredientsFromServer(callback) {
     fetch('/datastore/' + INGREDIENTS_STORE_KEY)
-      .then(function(r) { return r.json(); })
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
       .then(function(serverData) {
-        if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
-          // Server ist die maßgebliche Quelle
-          localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(serverData));
+        // Nur echte Rezept-Daten übernehmen (Objekte mit Zutaten-Struktur, kein API-Fehler-JSON)
+        if (serverData && typeof serverData === 'object' && !serverData.detail && !serverData.error) {
+          var localData = loadAllIngredients();
+          // Merge: Server liefert neue Rezepte (andere Geräte), aber localStorage hat Vorrang
+          // (frisch importierte/bearbeitete Zutaten dürfen nicht überschrieben werden)
+          var merged = {};
+          Object.keys(serverData).forEach(function(k) { merged[k] = serverData[k]; });
+          Object.keys(localData).forEach(function(k) { merged[k] = localData[k]; });
+          if (Object.keys(merged).length > 0) {
+            localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(merged));
+          }
         }
         _ingredientsSynced = true;
         if (callback) callback();
