@@ -2616,6 +2616,11 @@
         item.classList.remove('cbpi-nav-hidden');
       }
 
+      // Legacy-Route /upload ausblenden – Import läuft jetzt über das Rezeptbuch.
+      if (route === 'upload') {
+        item.classList.add('cbpi-nav-hidden');
+      }
+
       // Upstream "Fermenter Profile" / "Gärprofil" verstecken –
       // redundant mit unserem Gärungs-Dashboard (route 'fermenter')
       if (route === 'fermenterprofile') {
@@ -4391,7 +4396,7 @@
     return fetch('/kettle/')
       .then(function(r) { return r.json(); })
       .then(function(resp) {
-        var kettles = resp.data || resp || [];
+        var kettles = Array.isArray(resp) ? resp : (Array.isArray(resp.data) ? resp.data : []);
         if (!kettles.length) return;
         var kettle = kettles[0];
         var kettleId = kettle.id;
@@ -4399,12 +4404,14 @@
         return fetch('/step2/')
           .then(function(r) { return r.json(); })
           .then(function(stepData) {
-            var steps = (stepData && stepData.steps) ? stepData.steps : [];
+            var steps = Array.isArray(stepData) ? stepData : (Array.isArray(stepData.steps) ? stepData.steps : []);
+            if (!steps.length) return;
             var updates = steps
-              .filter(function(s) { return 'Kettle' in s.props; })
+              .filter(function(s) { return s && s.props && ('Kettle' in s.props || 'Sensor' in s.props); })
               .map(function(s) {
+                s.props = s.props || {};
                 s.props.Kettle = kettleId;
-                if ('Sensor' in s.props) s.props.Sensor = sensorId;
+                if (sensorId) s.props.Sensor = sensorId;
                 return fetch('/step2/' + s.id, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
@@ -5954,6 +5961,57 @@
     saveAllIngredients(all);
   }
 
+  function clearStep2IfNoRecipes() {
+    return fetch('/recipe/')
+      .then(function(r) { return r.json(); })
+      .then(function(recipes) {
+        var list = Array.isArray(recipes) ? recipes : (recipes && recipes.data ? recipes.data : []);
+        if (!list || list.length === 0) {
+          return fetch('/step2/clear', { method: 'POST' })
+            .then(function() {
+              console.log('[CBPI] Keine Rezepte mehr vorhanden, Step2 wurde geleert.');
+              if (typeof renderCockpit === 'function') {
+                renderCockpit(true);
+              }
+            })
+            .catch(function(err) {
+              console.warn('[CBPI] Step2-Clear fehlgeschlagen:', err);
+            });
+        }
+      })
+      .catch(function(err) {
+        console.warn('[CBPI] Rezeptliste nach Löschung konnte nicht geladen werden:', err);
+      });
+  }
+
+  // ── Auto-Cleanup beim Rezept-Löschen ──
+  function setupRecipeDeleteCleanup() {
+    var originalFetch = window.fetch;
+    window.fetch = function() {
+      var args = Array.prototype.slice.call(arguments);
+      var url = args[0];
+      var options = args[1] || {};
+      
+      // Nur DELETE-Anfragen auf /recipe/* beobachten
+      if (options.method === 'DELETE' && typeof url === 'string' && url.indexOf('/recipe/') !== -1) {
+        return originalFetch.apply(this, args).then(function(response) {
+          if (response.ok) {
+            // Rezeptname aus URL extrahieren: /recipe/{id} → {id}
+            var match = url.match(/\/recipe\/([^?/]+)/);
+            if (match) {
+              var recipeId = decodeURIComponent(match[1]);
+              // Zutaten für dieses Rezept löschen (nach kurzer Verzögerung)
+              setTimeout(function() { deleteIngredients(recipeId); clearStep2IfNoRecipes(); }, 100);
+              console.log('[CBPI] Zutaten für gelöschtes Rezept "' + recipeId + '" bereinigt');
+            }
+          }
+          return response;
+        });
+      }
+      return originalFetch.apply(this, args);
+    };
+  }
+
   function emptyIngredients() {
     return {
       batchSize: 20,
@@ -6616,7 +6674,8 @@
     // Malze (v2.0 Array-Format)
     if (data.Malze && Array.isArray(data.Malze)) {
       data.Malze.forEach(function(m) {
-        ingr.grains.push({ name: m.Name || '', amount: parseFloat(m.Menge) || '' });
+        var unit = m.Einheit || m.unit || 'kg';
+        ingr.grains.push({ name: m.Name || '', amount: normalizeMass(m.Menge || m.amount || m.menge, unit, 'kg') });
       });
     } else {
       // v1.x Feld-Format: Malz1, Malz1_Menge, Malz1_Einheit, ...
@@ -6624,9 +6683,8 @@
         var mName = data['Malz' + mi];
         var mMenge = data['Malz' + mi + '_Menge'];
         if (mName && mMenge) {
-          var mEinheit = data['Malz' + mi + '_Einheit'] || 'kg';
-          var amt = parseFloat(mMenge) || 0;
-          if (mEinheit === 'g') amt = amt / 1000;
+          var mEinheit = data['Malz' + mi + '_Einheit'] || data['Malz' + mi + '_unit'] || 'kg';
+          var amt = normalizeMass(mMenge, mEinheit, 'kg');
           ingr.grains.push({ name: mName, amount: amt });
         }
       }
@@ -6635,9 +6693,10 @@
     // Hopfen (v2.0 Array-Format)
     if (data.Hopfenkochen && Array.isArray(data.Hopfenkochen)) {
       data.Hopfenkochen.forEach(function(h) {
+        var unit = h.Einheit || h.unit || 'g';
         ingr.hops.push({
           name: h.Sorte || h.Name || '',
-          amount: parseFloat(h.Menge) || '',
+          amount: normalizeMass(h.Menge || h.amount || h.menge, unit, 'g'),
           alpha: parseFloat(h.Alpha) || '',
           time: parseFloat(h.Zeit) || 0,
           type: h.Typ || 'Standard'
@@ -6648,12 +6707,13 @@
       for (var hi = 1; hi <= 10; hi++) {
         var hSorte = data['Hopfen_' + hi + '_Sorte'];
         var hMenge = data['Hopfen_' + hi + '_Menge'];
+        var hEinheit = data['Hopfen_' + hi + '_Einheit'] || data['Hopfen_' + hi + '_unit'] || 'g';
         var hAlpha = data['Hopfen_' + hi + '_Alpha'];
         var hZeit = data['Hopfen_' + hi + '_Kochzeit'];
         if (hSorte && hMenge) {
           ingr.hops.push({
             name: hSorte,
-            amount: parseFloat(hMenge) || '',
+            amount: normalizeMass(hMenge, hEinheit, 'g'),
             alpha: parseFloat(hAlpha) || '',
             time: parseFloat(hZeit) || 0,
             type: 'Standard'
@@ -6665,9 +6725,10 @@
     // Stopfhopfen / Kalthopfung
     if (data.Stopfhopfen && Array.isArray(data.Stopfhopfen)) {
       data.Stopfhopfen.forEach(function(h) {
+        var unit = h.Einheit || h.unit || 'g';
         ingr.hops.push({
           name: h.Sorte || h.Name || '',
-          amount: parseFloat(h.Menge) || '',
+          amount: normalizeMass(h.Menge || h.amount || h.menge, unit, 'g'),
           alpha: parseFloat(h.Alpha) || '',
           time: 0,
           type: 'Dry Hop'
@@ -6707,7 +6768,7 @@
     // Malze / Fermentables
     if (data.fermentables && Array.isArray(data.fermentables)) {
       data.fermentables.forEach(function(f) {
-        ingr.grains.push({ name: f.name || '', amount: parseFloat(f.amount) || 0 });
+        ingr.grains.push({ name: f.name || '', amount: normalizeMass(f.amount || f.Menge || f.menge, f.unit || f.Einheit || 'kg', 'kg') });
       });
     }
 
@@ -6720,7 +6781,7 @@
         else if (h.use === 'First Wort') hopType = 'First Wort';
         ingr.hops.push({
           name: h.name || '',
-          amount: parseFloat(h.amount) || 0,
+          amount: normalizeMass(h.amount || h.Menge || h.menge, h.unit || h.Einheit || 'g', 'g'),
           alpha: parseFloat(h.alpha) || 0,
           time: parseFloat(h.time) || 0,
           type: hopType
@@ -6758,6 +6819,49 @@
 
     saveIngredients(recipeName, ingr);
     console.log('[CBPI] Brewfather-Zutaten f\u00fcr "' + recipeName + '" gespeichert:', ingr);
+  }
+
+  function normalizeMass(value, unit, targetUnit) {
+    if (value === undefined || value === null || value === '') return '';
+    var raw = String(value).trim();
+    if (!raw) return '';
+    raw = raw.replace(',', '.');
+
+    var u = String(unit || '').trim().toLowerCase();
+    if (!u || u === 'unit') {
+      var match = raw.match(/^([0-9]+(?:\.[0-9]+)?)\s*([a-zA-Zµμ]+)$/);
+      if (match) {
+        raw = match[1];
+        u = match[2].toLowerCase();
+      }
+    }
+    u = u.replace(/\.+$/, '').replace(/\s+/g, '');
+
+    var num = parseFloat(raw);
+    if (isNaN(num)) return '';
+
+    var kgUnits = ['kg', 'kilogram', 'kilograms', 'kilo', 'kilogramm', 'kilogramme'];
+    var gUnits = ['g', 'gram', 'grams', 'gramm', 'gramme'];
+    var mgUnits = ['mg', 'milligram', 'milligrams', 'milligramm', 'milligramme'];
+    var lbUnits = ['lb', 'lbs', 'pound', 'pounds'];
+    var ozUnits = ['oz', 'ounce', 'ounces'];
+
+    if (kgUnits.indexOf(u) !== -1) {
+      return targetUnit === 'g' ? num * 1000 : num;
+    }
+    if (gUnits.indexOf(u) !== -1) {
+      return targetUnit === 'kg' ? num / 1000 : num;
+    }
+    if (mgUnits.indexOf(u) !== -1) {
+      return targetUnit === 'kg' ? num / 1000000 : targetUnit === 'g' ? num / 1000 : num;
+    }
+    if (lbUnits.indexOf(u) !== -1) {
+      return targetUnit === 'kg' ? num * 0.45359237 : targetUnit === 'g' ? num * 453.59237 : num;
+    }
+    if (ozUnits.indexOf(u) !== -1) {
+      return targetUnit === 'kg' ? num * 0.0283495231 : targetUnit === 'g' ? num * 28.3495231 : num;
+    }
+    return num;
   }
 
   function scaleValue(val, factor) {
@@ -12060,6 +12164,7 @@
   });
 
   window.addEventListener('hashchange', onRouteChange);
+  setupRecipeDeleteCleanup();
   setInterval(function () {
     onRouteChange();
     // React-Formulare (z.B. Hardware-Properties) rendern Texte nach Updates erneut auf EN.
