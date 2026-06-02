@@ -25,7 +25,7 @@
     sensorIds.forEach(function (id) { if (id && unique.indexOf(id) === -1) unique.push(id); });
     if (unique.length === 0) return Promise.resolve({});
     return Promise.all(unique.map(function (id) {
-      return fetch('/sensor/' + encodeURIComponent(id))
+      return fetch('/sensor/' + encodeURIComponent(id), { cache: 'no-store' })
         .then(function (r) { return r.json(); })
         .then(function (d) { return { id: id, value: d.value }; })
         .catch(function () { return { id: id, value: null }; });
@@ -2047,7 +2047,7 @@
 
   function fetchAndDisplayTemp() {
     // Step-Daten holen
-    fetch('/step2/')
+    fetch('/step2/', { cache: 'no-store' })
       .then(function (r) { return r.json(); })
       .then(function (stepData) {
         var steps = stepData.steps || [];
@@ -2777,7 +2777,7 @@
     if (!bar) return;
 
     Promise.all([
-      fetch('/step2/').then(function (r) { return r.json(); }).catch(function () { return null; })
+      fetch('/step2/', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; })
     ]).then(function (results) {
       var stepData = results[0];
 
@@ -2838,6 +2838,10 @@
   // BRAU-COCKPIT (ersetzt das leere Dashboard)
   // ============================================================
   var _cockpitInterval = null;
+  var _cockpitTimer = null;
+  var _liveTimerInterval = null;
+  var _liveTimerBaseSec = 0;
+  var _liveTimerBaseTime = 0;
   var _cockpitRenderLock = 0; // Timestamp bis wann Intervall-Render blockiert
   var _kettleSettingsOpen = false; // Panel-Zustand überlebt Re-Renders
   var _actorBusy = {}; // Debounce pro Actor-ID
@@ -3055,8 +3059,53 @@
     }
   }
 
+  function formatSeconds(sec) {
+    var h = Math.floor(sec / 3600);
+    var m = Math.floor((sec % 3600) / 60);
+    var s = sec % 60;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function isTimerValue(text) {
+    return text && /^\d+:\d+/.test(text);
+  }
+
+  function startLiveTimer() {
+    if (_liveTimerInterval) { clearInterval(_liveTimerInterval); _liveTimerInterval = null; }
+    _liveTimerInterval = setInterval(function() {
+      var el = document.querySelector('#cbpi-cockpit .cockpit-timer-text');
+      if (!el) { clearInterval(_liveTimerInterval); _liveTimerInterval = null; return; }
+      fetch('/step2/', { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var steps = (data && data.steps) ? data.steps : [];
+          for (var i = 0; i < steps.length; i++) {
+            if (steps[i].status === 'A') {
+              var st = steps[i].state_text || '';
+              if (!isTimerValue(st)) {
+                // Kein Zeitwert (z.B. "Warte auf Zieltemperatur") — Interval stoppen
+                clearInterval(_liveTimerInterval); _liveTimerInterval = null;
+                return;
+              }
+              var el2 = document.querySelector('#cbpi-cockpit .cockpit-timer-text');
+              if (el2) {
+                _isOurDomChange = true;
+                el2.textContent = st;
+                setTimeout(function() { _isOurDomChange = false; }, 0);
+              }
+              return;
+            }
+          }
+          // Kein aktiver Schritt mehr → stoppen
+          clearInterval(_liveTimerInterval); _liveTimerInterval = null;
+        })
+        .catch(function() {});
+    }, 1000);
+  }
+
   function stopCockpit() {
     if (_cockpitInterval) { clearInterval(_cockpitInterval); _cockpitInterval = null; }
+    if (_liveTimerInterval) { clearInterval(_liveTimerInterval); _liveTimerInterval = null; }
     _kettleSettingsOpen = false;
     // Cockpit-DOM entfernen und versteckte Original-Inhalte wieder zeigen
     var cockpit = document.getElementById('cbpi-cockpit');
@@ -3094,10 +3143,10 @@
     }
 
     Promise.all([
-      fetch('/step2/').then(function (r) { return r.json(); }).catch(function () { return null; }),
-      fetch('/sensor/').then(function (r) { return r.json(); }).catch(function () { return null; }),
-      fetch('/actor/').then(function (r) { return r.json(); }).catch(function () { return null; }),
-      fetch('/kettle/').then(function (r) { return r.json(); }).catch(function () { return null; })
+      fetch('/step2/', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; }),
+      fetch('/sensor/', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; }),
+      fetch('/actor/', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; }),
+      fetch('/kettle/', { cache: 'no-store' }).then(function (r) { return r.json(); }).catch(function () { return null; })
     ]).then(function (results) {
       var stepData = results[0];
       var sensorListData = results[1];
@@ -3182,6 +3231,9 @@
         cockpit.innerHTML = html;
         cockpit.setAttribute('data-state', cockpitState);
         _isOurDomChange = false;
+        if (isBrewing && isTimerValue(activeStep && activeStep.state_text)) {
+          startLiveTimer();
+        }
         // Rezeptliste im Idle-State laden
         if (!isBrewing && steps.length === 0) {
           loadCockpitRecipes();
@@ -3255,15 +3307,20 @@
     var targetEl = cockpit.querySelector('.cockpit-target-temp');
     if (targetEl && activeStep && activeStep.props && activeStep.props.Temp) {
       var newTarget = (currentLang === 'de' ? 'Ziel: ' : 'Target: ') + parseFloat(activeStep.props.Temp).toFixed(1) + '\u00b0C';
-      if (targetEl.textContent !== newTarget) targetEl.textContent = newTarget;
+      if (targetEl.textContent !== newTarget) { _isOurDomChange = true; targetEl.textContent = newTarget; setTimeout(function() { _isOurDomChange = false; }, 0); }
     }
 
-    // 4. Timer/Status aktualisieren
+    // 4. Timer/Status aktualisieren (nur bei echten Zeitwerten — Statustexte translatePage() überlassen)
     var timerEl = cockpit.querySelector('.cockpit-timer-text');
-    if (timerEl && activeStep) {
+    if (timerEl && activeStep && isTimerValue(activeStep.state_text)) {
       var timerText = formatTimer(activeStep.state_text);
-      if (timerEl.textContent !== timerText) timerEl.textContent = timerText;
+      if (timerEl.textContent !== timerText) {
+        _isOurDomChange = true;
+        timerEl.textContent = timerText;
+        setTimeout(function() { _isOurDomChange = false; }, 0);
+      }
     }
+    if (!_liveTimerInterval && isTimerValue(activeStep && activeStep.state_text)) startLiveTimer();
 
     // 5. Progress-Bar aktualisieren
     var progressFill = cockpit.querySelector('.cockpit-progress-fill');
@@ -3494,7 +3551,7 @@
     if (progressPct > 0 || timerText) {
       html += '<div class="cockpit-progress-bar"><div class="cockpit-progress-fill" style="width:' + progressPct + '%"></div></div>';
     }
-    if (timerText) html += '<div class="cockpit-step-timer">⏱ ' + timerText + '</div>';
+    if (timerText) html += '<div class="cockpit-step-timer">⏱ <span class="cockpit-timer-text">' + timerText + '</span></div>';
 
     // Warte-auf-Benutzer-Hinweis: Temp erreicht bei MashInStep → Malz zugeben
     var waitingForUser = false;
@@ -4051,7 +4108,7 @@
     document.getElementById('cbpi-settings-interval').onchange = function() {
       var ms = parseInt(this.value);
       localStorage.setItem('cbpi_refresh_interval', ms);
-      if (_cockpitTimer) { clearInterval(_cockpitTimer); _cockpitTimer = setInterval(function() { renderCockpit(false); }, ms); }
+      if (_cockpitInterval) { clearInterval(_cockpitInterval); _cockpitInterval = setInterval(function() { renderCockpit(false); }, ms); }
     };
 
     // Benachrichtigungen
@@ -4401,7 +4458,7 @@
         var kettle = kettles[0];
         var kettleId = kettle.id;
         var sensorId = kettle.sensor || '';
-        return fetch('/step2/')
+        return fetch('/step2/', { cache: 'no-store' })
           .then(function(r) { return r.json(); })
           .then(function(stepData) {
             var steps = Array.isArray(stepData) ? stepData : (Array.isArray(stepData.steps) ? stepData.steps : []);
@@ -12129,6 +12186,8 @@
     for (var i = 0; i < mutations.length; i++) {
       var m = mutations[i];
       if (m.type === 'characterData') {
+        // Textänderungen im Cockpit (z.B. Live-Timer) nicht als externe Mutation werten
+        if (m.target && m.target.parentElement && m.target.parentElement.closest && m.target.parentElement.closest('#cbpi-cockpit')) continue;
         dominated = true;
         break;
       }

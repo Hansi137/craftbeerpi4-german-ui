@@ -38,11 +38,11 @@ def getSensors():
 
 class ReadThread(threading.Thread):
 
-    value = 0
+    value = None
 
     def __init__(self, sensor_name):
         threading.Thread.__init__(self)
-        self.value = 0
+        self.value = None
         self.sensor_name = sensor_name
         self.runnig = True
 
@@ -65,8 +65,10 @@ class ReadThread(threading.Thread):
                     if content.split("\n")[0].split(" ")[11] == "YES":
                         temp = float(content.split("=")[-1]) / 1000  # temp in Celcius
                         self.value = temp
+                    else:
+                        self.value = None
             except (FileNotFoundError, IndexError, ValueError):
-                pass
+                self.value = None
 
             time.sleep(1)
 
@@ -184,12 +186,17 @@ class OneWire(CBPiSensor):
 
         while self.running == True:
             self.TEMP_UNIT = self.get_config_value("TEMP_UNIT", "C")
-            if (
-                self.TEMP_UNIT == "C"
-            ):  # Report temp in C if nothing else is selected in settings
-                self.value = round((self.t.value + self.offset), 2)
-            else:  # Report temp in F if unit selected in settings
-                self.value = round((9.0 / 5.0 * self.t.value + 32 + self.offset), 2)
+            raw_value = self.t.value
+            if raw_value is None:
+                self.value = None
+                logging.warning("OneWire {} has no valid sensor reading".format(self.sensor.name))
+                await asyncio.sleep(self.interval)
+                continue
+            else:
+                if self.TEMP_UNIT == "C":
+                    self.value = round((raw_value + self.offset), 2)
+                else:
+                    self.value = round((9.0 / 5.0 * raw_value + 32 + self.offset), 2)
             self.push_update(self.value)
             if self.reducedlogging:
                 await self.logvalue()

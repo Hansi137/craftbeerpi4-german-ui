@@ -110,7 +110,7 @@ class NotificationController:
         self.cbpi.ws.send(
             dict(
                 id=notifcation_id,
-                topic="notifiaction",
+                topic="notification",
                 type=type.value,
                 title=title,
                 message=message,

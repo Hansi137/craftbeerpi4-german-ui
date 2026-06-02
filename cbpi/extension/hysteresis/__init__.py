@@ -47,8 +47,22 @@ class Hysteresis(CBPiKettleLogic):
             # self.get_actor_state()
 
             while self.running == True:
+                sensor_state = self.get_sensor_value(self.kettle.sensor)
+                if sensor_state is None or sensor_state.get("value") is None:
+                    try:
+                        heater_state = heater.instance.state
+                    except:
+                        heater_state = False
+                    if self.heater and heater_state:
+                        await self.actor_off(self.heater)
+                    logging.warning(
+                        "Hysteresis %s stopped heater because sensor reading is unavailable",
+                        self.id,
+                    )
+                    await asyncio.sleep(1)
+                    continue
 
-                sensor_value = self.get_sensor_value(self.kettle.sensor).get("value")
+                sensor_value = sensor_state.get("value")
                 target_temp = self.get_kettle_target_temp(self.id)
                 try:
                     heater_state = heater.instance.state
