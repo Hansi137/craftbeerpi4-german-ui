@@ -9160,6 +9160,8 @@
       var types = fermData.types || [];
 
       if (fermenters.length === 0) {
+        // Kein Überschreiben wenn die Erstellen-Form bereits offen ist
+        if (body.querySelector('.fermenter-create-form')) return;
         body.innerHTML = renderEmptyFermenter(de, types);
         return;
       }
