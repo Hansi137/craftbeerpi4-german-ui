@@ -8485,7 +8485,7 @@
       collectIngrTabData(panel, data);
       saveIngredients(recipeName, data);
       // Re-render um Hopfenplan zu aktualisieren
-      renderIngredientsTab(panel, recipeName, de);
+      renderIngredientsTab(panel, recipeName, de, data);
       // Kurze Bestätigung
       var btn = panel.querySelector('#rit-save');
       if (btn) { btn.textContent = '\u2705 ' + (de ? 'Gespeichert!' : 'Saved!'); setTimeout(function() { btn.textContent = '\ud83d\udcbe ' + (de ? 'Zutaten speichern' : 'Save ingredients'); }, 1500); }
@@ -8498,7 +8498,10 @@
         collectIngrTabData(panel, data);
         var parts = delBtn.getAttribute('data-del').split('.');
         if (data[parts[0]]) { data[parts[0]].splice(parseInt(parts[1]), 1); }
-        renderIngredientsTab(panel, recipeName, de);
+        // WICHTIG: data mitgeben - ohne 4. Argument würde aus dem (noch
+        // alten) localStorage-Stand neu gerendert und das Löschen optisch
+        // sofort wieder rückgängig gemacht.
+        renderIngredientsTab(panel, recipeName, de, data);
       }
     });
 
@@ -8510,7 +8513,10 @@
         if (type === 'grain') data.grains.push({ name: '', amount: '' });
         else if (type === 'hop') data.hops.push({ name: '', amount: '', alpha: '', time: '', type: 'Standard' });
         else if (type === 'other') data.others.push({ name: '', amount: '', unit: 'g' });
-        renderIngredientsTab(panel, recipeName, de);
+        // WICHTIG: data mitgeben - ohne 4. Argument würde die gerade
+        // hinzugefügte (noch ungespeicherte) Zeile beim Re-Render sofort
+        // wieder verworfen, der Klick auf "+" hätte sichtbar keinen Effekt.
+        renderIngredientsTab(panel, recipeName, de, data);
       });
     });
   }
