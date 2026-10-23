@@ -375,9 +375,30 @@ class StepController:
         except:
             pass
 
+        # Plug-and-play: Rezepte (vor allem importierte) enthalten meist keine
+        # Kessel-/Sensor-Zuordnung (leere Strings). Ohne Zuweisung zeigt das
+        # Cockpit keine Temperatur mehr an und der Brauprozess kann nicht
+        # sauber starten/stoppen. Ist genau ein Kessel vorhanden, wird er
+        # automatisch samt seinem Sensor eingetragen - der Nutzer muss die
+        # Anlage dann nicht nach jedem Rezept-Laden neu verkabeln.
+        kettles = self.cbpi.kettle.data
+        default_kettle = kettles[0] if len(kettles) == 1 else None
+        if len(kettles) > 1:
+            self.logger.warning(
+                "Mehrere Kessel vorhanden - automatische Kessel-/Sensor-Zuordnung "
+                "beim Rezept-Laden wird übersprungen. Bitte Kessel je Schritt manuell zuweisen."
+            )
+
         def add_runtime_data(item):
             item["status"] = "I"
             item["id"] = shortuuid.uuid()
+            props = item.get("props") or {}
+            if default_kettle is not None:
+                if "Kettle" in props and not props.get("Kettle"):
+                    props["Kettle"] = default_kettle.id
+                if "Sensor" in props and not props.get("Sensor") and default_kettle.sensor:
+                    props["Sensor"] = default_kettle.sensor
+            item["props"] = props
 
         list(map(lambda item: add_runtime_data(item), data.get("steps")))
         with open(self.path, "w") as file:
