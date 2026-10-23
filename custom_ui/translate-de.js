@@ -8170,7 +8170,8 @@
   // ============================================================
   function enhanceRecipeDetailPage() {
     var hash = window.location.hash.replace('#', '');
-    if (!/^\/recipe\//.test(hash)) {
+    var routeMatch = hash.match(/^\/recipe\/([^/]+)/);
+    if (!routeMatch) {
       // Cleanup: Sichtbarkeit wiederherstellen + Marker entfernen
       var stale = document.getElementById('cbpi-recipe-detail-enhance');
       if (stale) {
@@ -8180,7 +8181,21 @@
       }
       return;
     }
-    if (document.getElementById('cbpi-recipe-detail-enhance')) return;
+    var recipeId = routeMatch[1];
+
+    var existingWrapper = document.getElementById('cbpi-recipe-detail-enhance');
+    if (existingWrapper) {
+      // Gleiche Rezept-ID wie beim letzten Mount → nichts zu tun.
+      if (existingWrapper.getAttribute('data-recipe-id') === recipeId) return;
+      // ANDERE Rezept-ID (z.B. nach "Klonen" direkt auf die neue Detailseite
+      // navigiert, ohne dass der Hash-Pfad /recipe/... verlassen wird) →
+      // altes Panel entfernen und sauber neu aufbauen. Sonst bliebe das
+      // Zutaten-Panel am alten recipeName hängen und würde Änderungen am
+      // neuen (Klon-)Rezept unter dem alten Namen speichern.
+      var oldSib = existingWrapper.nextElementSibling;
+      while (oldSib) { oldSib.style.display = ''; oldSib = oldSib.nextElementSibling; }
+      existingWrapper.remove();
+    }
 
     var de = currentLang === 'de';
 
@@ -8219,6 +8234,7 @@
     var tabWrapper = document.createElement('div');
     tabWrapper.id = 'cbpi-recipe-detail-enhance';
     tabWrapper.className = 'recipe-tabs-wrapper';
+    tabWrapper.setAttribute('data-recipe-id', recipeId);
 
     // Tab-Bar
     var tabBar = document.createElement('div');
