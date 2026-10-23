@@ -5902,11 +5902,6 @@
     try { return JSON.parse(localStorage.getItem(INGREDIENTS_KEY)) || {}; } catch(e) { return {}; }
   }
 
-  function saveAllIngredients(all) {
-    localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(all));
-    syncToServer(INGREDIENTS_STORE_KEY, all);
-  }
-
   // ── Generische Server-Sync-Helfer (Pi Datastore) ──────────────────────
   function syncToServer(storeKey, data) {
     fetch('/datastore/' + storeKey, {
@@ -5914,6 +5909,30 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     }).catch(function(e) { console.warn('[CBPI] Server-Sync fehlgeschlagen (' + storeKey + '):', e); });
+  }
+
+  // Schreibt NUR den einen übergebenen Key in den Server-Datastore (liest
+  // vorher den aktuellen Serverstand, setzt den Key, schreibt zurück) -
+  // statt den kompletten lokalen Cache als Snapshot zu überschreiben.
+  // Wichtig: der lokale Cache (localStorage) kann veraltet sein, z.B. direkt
+  // nach einem serverseitigen Klonen/Umbenennen eines Rezepts, das der
+  // Browser noch nicht gesehen hat. Ein blindes "POST des ganzen lokalen
+  // Stands" würde dann frisch angelegte Server-Einträge anderer Rezepte
+  // wieder löschen bzw. durch veraltete lokale Daten ersetzen.
+  function syncIngredientsKeyToServer(key, value) {
+    fetch('/datastore/' + INGREDIENTS_STORE_KEY)
+      .then(function(r) { return r.ok ? r.json() : {}; })
+      .then(function(serverData) {
+        if (!serverData || typeof serverData !== 'object' || serverData.detail || serverData.error) serverData = {};
+        if (value === undefined) delete serverData[key];
+        else serverData[key] = value;
+        return fetch('/datastore/' + INGREDIENTS_STORE_KEY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(serverData)
+        });
+      })
+      .catch(function(e) { console.warn('[CBPI] Zutaten-Server-Sync fehlgeschlagen (' + key + '):', e); });
   }
 
   function syncFromServer(storeKey, localKey, callback) {
@@ -5975,13 +5994,15 @@
   function saveIngredients(recipeName, data) {
     var all = loadAllIngredients();
     all[recipeName] = data;
-    saveAllIngredients(all);
+    localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(all));
+    syncIngredientsKeyToServer(recipeName, data);
   }
 
   function deleteIngredients(recipeName) {
     var all = loadAllIngredients();
     delete all[recipeName];
-    saveAllIngredients(all);
+    localStorage.setItem(INGREDIENTS_KEY, JSON.stringify(all));
+    syncIngredientsKeyToServer(recipeName, undefined);
   }
 
   function clearStep2IfNoRecipes() {
@@ -8218,6 +8239,23 @@
 
     // Zutaten rendern
     renderIngredientsTab(ingrPanel, recipeName, de);
+
+    // Direkt nach einem Klonen/Umbenennen kennt der Server den neuen bzw.
+    // verschobenen Zutaten-Eintrag schon (siehe RecipeController._clone_
+    // ingredients/_rename_ingredients), der Browser-Cache aber noch nicht -
+    // das Panel würde sonst fälschlich leer erscheinen. Bei leerem lokalem
+    // Stand deshalb einmalig im Hintergrund vom Server nachladen und das
+    // Panel aktualisieren - aber nur, solange der Nutzer dort noch nichts
+    // eingegeben hat (keine Edits überschreiben).
+    if (!getIngredients(recipeName)) {
+      var ingrPanelTouched = false;
+      ingrPanel.addEventListener('input', function() { ingrPanelTouched = true; }, { once: true });
+      syncIngredientsFromServer(function() {
+        if (!ingrPanelTouched && document.body.contains(ingrPanel) && getIngredients(recipeName)) {
+          renderIngredientsTab(ingrPanel, recipeName, de);
+        }
+      });
+    }
 
     // Tab-Umschaltung: Sichtbarkeit toggeln statt Elemente verschieben
     function setActiveTab(tab) {
