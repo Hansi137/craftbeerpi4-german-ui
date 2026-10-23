@@ -92,8 +92,41 @@ class RecipeController:
         recipe_path = self.cbpi.config_folder.get_recipe_file_by_id(id)
         with open(recipe_path) as file:
             data = yaml.load(file, Loader=yaml.FullLoader)
+            old_name = data.get("basic", {}).get("name")
             data["basic"]["name"] = new_name
             new_id = shortuuid.uuid()
             await self.save(new_id, data)
 
+            self._clone_ingredients(old_name, new_name)
+
             return new_id
+
+    def _clone_ingredients(self, old_name, new_name):
+        # Die Zutaten-Verwaltung (custom_ui) speichert Malz/Hopfen/Wasser pro
+        # Rezept im cbpi_datastore-Key "recipe_ingredients", indiziert über
+        # den Rezeptnamen (basic.name) - nicht über die Datei-ID. Beim Klonen
+        # bekommt das Rezept einen neuen Namen, sonst würden die Zutaten des
+        # Originals für das geklonte Rezept verloren gehen.
+        if not old_name or not new_name or old_name == new_name:
+            return
+        store_path = os.path.join(
+            os.path.expanduser("~"), ".cbpi", "datastore", "recipe_ingredients.json"
+        )
+        try:
+            with open(store_path, "r", encoding="utf-8") as file:
+                all_ingredients = json.load(file)
+        except FileNotFoundError:
+            return
+        except Exception as e:
+            self.logger.warning("Zutaten-Datastore konnte nicht gelesen werden: %s", e)
+            return
+
+        if old_name not in all_ingredients:
+            return
+
+        all_ingredients[new_name] = all_ingredients[old_name]
+        try:
+            with open(store_path, "w", encoding="utf-8") as file:
+                json.dump(all_ingredients, file, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.logger.warning("Zutaten-Datastore konnte nicht geschrieben werden: %s", e)
