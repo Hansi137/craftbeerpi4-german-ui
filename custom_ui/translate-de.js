@@ -12304,6 +12304,22 @@
 
   window.addEventListener('hashchange', onRouteChange);
   setupRecipeDeleteCleanup();
+
+  // Direkter Klick-Abfang auf den nativen "Speichern"-Button als robuster
+  // Hauptweg (zusätzlich zum Netzwerk-Interceptor oben): die native
+  // Oberfläche spricht über axios, dessen interne Request/Response-Verdrahtung
+  // sich je nach Bundler-Version/Adapter ändern kann - ein Klick auf den
+  // Button selbst ist dagegen immer eindeutig feststellbar. Capture-Phase,
+  // damit es auch greift, falls React stopPropagation() beim Bubbling nutzt.
+  // Der native Button trägt title="Save recipe" (bzw. "Rezept speichern"
+  // nach unserer eigenen Übersetzung, siehe translateNode/translations).
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[title="Save recipe"], [title="Rezept speichern"]');
+    if (!btn) return;
+    var ingrSaveBtn = document.getElementById('rit-save');
+    if (ingrSaveBtn) ingrSaveBtn.click();
+  }, true);
+
   setInterval(function () {
     onRouteChange();
     // React-Formulare (z.B. Hardware-Properties) rendern Texte nach Updates erneut auf EN.
