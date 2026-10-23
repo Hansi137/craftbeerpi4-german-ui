@@ -6007,31 +6007,89 @@
       });
   }
 
-  // ── Auto-Cleanup beim Rezept-Löschen ──
+  // ── Auto-Cleanup beim Rezept-Löschen + Zutaten-Mitsicherung beim nativen Speichern ──
+  //
+  // Zwei unabhängige Aktionen auf /recipe/{id} müssen beobachtet werden:
+  //  - DELETE: zugehörige Zutaten im Datastore mit aufräumen
+  //  - PUT:    das native "Speichern" (oben rechts) sichert nur Name/Autor/
+  //            Beschreibung/Brau-Schritte. Die Zutaten (Malz, Hopfen, Wasser,
+  //            Ausschlagmenge) hängen an einem komplett eigenen "Zutaten
+  //            speichern"-Button weiter unten - wer nur oben speichert,
+  //            verliert dort gemachte Änderungen unbemerkt. Deshalb hier den
+  //            Zutaten-Save automatisch mit anstoßen, falls der Zutaten-Tab
+  //            gerade im DOM existiert.
+  //
+  // Die native Oberfläche (cbpi4gui) spricht über axios mit dem Server, und
+  // axios nutzt im Browser standardmäßig XMLHttpRequest, nicht fetch. Damit
+  // das unten garantiert greift, werden beide Transportwege abgefangen -
+  // unser eigenes custom_ui verwendet fetch, daher bleibt das ebenfalls nötig.
+  function handleRecipeDeleteSuccess(url) {
+    // Rezeptname aus URL extrahieren: /recipe/{id} → {id}
+    var match = url.match(/\/recipe\/([^?/]+)/);
+    if (!match) return;
+    var recipeId = decodeURIComponent(match[1]);
+    // Zutaten für dieses Rezept löschen (nach kurzer Verzögerung)
+    setTimeout(function() { deleteIngredients(recipeId); clearStep2IfNoRecipes(); }, 100);
+    console.log('[CBPI] Zutaten für gelöschtes Rezept "' + recipeId + '" bereinigt');
+  }
+
+  function handleRecipePutSuccess() {
+    var ingrSaveBtn = document.getElementById('rit-save');
+    if (ingrSaveBtn) ingrSaveBtn.click();
+  }
+
+  function isRecipeDeleteRequest(method, url) {
+    return method === 'DELETE' && typeof url === 'string' && url.indexOf('/recipe/') !== -1;
+  }
+
+  function isRecipeSaveRequest(method, url) {
+    return method === 'PUT' && typeof url === 'string' && /\/recipe\/[^/]+$/.test(url);
+  }
+
   function setupRecipeDeleteCleanup() {
+    // fetch() abfangen (von custom_ui selbst verwendet)
     var originalFetch = window.fetch;
     window.fetch = function() {
       var args = Array.prototype.slice.call(arguments);
       var url = args[0];
       var options = args[1] || {};
-      
-      // Nur DELETE-Anfragen auf /recipe/* beobachten
-      if (options.method === 'DELETE' && typeof url === 'string' && url.indexOf('/recipe/') !== -1) {
+
+      if (isRecipeDeleteRequest(options.method, url)) {
         return originalFetch.apply(this, args).then(function(response) {
-          if (response.ok) {
-            // Rezeptname aus URL extrahieren: /recipe/{id} → {id}
-            var match = url.match(/\/recipe\/([^?/]+)/);
-            if (match) {
-              var recipeId = decodeURIComponent(match[1]);
-              // Zutaten für dieses Rezept löschen (nach kurzer Verzögerung)
-              setTimeout(function() { deleteIngredients(recipeId); clearStep2IfNoRecipes(); }, 100);
-              console.log('[CBPI] Zutaten für gelöschtes Rezept "' + recipeId + '" bereinigt');
-            }
-          }
+          if (response.ok) handleRecipeDeleteSuccess(url);
+          return response;
+        });
+      }
+      if (isRecipeSaveRequest(options.method, url)) {
+        return originalFetch.apply(this, args).then(function(response) {
+          if (response.ok) handleRecipePutSuccess();
           return response;
         });
       }
       return originalFetch.apply(this, args);
+    };
+
+    // XMLHttpRequest abfangen (von der nativen cbpi4gui-Oberfläche via axios verwendet)
+    var OrigXHR = window.XMLHttpRequest;
+    var origOpen = OrigXHR.prototype.open;
+    var origSend = OrigXHR.prototype.send;
+    OrigXHR.prototype.open = function(method, url) {
+      this._cbpiMethod = method;
+      this._cbpiUrl = url;
+      return origOpen.apply(this, arguments);
+    };
+    OrigXHR.prototype.send = function() {
+      var method = this._cbpiMethod;
+      var url = this._cbpiUrl;
+      if (isRecipeDeleteRequest(method, url) || isRecipeSaveRequest(method, url)) {
+        this.addEventListener('load', function() {
+          if (this.status >= 200 && this.status < 300) {
+            if (isRecipeDeleteRequest(method, url)) handleRecipeDeleteSuccess(url);
+            else handleRecipePutSuccess();
+          }
+        });
+      }
+      return origSend.apply(this, arguments);
     };
   }
 
