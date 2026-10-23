@@ -8389,6 +8389,42 @@
     html += '</div>';
     html += '</div>';
 
+    // -- Rezept-Kennzahlen (Hefe, G\u00e4rtemperatur, Stammw\u00fcrze, ...) --
+    (function() {
+      var st = data.stats || {};
+      html += '<div class="recipe-ingr-section">';
+      html += '<h4 class="recipe-ingr-section-title">\ud83d\udcca ' + (de ? 'Rezept-Kennzahlen' : 'Recipe Stats') + '</h4>';
+      html += '<div class="recipe-ingr-field-row">';
+      html += '<label>' + (de ? 'Hefe' : 'Yeast') + '</label>';
+      html += '<input type="text" id="rit-stats-hefe" value="' + (st.hefe || '').replace(/"/g, '&quot;') + '" placeholder="' + (de ? 'z.B. W-34/70' : 'e.g. W-34/70') + '">';
+      html += '</div>';
+      html += '<div class="recipe-ingr-field-row">';
+      html += '<label>' + (de ? 'G\u00e4rtemperatur' : 'Ferm. temp') + '</label>';
+      html += '<input type="text" id="rit-stats-gaer" value="' + (st.gaertemperatur || '').replace(/"/g, '&quot;') + '" placeholder="' + (de ? 'z.B. 10-12\u00b0C' : 'e.g. 10-12\u00b0C') + '">';
+      html += '</div>';
+      html += '<div class="recipe-ingr-field-row">';
+      html += '<label>' + (de ? 'Stammw\u00fcrze' : 'OG') + '</label>';
+      html += '<input type="number" id="rit-stats-sw" value="' + (st.stammwuerze || '') + '" step="0.1" min="0" placeholder="\u00b0P"> \u00b0P';
+      html += '</div>';
+      html += '<div class="recipe-ingr-field-row">';
+      html += '<label>' + (de ? 'Bittere' : 'Bitterness') + '</label>';
+      html += '<input type="number" id="rit-stats-ibu" value="' + (st.bittere || '') + '" step="1" min="0" placeholder="IBU"> IBU';
+      html += '</div>';
+      html += '<div class="recipe-ingr-field-row">';
+      html += '<label>' + (de ? 'Farbe' : 'Color') + '</label>';
+      html += '<input type="number" id="rit-stats-ebc" value="' + (st.farbe || '') + '" step="1" min="0" placeholder="EBC"> EBC';
+      html += '</div>';
+      html += '<div class="recipe-ingr-field-row">';
+      html += '<label>' + (de ? 'Alkohol' : 'Alcohol') + '</label>';
+      html += '<input type="number" id="rit-stats-alc" value="' + (st.alkohol || '') + '" step="0.1" min="0" placeholder="%"> % vol';
+      html += '</div>';
+      html += '<div class="recipe-ingr-field-row">';
+      html += '<label>' + (de ? 'Karbonisierung' : 'Carbonation') + '</label>';
+      html += '<input type="number" id="rit-stats-co2" value="' + (st.karbonisierung || '') + '" step="0.1" min="0" placeholder="g/L"> g/L';
+      html += '</div>';
+      html += '</div>';
+    })();
+
     // -- Notizen --
     html += '<div class="recipe-ingr-section">';
     html += '<h4 class="recipe-ingr-section-title">\ud83d\udcdd ' + (de ? 'Notizen' : 'Notes') + '</h4>';
@@ -8446,6 +8482,15 @@
       nachguss: panel.querySelector('#rit-water-ng').value
     };
     data.notes = panel.querySelector('#rit-notes').value;
+    data.stats = {
+      hefe:           (panel.querySelector('#rit-stats-hefe') || {}).value || '',
+      gaertemperatur: (panel.querySelector('#rit-stats-gaer') || {}).value || '',
+      stammwuerze:    (panel.querySelector('#rit-stats-sw')   || {}).value || '',
+      bittere:        (panel.querySelector('#rit-stats-ibu')  || {}).value || '',
+      farbe:          (panel.querySelector('#rit-stats-ebc')  || {}).value || '',
+      alkohol:        (panel.querySelector('#rit-stats-alc')  || {}).value || '',
+      karbonisierung: (panel.querySelector('#rit-stats-co2')  || {}).value || ''
+    };
 
     panel.querySelectorAll('[data-field]').forEach(function(inp) {
       var parts = inp.getAttribute('data-field').split('.');
