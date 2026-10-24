@@ -3323,16 +3323,17 @@
     if (!_liveTimerInterval && isTimerValue(activeStep && activeStep.state_text)) startLiveTimer();
 
     // 5. Progress-Bar aktualisieren
+    // state_text liefert vom Server NUR die Restzeit als "HH:MM:SS" (siehe
+    // Timer.format_time in cbpi/api/timer.py) - kein "verstrichen/gesamt".
+    // Gesamtzeit kommt stattdessen aus dem geplanten Timer-Wert des Schritts.
     var progressFill = cockpit.querySelector('.cockpit-progress-fill');
-    if (progressFill && activeStep && activeStep.state_text) {
-      var parts = activeStep.state_text.split('/');
-      if (parts.length === 2) {
-        var elapsed = parseTimerParts(parts[0].trim());
-        var total = parseTimerParts(parts[1].trim());
-        if (total > 0) {
-          var pct = Math.min(100, Math.round((elapsed / total) * 100));
-          progressFill.style.width = pct + '%';
-        }
+    if (progressFill && activeStep && activeStep.state_text && isTimerValue(activeStep.state_text)) {
+      var remaining = parseTimerParts(activeStep.state_text.trim());
+      var total = (parseInt(activeStep.props && activeStep.props.Timer) || 0) * 60;
+      if (total > 0) {
+        var elapsed = Math.max(0, total - remaining);
+        var pct = Math.min(100, Math.round((elapsed / total) * 100));
+        progressFill.style.width = pct + '%';
       }
     }
 
@@ -3482,14 +3483,16 @@
       deltaHtml = '<div class="cockpit-temp-delta ' + deltaClass + '">Δ ' + (delta > 0 ? '+' : '') + delta.toFixed(1) + '°C</div>';
     }
 
-    // Progress (grob: wenn Timer-Text wie "12:34 / 60:00" formatiert ist)
+    // Progress: state_text liefert vom Server NUR die Restzeit als "HH:MM:SS"
+    // (siehe Timer.format_time in cbpi/api/timer.py), kein "verstrichen/gesamt".
+    // Gesamtzeit kommt stattdessen aus dem geplanten Timer-Wert des Schritts.
     var progressPct = 0;
-    if (timerText) {
-      var parts = timerText.split('/');
-      if (parts.length === 2) {
-        var elapsed = parseTimerParts(parts[0].trim());
-        var total = parseTimerParts(parts[1].trim());
-        if (total > 0) progressPct = Math.min(100, Math.round((elapsed / total) * 100));
+    if (timerText && isTimerValue(timerText)) {
+      var remaining = parseTimerParts(timerText.trim());
+      var total = (parseInt(activeStep.props && activeStep.props.Timer) || 0) * 60;
+      if (total > 0) {
+        var elapsed = Math.max(0, total - remaining);
+        progressPct = Math.min(100, Math.round((elapsed / total) * 100));
       }
     }
 
@@ -8060,16 +8063,18 @@
       _hopTimers._stepId = activeStep.id;
     }
 
-    // Verbleibende Zeit aus state_text berechnen
+    // Verbleibende Zeit aus state_text berechnen. WICHTIG: der Server
+    // (Timer.format_time in cbpi/api/timer.py) liefert state_text IMMER nur
+    // als reine Restzeit "HH:MM:SS" (bzw. "DDd HH:MM:SS" bei mehreren Tagen) -
+    // es gibt serverseitig gar kein "verstrichen/gesamt"-Format mit "/". Der
+    // alte Code hat genau das angenommen (stateText.split('/')) und damit
+    // elapsedSec/totalSec immer auf 0 belassen → der Alarm konnte wegen des
+    // "elapsedSec > 0"-Schutzes NIE auslösen, egal wie weit der Kochschritt
+    // schon fortgeschritten war.
     var stateText = activeStep.state_text || '';
-    var parts = stateText.split('/');
-    var elapsedSec = 0;
-    var totalSec = 0;
-    if (parts.length === 2) {
-      elapsedSec = parseTimerParts(parts[0].trim());
-      totalSec = parseTimerParts(parts[1].trim());
-    }
-    var remainingSec = Math.max(0, totalSec - elapsedSec);
+    var remainingSec = stateText ? parseTimerParts(stateText.trim()) : 0;
+    var totalPlannedSec = (parseInt(activeStep.props && activeStep.props.Timer) || 0) * 60;
+    var elapsedSec = Math.max(0, totalPlannedSec - remainingSec);
 
     _hopTimers.forEach(function(ht) {
       // remainSec = wann die Hopfengabe fällig ist (Sekunden bis Alarm)
@@ -8077,7 +8082,7 @@
       ht.remainSec = Math.max(0, remainingSec - ht.minBefore * 60);
 
       // Alarm auslösen wenn es soweit ist
-      if (!ht.fired && remainingSec <= ht.minBefore * 60 && elapsedSec > 0) {
+      if (!ht.fired && stateText && remainingSec <= ht.minBefore * 60 && elapsedSec > 0) {
         ht.fired = true;
         initHopTimerAudio();
         playHopAlarm();
