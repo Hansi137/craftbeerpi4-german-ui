@@ -3252,9 +3252,17 @@
         drawTempChart();
         // Hopfen-Timer aktualisieren
         updateHopTimers(activeStep);
-        // Schritt-Wechsel-Benachrichtigung
+        // Schritt-Wechsel-Benachrichtigung (Ton + Toast + ggf. Browser-Notification,
+        // analog zum Hopfen-Timer). cockpit._lastActiveStepId ist erst ab der
+        // zweiten Auswertung gesetzt, feuert also nicht unmittelbar nach einem
+        // Reload für den bereits laufenden Schritt.
         if (activeStep.id && cockpit._lastActiveStepId && cockpit._lastActiveStepId !== activeStep.id) {
           var de = currentLang === 'de';
+          var stepMsg = (de ? '➡️ Nächster Schritt: ' : '➡️ Next step: ') + activeStep.name +
+            (activeStep.props && activeStep.props.Temp ? ' (' + activeStep.props.Temp + '°C)' : '');
+          initHopTimerAudio();
+          playHopAlarm();
+          showToast(stepMsg, 'success', 8000);
           if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             new Notification('🍺 ' + (de ? 'Neuer Schritt' : 'New Step'), {
               body: activeStep.name + (activeStep.props && activeStep.props.Temp ? ' (' + activeStep.props.Temp + '°C)' : ''),
@@ -3383,6 +3391,21 @@
           // Fallback: an das Step-Card anhängen
           var stepCard = cockpit.querySelector('.cockpit-step-name');
           if (stepCard && stepCard.parentNode) stepCard.parentNode.insertAdjacentHTML('beforeend', boxHtml);
+        }
+        // Ton + Toast + ggf. Browser-Notification - einmalig pro Schritt
+        // (Merker übersteht auch einen Reload, siehe wasEventNotified/markEventNotified)
+        var ttKey = 'targettemp_' + activeStep.id;
+        if (!wasEventNotified(ttKey)) {
+          markEventNotified(ttKey);
+          initHopTimerAudio();
+          playHopAlarm();
+          showToast('🌡️ ' + notifText, 'warning', 8000);
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+            new Notification('🌡️ ' + (de ? 'Zieltemperatur erreicht' : 'Target temp reached'), {
+              body: notifText,
+              icon: '/static/cbpi_icon.svg'
+            });
+          }
         }
         // Weiter-Button pulsieren lassen
         if (nextBtn && !nextBtn.classList.contains('pulse')) nextBtn.classList.add('pulse');
@@ -7974,6 +7997,38 @@
   }
 
   // ============================================================
+  // COCKPIT-EREIGNIS-MERKER — verhindert Doppel-Benachrichtigungen
+  // (Toast/Sound/Browser-Notification) nach einem Seiten-Reload.
+  // Modul-Variablen wie _hopTimers/cockpit._lastActiveStepId leben nur im
+  // Arbeitsspeicher und sind nach F5 wieder leer - ohne diesen Merker würde
+  // z.B. eine schon erledigte Hopfengabe nach einem Reload erneut als
+  // "jetzt fällig" gemeldet, sobald ihr Zeitpunkt bereits verstrichen ist.
+  // ============================================================
+  var NOTIFIED_EVENTS_KEY = 'cbpi_cockpit_notified_events';
+
+  function wasEventNotified(eventKey) {
+    try {
+      var all = JSON.parse(localStorage.getItem(NOTIFIED_EVENTS_KEY)) || {};
+      return !!all[eventKey];
+    } catch (e) { return false; }
+  }
+
+  function markEventNotified(eventKey) {
+    try {
+      var all = JSON.parse(localStorage.getItem(NOTIFIED_EVENTS_KEY)) || {};
+      all[eventKey] = Date.now();
+      // Aufräumen: nur die zuletzt genutzten Einträge behalten, damit der
+      // Speicher über viele Braue hinweg nicht unbegrenzt wächst.
+      var keys = Object.keys(all);
+      if (keys.length > 50) {
+        keys.sort(function(a, b) { return all[a] - all[b]; });
+        delete all[keys[0]];
+      }
+      localStorage.setItem(NOTIFIED_EVENTS_KEY, JSON.stringify(all));
+    } catch (e) { /* localStorage evtl. nicht verfügbar - dann eben kein Schutz */ }
+  }
+
+  // ============================================================
   // HOPFEN-TIMER — Countdown-Timer für Hopfengaben während des Kochens
   // ============================================================
   var _hopTimers = [];       // [{id, label, totalSec, remainSec, fired}]
@@ -8057,10 +8112,17 @@
     var stepType = (activeStep.type || '').toLowerCase();
     if (stepType.indexOf('boil') === -1) { _hopTimers = []; return; }
 
-    // Timer nur einmal parsen (beim Wechsel des Schritts)
+    // Timer nur einmal parsen (beim Wechsel des Schritts ODER nach einem
+    // Seiten-Reload, bei dem _hopTimers wieder leer ist)
     if (_hopTimers.length === 0 || _hopTimers._stepId !== activeStep.id) {
       _hopTimers = parseHopTimersFromStep(activeStep);
       _hopTimers._stepId = activeStep.id;
+      // Bereits vor einem Reload gemeldete Gaben als "fired" markieren,
+      // sonst würden sie (und alle anderen inzwischen fälligen Gaben)
+      // beim ersten Check nach dem Reload alle gleichzeitig neu auslösen.
+      _hopTimers.forEach(function(ht) {
+        if (wasEventNotified('hop_' + activeStep.id + '_' + ht.id)) ht.fired = true;
+      });
     }
 
     // Verbleibende Zeit aus state_text berechnen. WICHTIG: der Server
@@ -8084,6 +8146,7 @@
       // Alarm auslösen wenn es soweit ist
       if (!ht.fired && stateText && remainingSec <= ht.minBefore * 60 && elapsedSec > 0) {
         ht.fired = true;
+        markEventNotified('hop_' + activeStep.id + '_' + ht.id);
         initHopTimerAudio();
         playHopAlarm();
         // In-App Toast
