@@ -8128,23 +8128,30 @@
     // Verbleibende Zeit aus state_text berechnen. WICHTIG: der Server
     // (Timer.format_time in cbpi/api/timer.py) liefert state_text IMMER nur
     // als reine Restzeit "HH:MM:SS" (bzw. "DDd HH:MM:SS" bei mehreren Tagen) -
-    // es gibt serverseitig gar kein "verstrichen/gesamt"-Format mit "/". Der
-    // alte Code hat genau das angenommen (stateText.split('/')) und damit
-    // elapsedSec/totalSec immer auf 0 belassen → der Alarm konnte wegen des
-    // "elapsedSec > 0"-Schutzes NIE auslösen, egal wie weit der Kochschritt
-    // schon fortgeschritten war.
+    // es gibt serverseitig gar kein "verstrichen/gesamt"-Format mit "/".
+    //
+    // ZUSÄTZLICH wichtig: Solange der Kochschritt noch auf die Zieltemperatur
+    // aufheizt, ist der Timer noch gar nicht gestartet - state_text ist dann
+    // ein Statustext wie "Waiting for Target Temp" (siehe BoilStep.on_start
+    // in cbpi/extension/mashstep/__init__.py), KEIN Zeitwert. isTimerValue()
+    // unterscheidet das; ohne diese Prüfung wurde so ein Text als "00:00:00"
+    // fehlinterpretiert → remainingSec=0 → jede Hopfengabe (egal ob 60 oder
+    // 10 min vor Ende) galt sofort als überfällig und feuerte gleichzeitig,
+    // schon bevor überhaupt gekocht wurde.
     var stateText = activeStep.state_text || '';
-    var remainingSec = stateText ? parseTimerParts(stateText.trim()) : 0;
+    var hasTimer = isTimerValue(stateText);
+    var remainingSec = hasTimer ? parseTimerParts(stateText.trim()) : 0;
     var totalPlannedSec = (parseInt(activeStep.props && activeStep.props.Timer) || 0) * 60;
-    var elapsedSec = Math.max(0, totalPlannedSec - remainingSec);
+    var elapsedSec = hasTimer ? Math.max(0, totalPlannedSec - remainingSec) : 0;
 
     _hopTimers.forEach(function(ht) {
-      // remainSec = wann die Hopfengabe fällig ist (Sekunden bis Alarm)
-      // Hopfengabe bei "minBefore Minuten vor Ende" → Alarm wenn remainingSec <= minBefore * 60
-      ht.remainSec = Math.max(0, remainingSec - ht.minBefore * 60);
+      // remainSec = wann die Hopfengabe fällig ist (Sekunden bis Alarm).
+      // Vor Timer-Start (noch kein echter Zeitwert) volle geplante Zeit
+      // anzeigen statt fälschlich "00:00".
+      ht.remainSec = hasTimer ? Math.max(0, remainingSec - ht.minBefore * 60) : ht.totalSec;
 
       // Alarm auslösen wenn es soweit ist
-      if (!ht.fired && stateText && remainingSec <= ht.minBefore * 60 && elapsedSec > 0) {
+      if (!ht.fired && hasTimer && remainingSec <= ht.minBefore * 60 && elapsedSec > 0) {
         ht.fired = true;
         markEventNotified('hop_' + activeStep.id + '_' + ht.id);
         initHopTimerAudio();
