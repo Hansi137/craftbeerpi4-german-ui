@@ -1,0 +1,11 @@
+{
+  "onOffsetC": 0.5,
+  "offOffsetC": 0.2,
+  "minCompressorOffSeconds": 240,
+  "minCompressorOnSeconds": 90,
+  "cbpiReportEnabled": false,
+  "cbpiHost": "",
+  "cbpiPort": 8000,
+  "cbpiKey": "",
+  "cbpiReportIntervalSeconds": 60
+}

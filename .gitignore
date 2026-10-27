@@ -21,3 +21,6 @@ logs/
 cbpi4-*
 temp*
 *.patch
+
+# ESP32-Gärschrank-Controller (PlatformIO-Build-Artefakte)
+esp32-ferm-controller/.pio/

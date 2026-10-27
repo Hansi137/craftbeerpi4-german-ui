@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Gärschrank-Controller</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="topbar-icon">🌡️</span>
+    <span class="topbar-title">Gärschrank-Controller</span>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="status">Status</button>
+    <button class="tab-btn" data-tab="plan">Gärplan</button>
+    <button class="tab-btn" data-tab="manual">Manuell</button>
+    <button class="tab-btn" data-tab="settings">Einstellungen</button>
+  </nav>
+
+  <main>
+    <!-- ===================== STATUS ===================== -->
+    <section id="tab-status" class="tab-panel active">
+      <div class="card card-center">
+        <div class="big-temp" id="status-temp">--,-°C</div>
+        <div class="muted" id="status-target">Ziel: --°C</div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="label">Kühlung</span><span class="badge" id="status-relay">–</span></div>
+        <div class="row" id="guard-row" hidden>
+          <span class="label">Kompressorschutz</span>
+          <span class="value" id="status-guard">–</span>
+        </div>
+      </div>
+
+      <div class="card" id="plan-status-card">
+        <div class="row"><span class="label">Gärplan</span><span class="badge" id="status-state">–</span></div>
+        <div class="row"><span class="label">Schritt</span><span class="value" id="status-step">–</span></div>
+        <div class="row"><span class="label">Fortschritt</span><span class="value" id="status-progress">–</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="status-progress-fill"></div></div>
+      </div>
+
+      <div class="card">
+        <div class="row"><span class="label">WLAN</span><span class="value" id="status-wifi">–</span></div>
+        <div class="row"><span class="label">Laufzeit</span><span class="value" id="status-uptime">–</span></div>
+        <div class="row"><span class="label">Firmware</span><span class="value" id="status-version">–</span></div>
+      </div>
+    </section>
+
+    <!-- ===================== GÄRPLAN ===================== -->
+    <section id="tab-plan" class="tab-panel">
+      <div class="card">
+        <label class="field-label">Name des Plans</label>
+        <input type="text" id="plan-name" placeholder="z.B. IPA Sud 12">
+      </div>
+
+      <div id="plan-steps"></div>
+
+      <button class="btn btn-secondary btn-block" id="plan-add-step">+ Schritt hinzufügen</button>
+
+      <div class="card actions">
+        <button class="btn btn-primary" id="plan-save">💾 Speichern</button>
+      </div>
+
+      <div class="card actions">
+        <button class="btn btn-success" id="plan-start">▶️ Start</button>
+        <button class="btn btn-danger" id="plan-stop">⏸ Stop</button>
+        <button class="btn btn-secondary" id="plan-reset">↺ Reset</button>
+      </div>
+    </section>
+
+    <!-- ===================== MANUELL ===================== -->
+    <section id="tab-manual" class="tab-panel">
+      <div class="card">
+        <p class="muted">
+          Umgeht den Gärplan und schaltet die Kühlung direkt - der
+          Kompressorschutz (Mindest-Ausschaltzeit) bleibt dabei immer aktiv.
+        </p>
+        <div class="row">
+          <span class="label">Manueller Modus</span>
+          <label class="switch">
+            <input type="checkbox" id="manual-active">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="row">
+          <span class="label">Kühlung</span>
+          <label class="switch">
+            <input type="checkbox" id="manual-relay" disabled>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== EINSTELLUNGEN ===================== -->
+    <section id="tab-settings" class="tab-panel">
+      <div class="card">
+        <h3 class="card-title">Hysterese</h3>
+        <label class="field-label">Einschalt-Offset über Zieltemp (°C)</label>
+        <input type="number" id="set-onoffset" step="0.1" min="0">
+        <label class="field-label">Ausschalt-Offset unter Zieltemp (°C)</label>
+        <input type="number" id="set-offoffset" step="0.1" min="0">
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Kompressorschutz</h3>
+        <p class="muted">Mindest-Ausschaltzeit kann aus Sicherheitsgründen nicht unter 60s gesetzt werden.</p>
+        <label class="field-label">Mindest-Ausschaltzeit (Sekunden)</label>
+        <input type="number" id="set-minoff" step="10" min="60">
+        <label class="field-label">Mindest-Einschaltzeit (Sekunden)</label>
+        <input type="number" id="set-minon" step="10" min="0">
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">CraftBeerPi-Reporting</h3>
+        <div class="row">
+          <span class="label">Aktiv</span>
+          <label class="switch">
+            <input type="checkbox" id="set-cbpi-enabled">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <label class="field-label">Host/IP des Pi</label>
+        <input type="text" id="set-cbpi-host" placeholder="192.168.178.93">
+        <label class="field-label">Port</label>
+        <input type="number" id="set-cbpi-port" placeholder="8000">
+        <label class="field-label">Sensor-Key (in CraftBeerPi als HTTPSensor angelegt)</label>
+        <input type="text" id="set-cbpi-key" placeholder="ferm1" maxlength="10">
+        <label class="field-label">Intervall (Sekunden)</label>
+        <input type="number" id="set-cbpi-interval" step="10" min="10">
+      </div>
+
+      <div class="card actions">
+        <button class="btn btn-primary" id="settings-save">💾 Speichern</button>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">WLAN</h3>
+        <p class="muted">Setzt die gespeicherten WLAN-Zugangsdaten zurück und startet neu - danach erscheint wieder das Einrichtungs-Portal.</p>
+        <button class="btn btn-danger btn-block" id="wifi-reset">WLAN zurücksetzen</button>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

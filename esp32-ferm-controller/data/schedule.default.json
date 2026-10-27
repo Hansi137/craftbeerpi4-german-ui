@@ -1,0 +1,8 @@
+{
+  "name": "Beispiel-Gaerplan",
+  "steps": [
+    { "name": "Primaergaerung", "targetTempC": 18.0, "durationDays": 5, "durationHours": 0, "rampToNext": false },
+    { "name": "Diacetylrast", "targetTempC": 20.0, "durationDays": 2, "durationHours": 0, "rampToNext": true },
+    { "name": "Kaltlagerung", "targetTempC": 2.0, "durationDays": 14, "durationHours": 0, "rampToNext": false }
+  ]
+}
