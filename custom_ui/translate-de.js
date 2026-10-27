@@ -6073,14 +6073,30 @@
   // axios nutzt im Browser standardmäßig XMLHttpRequest, nicht fetch. Damit
   // das unten garantiert greift, werden beide Transportwege abgefangen -
   // unser eigenes custom_ui verwendet fetch, daher bleibt das ebenfalls nötig.
-  function handleRecipeDeleteSuccess(url) {
-    // Rezeptname aus URL extrahieren: /recipe/{id} → {id}
+  // Zutaten sind im Datastore über den RezeptNAMEN indiziert, nicht über die
+  // Datei-ID aus der DELETE-URL. Der Name muss deshalb VOR dem eigentlichen
+  // Löschen aufgelöst werden - danach existiert die Rezeptdatei nicht mehr
+  // und wäre nicht mehr abfragbar. (Das war der eigentliche Bug hier: der
+  // Cleanup rief bisher deleteIngredients() mit der ID statt dem Namen auf
+  // und hat dadurch nie etwas gefunden/gelöscht.)
+  function resolveRecipeNameFromUrl(url, originalFetch) {
     var match = url.match(/\/recipe\/([^?/]+)/);
-    if (!match) return;
+    if (!match) return Promise.resolve(null);
     var recipeId = decodeURIComponent(match[1]);
+    return originalFetch('/recipe/' + encodeURIComponent(recipeId))
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(data) { return (data && data.basic) ? data.basic.name : null; })
+      .catch(function() { return null; });
+  }
+
+  function handleRecipeDeleteSuccess(recipeName) {
+    if (!recipeName) {
+      console.warn('[CBPI] Zutaten-Cleanup übersprungen: Rezeptname konnte vor dem Löschen nicht ermittelt werden.');
+      return;
+    }
     // Zutaten für dieses Rezept löschen (nach kurzer Verzögerung)
-    setTimeout(function() { deleteIngredients(recipeId); clearStep2IfNoRecipes(); }, 100);
-    console.log('[CBPI] Zutaten für gelöschtes Rezept "' + recipeId + '" bereinigt');
+    setTimeout(function() { deleteIngredients(recipeName); clearStep2IfNoRecipes(); }, 100);
+    console.log('[CBPI] Zutaten für gelöschtes Rezept "' + recipeName + '" bereinigt');
   }
 
   function handleRecipePutSuccess() {
@@ -6105,9 +6121,11 @@
       var options = args[1] || {};
 
       if (isRecipeDeleteRequest(options.method, url)) {
-        return originalFetch.apply(this, args).then(function(response) {
-          if (response.ok) handleRecipeDeleteSuccess(url);
-          return response;
+        return resolveRecipeNameFromUrl(url, originalFetch).then(function(recipeName) {
+          return originalFetch.apply(null, args).then(function(response) {
+            if (response.ok) handleRecipeDeleteSuccess(recipeName);
+            return response;
+          });
         });
       }
       if (isRecipeSaveRequest(options.method, url)) {
@@ -6131,12 +6149,24 @@
     OrigXHR.prototype.send = function() {
       var method = this._cbpiMethod;
       var url = this._cbpiUrl;
-      if (isRecipeDeleteRequest(method, url) || isRecipeSaveRequest(method, url)) {
+      var xhr = this;
+      var sendArgs = arguments;
+
+      if (isRecipeDeleteRequest(method, url)) {
+        // Name VOR dem eigentlichen Löschen auflösen (siehe
+        // resolveRecipeNameFromUrl) - das eigentliche Senden verzögert sich
+        // dadurch nur um einen kurzen lokalen Request, unkritisch.
+        resolveRecipeNameFromUrl(url, originalFetch).then(function(recipeName) {
+          xhr.addEventListener('load', function() {
+            if (xhr.status >= 200 && xhr.status < 300) handleRecipeDeleteSuccess(recipeName);
+          });
+          origSend.apply(xhr, sendArgs);
+        });
+        return;
+      }
+      if (isRecipeSaveRequest(method, url)) {
         this.addEventListener('load', function() {
-          if (this.status >= 200 && this.status < 300) {
-            if (isRecipeDeleteRequest(method, url)) handleRecipeDeleteSuccess(url);
-            else handleRecipePutSuccess();
-          }
+          if (this.status >= 200 && this.status < 300) handleRecipePutSuccess();
         });
       }
       return origSend.apply(this, arguments);
