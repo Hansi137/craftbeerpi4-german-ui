@@ -3528,9 +3528,12 @@
       var sMin = (s.props && s.props.Timer) ? parseInt(s.props.Timer) || 0 : 0;
       totalBrewMin += sMin;
       if (idx < activeIdx) elapsedBrewMin += sMin;
-      else if (idx === activeIdx && timerText) {
-        var tp = timerText.split('/');
-        if (tp.length === 2) elapsedBrewMin += Math.floor(parseTimerParts(tp[0].trim()) / 60);
+      else if (idx === activeIdx && timerText && isTimerValue(timerText)) {
+        // timerText ist die Restzeit (state_text liefert kein "verstrichen/gesamt"
+        // mit "/", siehe Timer.format_time in cbpi/api/timer.py) - verstrichene
+        // Zeit des aktiven Schritts daher aus geplanter Dauer minus Restzeit.
+        var remainCurMin = Math.floor(parseTimerParts(timerText.trim()) / 60);
+        elapsedBrewMin += Math.max(0, sMin - remainCurMin);
       }
     });
     var remainBrewMin = totalBrewMin - elapsedBrewMin;
@@ -11259,7 +11262,18 @@
     }
 
     // Bereits injiziert?
-    if (document.getElementById('cbpi-fermenter-config-form')) return;
+    var existingForm = document.getElementById('cbpi-fermenter-config-form');
+    if (existingForm) {
+      // Gleicher Gärbehälter wie beim letzten Mount → nichts zu tun.
+      if (existingForm.getAttribute('data-fermenter-id') === fermenterId) return;
+      // ANDERER Gärbehälter (Navigation direkt von einer Fermenter-
+      // Detailseite zur nächsten, ohne dass /fermenter/... verlassen wird) →
+      // altes Formular entfernen und für den tatsächlich angezeigten
+      // Gärbehälter neu aufbauen. Sonst bliebe das Formular am alten
+      // Gärbehälter hängen und Änderungen (Sensor/Aktor-Zuordnung) würden
+      // unbemerkt auf dem falschen Gärbehälter gespeichert.
+      existingForm.remove();
+    }
 
     var de = currentLang === 'de';
     _isOurDomChange = true;
@@ -11267,6 +11281,7 @@
     // Lade-Container erstellen
     var container = document.createElement('div');
     container.id = 'cbpi-fermenter-config-form';
+    container.setAttribute('data-fermenter-id', fermenterId);
     container.style.cssText = 'padding:24px;max-width:1100px;margin:0 auto';
     container.innerHTML = '<div style="color:var(--text-secondary,#888);padding:40px;text-align:center">' + (de ? 'Gärbehälter-Konfiguration wird geladen…' : 'Loading fermenter configuration…') + '</div>';
 
