@@ -8061,6 +8061,16 @@
     } catch (e) { /* localStorage evtl. nicht verfügbar - dann eben kein Schutz */ }
   }
 
+  function clearEventNotified(eventKey) {
+    try {
+      var all = JSON.parse(localStorage.getItem(NOTIFIED_EVENTS_KEY)) || {};
+      if (eventKey in all) {
+        delete all[eventKey];
+        localStorage.setItem(NOTIFIED_EVENTS_KEY, JSON.stringify(all));
+      }
+    } catch (e) { /* ignorieren */ }
+  }
+
   // ============================================================
   // HOPFEN-TIMER — Countdown-Timer für Hopfengaben während des Kochens
   // ============================================================
@@ -8147,15 +8157,10 @@
 
     // Timer nur einmal parsen (beim Wechsel des Schritts ODER nach einem
     // Seiten-Reload, bei dem _hopTimers wieder leer ist)
-    if (_hopTimers.length === 0 || _hopTimers._stepId !== activeStep.id) {
+    var isNewMount = (_hopTimers.length === 0 || _hopTimers._stepId !== activeStep.id);
+    if (isNewMount) {
       _hopTimers = parseHopTimersFromStep(activeStep);
       _hopTimers._stepId = activeStep.id;
-      // Bereits vor einem Reload gemeldete Gaben als "fired" markieren,
-      // sonst würden sie (und alle anderen inzwischen fälligen Gaben)
-      // beim ersten Check nach dem Reload alle gleichzeitig neu auslösen.
-      _hopTimers.forEach(function(ht) {
-        if (wasEventNotified('hop_' + activeStep.id + '_' + ht.id)) ht.fired = true;
-      });
     }
 
     // Verbleibende Zeit aus state_text berechnen. WICHTIG: der Server
@@ -8176,6 +8181,29 @@
     var remainingSec = hasTimer ? parseTimerParts(stateText.trim()) : 0;
     var totalPlannedSec = (parseInt(activeStep.props && activeStep.props.Timer) || 0) * 60;
     var elapsedSec = hasTimer ? Math.max(0, totalPlannedSec - remainingSec) : 0;
+
+    if (isNewMount) {
+      // Reload-Schutz: bereits gemeldete Gaben als "fired" markieren, sonst
+      // würden sie beim ersten Check nach einem Reload erneut auslösen.
+      // WICHTIG: der Merker wird nur übernommen, wenn der AKTUELLE Timer-
+      // Stand ihn auch bestätigt (remainingSec tatsächlich schon unter der
+      // Schwelle). Dieselbe Schritt-ID bleibt z.B. über einen Server-Neustart
+      // hinweg erhalten (kein neuer Rezept-Import), ein frisch gestarteter
+      // Timer für diese ID hätte sonst einen veralteten Merker von einem
+      // früheren Testlauf geerbt und die Gabe dauerhaft blockiert, obwohl
+      // sie real noch gar nicht fällig ist (genau das ist am 2026-10-27
+      // passiert: beide Hopfengaben zeigten "Zugabe!" direkt beim Kochstart,
+      // weil ein alter Fehlalarm-Merker für dieselbe Schritt-ID noch stand).
+      _hopTimers.forEach(function(ht) {
+        var key = 'hop_' + activeStep.id + '_' + ht.id;
+        if (!wasEventNotified(key)) return;
+        if (hasTimer && remainingSec <= ht.minBefore * 60) {
+          ht.fired = true;
+        } else {
+          clearEventNotified(key);
+        }
+      });
+    }
 
     _hopTimers.forEach(function(ht) {
       // remainSec = wann die Hopfengabe fällig ist (Sekunden bis Alarm).
