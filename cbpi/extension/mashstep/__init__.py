@@ -145,6 +145,17 @@ class MashInStep(CBPiStep):
             sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get(
                 "value"
             )
+            if sensor_value is None:
+                # Sensor liefert kurzzeitig keinen gültigen Wert (Ausfall,
+                # Rauschen, Kalibrierung). Ohne diese Prüfung crasht der
+                # komplette Schritt-Task am folgenden Vergleich, weil None
+                # nicht mit einer Zahl vergleichbar ist - einfach die nächste
+                # Sekunde abwarten statt abzustürzen.
+                logging.warning(
+                    "%s: Kein gültiger Sensorwert - Vergleich übersprungen",
+                    self.name,
+                )
+                continue
             if (
                 sensor_value >= int(self.props.get("Temp", 0))
                 and self.timer.is_running is not True
@@ -271,6 +282,17 @@ class MashStep(CBPiStep):
             sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get(
                 "value"
             )
+            if sensor_value is None:
+                # Sensor liefert kurzzeitig keinen gültigen Wert (Ausfall,
+                # Rauschen, Kalibrierung). Ohne diese Prüfung crasht der
+                # komplette Schritt-Task am folgenden Vergleich, weil None
+                # nicht mit einer Zahl vergleichbar ist - einfach die nächste
+                # Sekunde abwarten statt abzustürzen.
+                logging.warning(
+                    "%s: Kein gültiger Sensorwert - Vergleich übersprungen",
+                    self.name,
+                )
+                continue
             if (
                 sensor_value >= int(self.props.get("Temp", 0))
                 and self.timer.is_running is not True
@@ -682,6 +704,18 @@ class BoilStep(CBPiStep):
             sensor_value = self.get_sensor_value(self.props.get("Sensor", None)).get(
                 "value"
             )
+            if sensor_value is None:
+                # Sensor liefert kurzzeitig keinen gültigen Wert (Ausfall,
+                # Rauschen, Kalibrierung). Ohne diese Prüfung crasht der
+                # komplette Kochschritt-Task an den folgenden Vergleichen,
+                # weil None nicht mit einer Zahl vergleichbar ist - einfach
+                # die nächste Sekunde abwarten statt abzustürzen. Genau das
+                # ist live am 2026-10-27 19:05 passiert (siehe cbpi.log).
+                logging.warning(
+                    "%s: Kein gültiger Sensorwert - Vergleich übersprungen",
+                    self.name,
+                )
+                continue
             self.temparray = np.append(self.temparray, sensor_value)
             if self.temparray.size > self.dwelltime:
                 self.temparray = np.delete(self.temparray, 0)
@@ -828,9 +862,17 @@ class CooldownStep(CBPiStep):
                 1, on_update=self.on_timer_update, on_done=self.on_timer_done
             )
         self.start_time = time.time()
-        self.temp_array.append(
-            self.get_sensor_value(self.props.get("Sensor", None)).get("value")
-        )
+        start_temp = self.get_sensor_value(self.props.get("Sensor", None)).get("value")
+        if start_temp is None:
+            # Noch kein gültiger Sensorwert beim Start des Schritts - der
+            # Run-Loop überschreibt diesen Platzhalter mit der ersten echten
+            # Messung ohnehin innerhalb weniger Sekunden.
+            logging.warning(
+                "%s: Kein gültiger Sensorwert beim Start - 0.0 als Platzhalter",
+                self.name,
+            )
+            start_temp = 0.0
+        self.temp_array.append(start_temp)
         self.time_array.append(time.time())
         self.next_check = self.start_time + self.Interval * 60
         self.count = 0
@@ -858,6 +900,20 @@ class CooldownStep(CBPiStep):
             current_temp = self.get_sensor_value(self.props.get("Sensor", None)).get(
                 "value"
             )
+            if current_temp is None:
+                # Sensor liefert kurzzeitig keinen gültigen Wert (Ausfall,
+                # Rauschen, Kalibrierung). Ohne diese Prüfung crasht der
+                # komplette Schritt-Task an den folgenden Vergleichen/der
+                # Kurvenanpassung, weil None nicht mit einer Zahl
+                # vergleichbar/berechenbar ist - einfach die nächste Sekunde
+                # abwarten statt abzustürzen.
+                logging.warning(
+                    "%s: Kein gültiger Sensorwert - Durchlauf übersprungen",
+                    self.name,
+                )
+                self.count += 1
+                await asyncio.sleep(1)
+                continue
             if self.count == 3:
                 self.temp_array.append(current_temp)
                 current_time = time.time()
@@ -885,9 +941,9 @@ class CooldownStep(CBPiStep):
                 )
                 self.temp_array = []
                 self.time_array = []
-                self.temp_array.append(
-                    self.get_sensor_value(self.props.get("Sensor", None)).get("value")
-                )
+                # current_temp wiederverwenden statt erneut zu lesen - ist an
+                # dieser Stelle bereits als gültig (nicht None) geprüft.
+                self.temp_array.append(current_temp)
                 self.time_array.append(time.time())
                 await self.push_update()
 
