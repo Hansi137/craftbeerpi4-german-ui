@@ -13,10 +13,18 @@
 
 // DS18B20-Datenleitung (OneWire). Braucht einen 4,7 kOhm Pull-Up-Widerstand
 // zwischen Datenleitung und 3,3V.
-#define PIN_ONEWIRE_DATA 4
+// Angepasst an ein ESP32-S3-Board mit eingebautem 170x320-Display: GPIO21
+// ist dort frei herausgeführt.
+#define PIN_ONEWIRE_DATA 21
 
 // Steuerleitung zum Relais-Modul.
-#define PIN_RELAY 5
+// GPIO5 ist auf diesem Board NICHT herausgeführt (vermutlich intern fürs
+// Display belegt). GPIO18 ist stattdessen frei, hat keine
+// Boot-/Strapping-/USB-Funktion und eignet sich daher problemlos als
+// einfacher digitaler Ausgang. GPIO43/44 (Standard-UART0 auf dem S3, für
+// Serial.begin() in main.cpp genutzt) und GPIO3 (Strapping-Pin) bewusst
+// NICHT verwenden.
+#define PIN_RELAY 18
 
 // true, wenn das Relais-Modul bei HIGH schaltet (die meisten einfachen
 // Module), false bei "active low"-Modulen (schaltet bei LOW - häufig bei

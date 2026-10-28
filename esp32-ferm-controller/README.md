@@ -33,7 +33,9 @@ Kompressor. Das ist kein Bereich für Trial-and-Error:
 
 ## Hardware
 
-- ESP32-Entwicklungsboard (beliebiges generisches DevKit)
+- ESP32-S3-Board (hier: Variante mit eingebautem 170x320-Display, z.B.
+  LilyGo T-Display-S3 o.ä. - die Firmware nutzt das Display selbst nicht,
+  es muss nur frei bleiben)
 - DS18B20-Temperatursensor (wasserdicht erhältlich - für den Kühlschrank
   empfehlenswert)
 - 4,7 kΩ Pull-Up-Widerstand zwischen DS18B20-Datenleitung und 3,3V
@@ -43,8 +45,13 @@ Kompressor. Das ist kein Bereich für Trial-and-Error:
 
 | Signal | ESP32-Pin |
 |---|---|
-| DS18B20 Daten (mit Pull-Up) | GPIO 4 |
-| Relais-Steuerleitung | GPIO 5 |
+| DS18B20 Daten (mit Pull-Up) | GPIO 21 |
+| Relais-Steuerleitung | GPIO 18 |
+
+Diese beiden Pins wurden bewusst anhand des tatsächlichen Pinouts dieses
+Boards gewählt: GPIO43/44 sind das Standard-UART0 (von `Serial.begin()` für
+die Debug-Ausgabe genutzt) und GPIO3 ist ein Strapping-Pin - beide bewusst
+nicht für Sensor/Relais verwendet.
 
 Die Pins sowie "aktiv-high/low" für dein konkretes Relais-Modul stehen als
 klar kommentierte Konstanten in `src/config.h` - vor dem Flashen an die
@@ -60,14 +67,14 @@ Zwei gleichwertige Wege - beide nutzen dieselben Dateien in `src/`.
 2. Folgende Bibliotheken über den Bibliotheksverwalter installieren: `WiFiManager` (tzapu), `ESPAsyncWebServer` (lacamera), `ArduinoJson`, `DallasTemperature`, `OneWire`.
 3. Sketch `src/` öffnen (Arduino IDE erkennt `main.cpp` als Teil des Sketches, solange alle Dateien im selben Ordner liegen - bei Bedarf den Ordner in `esp32-ferm-controller` umbenennen und `main.cpp` zu `esp32-ferm-controller.ino` umbenennen, oder per `arduino-cli compile` wie unten bauen).
 4. Dashboard-Dateien auf LittleFS hochladen: mit dem Plugin "ESP32 Sketch Data Upload" (Arduino IDE) bzw. `arduino-cli` + `mklittlefs` den Inhalt von `data/` flashen.
-5. Board auswählen, flashen, seriellen Monitor bei 115200 Baud öffnen.
+5. Board **"ESP32S3 Dev Module"** auswählen (das Projekt richtet sich an ein ESP32-S3-Board, siehe Abschnitt "Hardware"), flashen, seriellen Monitor bei 115200 Baud öffnen.
 
 ### Weg B: PlatformIO
 
 ```sh
 cd esp32-ferm-controller
-pio run -e esp32dev -t upload      # Firmware flashen
-pio run -e esp32dev -t uploadfs    # Dashboard-Dateien (data/) auf LittleFS flashen
+pio run -e esp32s3 -t upload      # Firmware flashen
+pio run -e esp32s3 -t uploadfs    # Dashboard-Dateien (data/) auf LittleFS flashen
 pio device monitor                 # serielle Ausgabe ansehen
 ```
 
@@ -148,7 +155,7 @@ eigenen, vertrauenswürdigen Heimnetz verwenden.
 
 ```
 esp32-ferm-controller/
-├── platformio.ini           PlatformIO-Projekt (env:esp32dev + env:native für Logik-Tests)
+├── platformio.ini           PlatformIO-Projekt (env:esp32s3 + env:native für Logik-Tests)
 ├── src/                      Firmware-Quellcode
 │   ├── main.cpp               Regelkreis (Setup/Loop), verdrahtet alle Module
 │   ├── config.h                Pin-Belegung + Defaults (anpassen!)
@@ -179,10 +186,13 @@ In der Entwicklungsumgebung, in der dieses Projekt entstanden ist, war kein
 PlatformIO und kein nativer C++-Compiler verfügbar, wohl aber Arduino CLI
 mit installiertem ESP32-Core. Tatsächlich durchgeführt:
 
-- **Vollständige Firmware kompiliert sauber** gegen den echten ESP32-Toolchain
-  (`arduino-cli compile --fqbn esp32:esp32:esp32`) inklusive aller
+- **Vollständige Firmware kompiliert sauber** gegen den echten ESP32-S3-Toolchain
+  (`arduino-cli compile --fqbn esp32:esp32:esp32s3`) inklusive aller
   Bibliotheken (WiFiManager, ESPAsyncWebServer, ArduinoJson, DallasTemperature,
-  OneWire) - 0 Warnungen im eigenen Code.
+  OneWire) - 0 Warnungen im eigenen Code. (Ein erster Durchlauf lief versehentlich
+  gegen das falsche Chip-Target, klassisches ESP32 statt S3 - nach Korrektur der
+  Pin-Belegung auf das tatsächliche S3-Board erneut gegen den richtigen
+  Toolchain verifiziert.)
 - **`test/selftest/` kompiliert ebenfalls sauber** gegen denselben Toolchain.
 - Die konkreten Testfälle in `test/selftest/` und `test/test_*` (Schwellwerte,
   Kompressorschutz-Grenzfälle, manueller Modus, Schritt-Übergänge,
@@ -212,5 +222,7 @@ durchgehen:
 
 ## Offene Anpassungen
 
-- `platformio.ini`: `board = esp32dev` ist ein generischer Platzhalter - ggf. an das genaue eigene Board anpassen.
-- `src/config.h`: GPIO-Pins und Relais-Polarität an die eigene Verkabelung anpassen.
+- `src/config.h`: GPIO21 (Sensor) und GPIO18 (Relais) passen zum oben
+  beschriebenen ESP32-S3-Board - bei einem anderen Board das tatsächliche
+  Pinout prüfen und ggf. anpassen. Relais-Polarität (`RELAY_ACTIVE_HIGH`)
+  je nach konkretem Relais-Modul kontrollieren.
