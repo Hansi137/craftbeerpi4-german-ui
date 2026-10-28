@@ -9,21 +9,31 @@
 
 // ---------------------------------------------------------------------
 // PIN-BELEGUNG - UNBEDINGT an die eigene Verkabelung anpassen!
+//
+// Board: LilyGO T-Display S3 (ESP32-S3 mit eingebautem 1,9" 170x320
+// ST7789-Display). Diese Firmware nutzt das Display selbst nicht, aber die
+// Pin-Wahl unten berücksichtigt, welche GPIOs auf diesem Board bereits für
+// Onboard-Peripherie reserviert sind - bestätigt durch ein früheres,
+// funktionierendes Projekt auf demselben Board
+// (https://github.com/Hansi137/esp32thermometer):
+//   GPIO0  - Boot-Taster (Display-Helligkeit im Referenzprojekt)
+//   GPIO4  - Akku-Spannungsmessung (ADC, Spannungsteiler)
+//   GPIO14 - Taster 1
+//   GPIO15 - LCD-Power-Enable
+//   GPIO38 - Display-Hintergrundbeleuchtung (PWM)
+//   GPIO43/44 - Standard-UART0 (hier von Serial.begin() in main.cpp genutzt)
+// Alle oben genannten Pins bewusst NICHT für Sensor/Relais verwendet.
 // ---------------------------------------------------------------------
 
 // DS18B20-Datenleitung (OneWire). Braucht einen 4,7 kOhm Pull-Up-Widerstand
-// zwischen Datenleitung und 3,3V.
-// Angepasst an ein ESP32-S3-Board mit eingebautem 170x320-Display: GPIO21
-// ist dort frei herausgeführt.
+// zwischen Datenleitung und 3,3V. GPIO21 ist exakt der Pin, den auch das
+// oben verlinkte Referenzprojekt für denselben Sensor auf diesem Board nutzt.
 #define PIN_ONEWIRE_DATA 21
 
-// Steuerleitung zum Relais-Modul.
-// GPIO5 ist auf diesem Board NICHT herausgeführt (vermutlich intern fürs
-// Display belegt). GPIO18 ist stattdessen frei, hat keine
+// Steuerleitung zum Relais-Modul. GPIO18 ist auf diesem Board frei
+// (taucht in keiner der oben genannten Onboard-Belegungen auf), hat keine
 // Boot-/Strapping-/USB-Funktion und eignet sich daher problemlos als
-// einfacher digitaler Ausgang. GPIO43/44 (Standard-UART0 auf dem S3, für
-// Serial.begin() in main.cpp genutzt) und GPIO3 (Strapping-Pin) bewusst
-// NICHT verwenden.
+// einfacher digitaler Ausgang.
 #define PIN_RELAY 18
 
 // true, wenn das Relais-Modul bei HIGH schaltet (die meisten einfachen

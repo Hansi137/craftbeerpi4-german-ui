@@ -33,9 +33,9 @@ Kompressor. Das ist kein Bereich für Trial-and-Error:
 
 ## Hardware
 
-- ESP32-S3-Board (hier: Variante mit eingebautem 170x320-Display, z.B.
-  LilyGo T-Display-S3 o.ä. - die Firmware nutzt das Display selbst nicht,
-  es muss nur frei bleiben)
+- **LilyGO T-Display S3** (ESP32-S3 mit eingebautem 1,9" 170x320
+  ST7789-Display, natives USB) - diese Firmware nutzt das Display selbst
+  nicht, es muss nur frei bleiben
 - DS18B20-Temperatursensor (wasserdicht erhältlich - für den Kühlschrank
   empfehlenswert)
 - 4,7 kΩ Pull-Up-Widerstand zwischen DS18B20-Datenleitung und 3,3V
@@ -48,14 +48,18 @@ Kompressor. Das ist kein Bereich für Trial-and-Error:
 | DS18B20 Daten (mit Pull-Up) | GPIO 21 |
 | Relais-Steuerleitung | GPIO 18 |
 
-Diese beiden Pins wurden bewusst anhand des tatsächlichen Pinouts dieses
-Boards gewählt: GPIO43/44 sind das Standard-UART0 (von `Serial.begin()` für
-die Debug-Ausgabe genutzt) und GPIO3 ist ein Strapping-Pin - beide bewusst
-nicht für Sensor/Relais verwendet.
+Diese Pin-Wahl ist durch ein früheres, funktionierendes Projekt auf
+demselben Board bestätigt ([esp32thermometer](https://github.com/Hansi137/esp32thermometer)):
+GPIO21 ist dort exakt derselbe DS18B20-Pin, GPIO18 taucht in dessen
+Pin-Belegung gar nicht auf (also frei). Auf diesem Board bereits durch
+Onboard-Peripherie belegt und deshalb bewusst nicht für Sensor/Relais
+verwendet: GPIO0 (Boot-Taster), GPIO4 (Akku-Spannungsmessung), GPIO14
+(Taster), GPIO15 (LCD-Power), GPIO38 (Display-Hintergrundbeleuchtung),
+GPIO43/44 (Standard-UART0, von `Serial.begin()` genutzt).
 
 Die Pins sowie "aktiv-high/low" für dein konkretes Relais-Modul stehen als
 klar kommentierte Konstanten in `src/config.h` - vor dem Flashen an die
-eigene Verkabelung anpassen.
+eigene Verkabelung anpassen, falls du ein anderes Board verwendest.
 
 ## Firmware flashen
 
