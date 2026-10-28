@@ -121,6 +121,7 @@ bool loadSettings(Settings& out) {
     copyName(out.cbpiKey, sizeof(out.cbpiKey), "");
     out.cbpiReportIntervalSeconds = DEFAULT_CBPI_REPORT_INTERVAL_SECONDS;
     out.relayActiveHigh = RELAY_ACTIVE_HIGH;
+    out.historyIntervalSeconds = DEFAULT_HISTORY_INTERVAL_SECONDS;
 
     File f = LittleFS.open(SETTINGS_PATH, "r");
     if (!f) return false;
@@ -148,6 +149,7 @@ bool loadSettings(Settings& out) {
     copyName(out.cbpiKey, sizeof(out.cbpiKey), doc["cbpiKey"] | "");
     out.cbpiReportIntervalSeconds = doc["cbpiReportIntervalSeconds"] | DEFAULT_CBPI_REPORT_INTERVAL_SECONDS;
     out.relayActiveHigh = doc["relayActiveHigh"] | (bool)RELAY_ACTIVE_HIGH;
+    out.historyIntervalSeconds = doc["historyIntervalSeconds"] | (uint32_t)DEFAULT_HISTORY_INTERVAL_SECONDS;
     return true;
 }
 
@@ -164,6 +166,7 @@ bool saveSettings(const Settings& s) {
     doc["cbpiKey"] = s.cbpiKey;
     doc["cbpiReportIntervalSeconds"] = s.cbpiReportIntervalSeconds;
     doc["relayActiveHigh"] = s.relayActiveHigh;
+    doc["historyIntervalSeconds"] = s.historyIntervalSeconds;
 
     File f = LittleFS.open(SETTINGS_PATH, "w");
     if (!f) return false;

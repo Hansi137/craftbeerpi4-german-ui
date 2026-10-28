@@ -25,6 +25,7 @@
 #include "web_server.h"
 #include "cbpi_reporter.h"
 #include "display.h"
+#include "history.h"
 
 AppState appState;
 
@@ -160,6 +161,7 @@ void setup() {
     persistence::loadSchedule(appState.schedule);
     persistence::loadSettings(appState.settings);
     persistence::loadState(appState.progress);
+    history::begin();
 
     tempSensor.begin();
     if (!tempSensor.isSensorPresent()) {
@@ -198,6 +200,7 @@ void loop() {
         appState.wifiRssi = wifi_setup::rssi();
 
         cbpi_reporter::reportIfDue(appState.settings, appState.currentTempC, now);
+        history::recordIfDue(now);
     }
 
     if ((uint32_t)(now - lastStateSaveMillis) >= STATE_SAVE_INTERVAL_MS) {

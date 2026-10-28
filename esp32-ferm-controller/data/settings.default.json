@@ -4,6 +4,7 @@
   "minCompressorOffSeconds": 240,
   "minCompressorOnSeconds": 90,
   "relayActiveHigh": true,
+  "historyIntervalSeconds": 300,
   "cbpiReportEnabled": false,
   "cbpiHost": "",
   "cbpiPort": 8000,

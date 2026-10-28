@@ -192,13 +192,26 @@ input:focus { outline: 2px solid var(--accent-light); }
   gap: 8px;
 }
 .step-fields .full { grid-column: 1 / -1; }
-.step-remove {
+.step-card-actions {
+  display: flex;
+  gap: 2px;
+}
+.step-btn {
   background: none;
   border: none;
+  color: var(--text-secondary);
+  font-size: 1em;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.step-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.step-btn.step-remove {
   color: var(--danger);
   font-size: 1.2em;
-  cursor: pointer;
-  padding: 2px 8px;
 }
 .step-ramp-row {
   display: flex;

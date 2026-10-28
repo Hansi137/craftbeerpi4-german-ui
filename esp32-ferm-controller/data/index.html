@@ -65,6 +65,12 @@
       </div>
 
       <div class="card actions">
+        <button class="btn btn-secondary" id="plan-export">⬇️ JSON exportieren</button>
+        <button class="btn btn-secondary" id="plan-import-btn">⬆️ JSON importieren</button>
+        <input type="file" id="plan-import-file" accept="application/json,.json" hidden>
+      </div>
+
+      <div class="card actions">
         <button class="btn btn-success" id="plan-start">▶️ Start</button>
         <button class="btn btn-danger" id="plan-stop">⏸ Stop</button>
         <button class="btn btn-secondary" id="plan-reset">↺ Reset</button>
@@ -154,6 +160,17 @@
         <input type="text" id="set-cbpi-key" placeholder="ferm1" maxlength="10">
         <label class="field-label">Intervall (Sekunden)</label>
         <input type="number" id="set-cbpi-interval" step="10" min="10">
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Gärungsverlauf</h3>
+        <p class="muted">Protokolliert Temperatur, Zieltemperatur und Kühl-Status periodisch auf dem Gerät - als CSV exportierbar, z.B. für ein Diagramm in Excel/Numbers/Google Sheets.</p>
+        <label class="field-label">Aufzeichnungsintervall (Sekunden, 0 = aus)</label>
+        <input type="number" id="set-history-interval" step="10" min="0">
+        <div class="actions" style="margin-top:10px;">
+          <a class="btn btn-secondary" id="history-download" href="/api/history.csv" download="gaerverlauf.csv">⬇️ CSV herunterladen</a>
+          <button class="btn btn-danger" id="history-clear">🗑 Verlauf löschen</button>
+        </div>
       </div>
 
       <div class="card actions">

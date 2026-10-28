@@ -2,6 +2,7 @@
 #include "app_state.h"
 #include "persistence.h"
 #include "wifi_setup.h"
+#include "history.h"
 #include "config.h"
 
 #include <LittleFS.h>
@@ -155,6 +156,7 @@ void handleGetSettings(AsyncWebServerRequest* request) {
     doc["cbpiKey"] = s.cbpiKey;
     doc["cbpiReportIntervalSeconds"] = s.cbpiReportIntervalSeconds;
     doc["relayActiveHigh"] = s.relayActiveHigh;
+    doc["historyIntervalSeconds"] = s.historyIntervalSeconds;
     sendJson(request, 200, doc);
 }
 
@@ -177,6 +179,7 @@ void handlePutSettings(AsyncWebServerRequest* request, JsonVariant& json) {
 
     s.minCompressorOnSeconds = obj["minCompressorOnSeconds"] | s.minCompressorOnSeconds;
     s.relayActiveHigh = obj["relayActiveHigh"] | s.relayActiveHigh;
+    s.historyIntervalSeconds = obj["historyIntervalSeconds"] | s.historyIntervalSeconds;
     s.cbpiReportEnabled = obj["cbpiReportEnabled"] | s.cbpiReportEnabled;
     if (obj["cbpiHost"].is<const char*>()) {
         strncpy(s.cbpiHost, obj["cbpiHost"], sizeof(s.cbpiHost) - 1);
@@ -252,6 +255,21 @@ void handleWifiReset(AsyncWebServerRequest* request) {
     wifi_setup::resetAndRestart();
 }
 
+void handleGetHistoryCsv(AsyncWebServerRequest* request) {
+    if (!LittleFS.exists("/history.csv")) {
+        sendError(request, 404, "Kein Verlauf vorhanden");
+        return;
+    }
+    AsyncWebServerResponse* response = request->beginResponse(LittleFS, "/history.csv", "text/csv");
+    response->addHeader("Content-Disposition", "attachment; filename=\"gaerverlauf.csv\"");
+    request->send(response);
+}
+
+void handleHistoryClear(AsyncWebServerRequest* request) {
+    history::clear();
+    sendOk(request);
+}
+
 void handleGetInfo(AsyncWebServerRequest* request) {
     JsonDocument doc;
     doc["firmwareVersion"] = FIRMWARE_VERSION;
@@ -286,6 +304,8 @@ void begin() {
     server.on("/api/control/stop", HTTP_POST, handleControlStop);
     server.on("/api/control/reset", HTTP_POST, handleControlReset);
     server.on("/api/wifi/reset", HTTP_POST, handleWifiReset);
+    server.on("/api/history.csv", HTTP_GET, handleGetHistoryCsv);
+    server.on("/api/history/clear", HTTP_POST, handleHistoryClear);
     server.on("/api/info", HTTP_GET, handleGetInfo);
 
     auto* scheduleHandler = new AsyncCallbackJsonWebHandler("/api/schedule", handlePutSchedule);

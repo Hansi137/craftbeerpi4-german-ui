@@ -128,10 +128,17 @@
     currentSchedule.steps.forEach(function (step, i) {
       var card = document.createElement('div');
       card.className = 'step-card';
+      var isFirst = i === 0;
+      var isLast = i === currentSchedule.steps.length - 1;
       card.innerHTML =
         '<div class="step-card-header">' +
           '<span class="step-index">Schritt ' + (i + 1) + '</span>' +
-          '<button class="step-remove" data-i="' + i + '">✕</button>' +
+          '<div class="step-card-actions">' +
+            '<button class="step-btn step-move-up" data-i="' + i + '"' + (isFirst ? ' disabled' : '') + '>▲</button>' +
+            '<button class="step-btn step-move-down" data-i="' + i + '"' + (isLast ? ' disabled' : '') + '>▼</button>' +
+            '<button class="step-btn step-insert" data-i="' + i + '">➕</button>' +
+            '<button class="step-btn step-remove" data-i="' + i + '">✕</button>' +
+          '</div>' +
         '</div>' +
         '<div class="step-fields">' +
           '<input type="text" class="full" data-f="name" data-i="' + i + '" placeholder="Name" value="' + (step.name || '').replace(/"/g, '&quot;') + '">' +
@@ -162,6 +169,31 @@
     container.querySelectorAll('.step-remove').forEach(function (btn) {
       btn.addEventListener('click', function () {
         currentSchedule.steps.splice(parseInt(btn.dataset.i, 10), 1);
+        renderSteps();
+      });
+    });
+    container.querySelectorAll('.step-move-up').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var i = parseInt(btn.dataset.i, 10);
+        if (i <= 0) return;
+        var steps = currentSchedule.steps;
+        var tmp = steps[i - 1]; steps[i - 1] = steps[i]; steps[i] = tmp;
+        renderSteps();
+      });
+    });
+    container.querySelectorAll('.step-move-down').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var i = parseInt(btn.dataset.i, 10);
+        var steps = currentSchedule.steps;
+        if (i >= steps.length - 1) return;
+        var tmp = steps[i + 1]; steps[i + 1] = steps[i]; steps[i] = tmp;
+        renderSteps();
+      });
+    });
+    container.querySelectorAll('.step-insert').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var i = parseInt(btn.dataset.i, 10);
+        currentSchedule.steps.splice(i + 1, 0, { name: 'Neuer Schritt', targetTempC: 18, durationDays: 1, durationHours: 0, rampToNext: false });
         renderSteps();
       });
     });
@@ -200,6 +232,54 @@
       .then(function () { showToast('Gestoppt'); pollStatus(); })
       .catch(function () { showToast('Stop fehlgeschlagen', true); });
   });
+  $('plan-export').addEventListener('click', function () {
+    currentSchedule.name = $('plan-name').value;
+    var blob = new Blob([JSON.stringify(currentSchedule, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = (currentSchedule.name || 'gaerplan').replace(/[^a-zA-Z0-9_-]+/g, '_') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  $('plan-import-btn').addEventListener('click', function () {
+    $('plan-import-file').click();
+  });
+
+  $('plan-import-file').addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var parsed = JSON.parse(reader.result);
+        if (!parsed || !Array.isArray(parsed.steps)) throw new Error('kein "steps"-Array gefunden');
+        currentSchedule = {
+          name: parsed.name || 'Gaerplan',
+          steps: parsed.steps.map(function (st) {
+            return {
+              name: st.name || 'Schritt',
+              targetTempC: parseFloat(st.targetTempC) || 0,
+              durationDays: parseInt(st.durationDays, 10) || 0,
+              durationHours: parseInt(st.durationHours, 10) || 0,
+              rampToNext: !!st.rampToNext
+            };
+          })
+        };
+        $('plan-name').value = currentSchedule.name;
+        renderSteps();
+        showToast('Gärplan aus Datei geladen - bitte prüfen und speichern');
+      } catch (err) {
+        showToast('Datei ungültig: ' + err.message, true);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // erlaubt erneuten Import derselben Datei
+  });
+
   $('plan-reset').addEventListener('click', function () {
     if (!confirm('Gärplan-Fortschritt wirklich zurücksetzen?')) return;
     api('/api/control/reset', { method: 'POST' })
@@ -244,6 +324,7 @@
       $('set-minoff').value = s.minCompressorOffSeconds;
       $('set-minon').value = s.minCompressorOnSeconds;
       $('set-relay-inverted').checked = !s.relayActiveHigh;
+      $('set-history-interval').value = s.historyIntervalSeconds;
       $('set-cbpi-enabled').checked = s.cbpiReportEnabled;
       $('set-cbpi-host').value = s.cbpiHost;
       $('set-cbpi-port').value = s.cbpiPort;
@@ -259,6 +340,7 @@
       minCompressorOffSeconds: parseInt($('set-minoff').value, 10) || 240,
       minCompressorOnSeconds: parseInt($('set-minon').value, 10) || 0,
       relayActiveHigh: !$('set-relay-inverted').checked,
+      historyIntervalSeconds: parseInt($('set-history-interval').value, 10) || 0,
       cbpiReportEnabled: $('set-cbpi-enabled').checked,
       cbpiHost: $('set-cbpi-host').value,
       cbpiPort: parseInt($('set-cbpi-port').value, 10) || 8000,
@@ -271,6 +353,13 @@
       body: JSON.stringify(payload)
     }).then(function () { showToast('Einstellungen gespeichert'); loadSettings(); })
       .catch(function () { showToast('Speichern fehlgeschlagen', true); });
+  });
+
+  $('history-clear').addEventListener('click', function () {
+    if (!confirm('Gärungsverlauf wirklich löschen?')) return;
+    api('/api/history/clear', { method: 'POST' })
+      .then(function () { showToast('Verlauf gelöscht'); })
+      .catch(function () { showToast('Fehlgeschlagen', true); });
   });
 
   $('wifi-reset').addEventListener('click', function () {

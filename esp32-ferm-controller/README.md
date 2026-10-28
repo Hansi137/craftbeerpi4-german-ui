@@ -143,6 +143,30 @@ Zum erneuten Einrichten eines anderen WLANs: im Dashboard unter
   sicherheitshalber ausgeschaltet, statt mit einem Fantasiewert
   weiterzuregeln.
 
+## Gärplan-Editor: Umsortieren, Zwischenschritte, JSON-Import/Export
+
+Im **Gärplan**-Tab hat jede Schritt-Karte ▲/▼-Buttons zum Verschieben sowie
+einen ➕-Button, der direkt danach einen neuen Schritt einfügt - Schritte
+müssen also nicht mehr zwingend am Ende angehängt werden. Zusätzlich lässt
+sich der komplette Plan als JSON-Datei exportieren (Backup/Vorlage für den
+nächsten Sud) und wieder importieren (lädt ihn nur in den Editor, gespeichert
+wird erst mit **Speichern**).
+
+## Gärungsverlauf exportieren
+
+Das Gerät protokolliert Temperatur, Zieltemperatur und Kühl-Status
+periodisch in `/history.csv` auf LittleFS (Intervall unter **Einstellungen →
+Gärungsverlauf**, Default 5 Minuten, `0` schaltet die Aufzeichnung ab). Über
+**⬇️ CSV herunterladen** lässt sich der Verlauf als Datei herunterladen und
+z.B. in Excel/Numbers/Google Sheets zu einem Temperaturverlauf-Diagramm
+machen; **🗑 Verlauf löschen** setzt ihn für den nächsten Sud zurück. Ein
+PDF-Export ist bewusst nicht eingebaut - dafür gibt es auf dem ESP32 keine
+sinnvolle Bibliothek, und CSV lässt sich überall sofort weiterverarbeiten.
+
+Die Datei wächst unbegrenzt, bis sie `HISTORY_MAX_BYTES` (`src/config.h`,
+Default 350 KB ≈ mehrere Wochen bei 5-Minuten-Intervall) überschreitet -
+dann wird automatisch die ältere Hälfte verworfen.
+
 ## Optionales CraftBeerPi-Reporting
 
 Meldet die Temperatur periodisch an CraftBeerPi, über dessen bereits
@@ -174,6 +198,8 @@ das Relais, nur Einblick in die gemeldete Temperatur.
 | POST | `/api/control/reset` | Fortschritt zurücksetzen |
 | POST | `/api/control/manual` | `{"active":bool,"relayOn":bool}` - manuelle Übersteuerung |
 | POST | `/api/wifi/reset` | WLAN-Zugangsdaten löschen + Neustart ins Setup-Portal |
+| GET | `/api/history.csv` | Gärungsverlauf als CSV herunterladen (Temperatur/Ziel/Relais über die Zeit) |
+| POST | `/api/history/clear` | Gärungsverlauf löschen |
 | GET | `/api/info` | Firmware-Version, Chip-Info |
 
 Kein Login/Auth (wie CraftBeerPis eigene HTTP-Endpunkte auch) - nur im

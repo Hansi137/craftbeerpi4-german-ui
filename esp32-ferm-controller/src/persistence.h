@@ -23,6 +23,9 @@ struct Settings {
     // Option bei CraftBeerPi-GPIO-Aktoren) - überschreibt den Default aus
     // config.h (RELAY_ACTIVE_HIGH), ohne dass neu geflasht werden muss.
     bool relayActiveHigh;
+    // Intervall für den Gärungsverlauf-Logger (history.*), in Sekunden.
+    // 0 schaltet die Aufzeichnung ab.
+    uint32_t historyIntervalSeconds;
 };
 
 namespace persistence {

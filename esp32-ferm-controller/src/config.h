@@ -73,6 +73,14 @@
 
 #define DEFAULT_CBPI_REPORT_INTERVAL_SECONDS 60
 
+// Gärungsverlauf-Logger (history.*): wie oft ein Datenpunkt geschrieben
+// wird, und wie groß /history.csv maximal werden darf, bevor die ältere
+// Hälfte verworfen wird. 300s * ~350KB ergibt bei ~40 Byte/Zeile grob
+// 35 Tage Aufzeichnung, bevor zum ersten Mal verdichtet wird - reicht für
+// eine komplette Gärung + Kaltlagerung mit Puffer.
+#define DEFAULT_HISTORY_INTERVAL_SECONDS 300
+#define HISTORY_MAX_BYTES (350UL * 1024UL)
+
 // Name des WiFiManager-Einrichtungs-Access-Points beim allerersten Start
 // bzw. nach einem WLAN-Reset.
 #define WIFI_SETUP_AP_NAME "FermControl-Setup"
