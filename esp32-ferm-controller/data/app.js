@@ -255,7 +255,7 @@
     var payload = {
       onOffsetC: parseFloat($('set-onoffset').value) || 0,
       offOffsetC: parseFloat($('set-offoffset').value) || 0,
-      minCompressorOffSeconds: parseInt($('set-minoff').value, 10) || 60,
+      minCompressorOffSeconds: parseInt($('set-minoff').value, 10) || 240,
       minCompressorOnSeconds: parseInt($('set-minon').value, 10) || 0,
       cbpiReportEnabled: $('set-cbpi-enabled').checked,
       cbpiHost: $('set-cbpi-host').value,

@@ -118,9 +118,9 @@
 
       <div class="card">
         <h3 class="card-title">Kompressorschutz</h3>
-        <p class="muted">Mindest-Ausschaltzeit kann aus Sicherheitsgründen nicht unter 60s gesetzt werden.</p>
+        <p class="muted">Mindest-Ausschaltzeit kann aus Sicherheitsgründen nicht unter 5s gesetzt werden - niedrige Werte nur zum Testen ohne angeschlossenen Kompressor! Für echten Kühlschrankbetrieb mindestens 60-240s verwenden.</p>
         <label class="field-label">Mindest-Ausschaltzeit (Sekunden)</label>
-        <input type="number" id="set-minoff" step="10" min="60">
+        <input type="number" id="set-minoff" step="5" min="5">
         <label class="field-label">Mindest-Einschaltzeit (Sekunden)</label>
         <input type="number" id="set-minon" step="10" min="0">
       </div>

@@ -133,12 +133,12 @@ bool loadSettings(Settings& out) {
     out.offOffsetC = doc["offOffsetC"] | DEFAULT_OFF_OFFSET_C;
 
     // Sicherheitsgrenze: Mindest-Ausschaltzeit kann aus der Datei NIE unter
-    // 60s geladen werden, egal was dort steht (z.B. durch manuelle
-    // Dateibearbeitung). Siehe auch die Klemmung beim Speichern über die
-    // Web-API in web_server.cpp - diese Prüfung hier ist die zweite,
-    // unabhängige Absicherung direkt an der Quelle.
+    // MIN_COMPRESSOR_OFF_SECONDS_FLOOR geladen werden, egal was dort steht
+    // (z.B. durch manuelle Dateibearbeitung). Siehe auch die Klemmung beim
+    // Speichern über die Web-API in web_server.cpp - diese Prüfung hier ist
+    // die zweite, unabhängige Absicherung direkt an der Quelle.
     uint32_t minOff = doc["minCompressorOffSeconds"] | DEFAULT_MIN_COMPRESSOR_OFF_SECONDS;
-    out.minCompressorOffSeconds = minOff < 60 ? 60 : minOff;
+    out.minCompressorOffSeconds = minOff < MIN_COMPRESSOR_OFF_SECONDS_FLOOR ? MIN_COMPRESSOR_OFF_SECONDS_FLOOR : minOff;
 
     out.minCompressorOnSeconds = doc["minCompressorOnSeconds"] | DEFAULT_MIN_COMPRESSOR_ON_SECONDS;
     out.cbpiReportEnabled = doc["cbpiReportEnabled"] | false;
@@ -154,7 +154,7 @@ bool saveSettings(const Settings& s) {
     doc["onOffsetC"] = s.onOffsetC;
     doc["offOffsetC"] = s.offOffsetC;
     // Dieselbe Mindestgrenze gilt beim Speichern (siehe loadSettings).
-    doc["minCompressorOffSeconds"] = s.minCompressorOffSeconds < 60 ? 60 : s.minCompressorOffSeconds;
+    doc["minCompressorOffSeconds"] = s.minCompressorOffSeconds < MIN_COMPRESSOR_OFF_SECONDS_FLOOR ? MIN_COMPRESSOR_OFF_SECONDS_FLOOR : s.minCompressorOffSeconds;
     doc["minCompressorOnSeconds"] = s.minCompressorOnSeconds;
     doc["cbpiReportEnabled"] = s.cbpiReportEnabled;
     doc["cbpiHost"] = s.cbpiHost;

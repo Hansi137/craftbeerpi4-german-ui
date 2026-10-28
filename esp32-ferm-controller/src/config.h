@@ -52,10 +52,16 @@
 #define DEFAULT_OFF_OFFSET_C 0.2f
 
 // Kompressorschutz: Mindestzeit, die das Relais nach dem Ausschalten AUS
-// bleiben muss, bevor es wieder einschalten darf. Serverseitig (siehe
-// web_server.cpp) auf minimal 60s geklemmt - kann über die Einstellungen
-// NICHT auf 0 oder deaktiviert gesetzt werden.
+// bleiben muss, bevor es wieder einschalten darf.
 #define DEFAULT_MIN_COMPRESSOR_OFF_SECONDS 240
+
+// Absolute Untergrenze für die Mindest-Ausschaltzeit - kann über die
+// Einstellungen NICHT darunter (und erst recht nicht auf 0 bzw.
+// "deaktiviert") gesetzt werden. Bewusst niedrig genug für zügiges Testen
+// ohne angeschlossenen Kompressor, aber nie "kein Schutz". Vor dem Anschluss
+// an einen echten Kühlschrank im Dashboard unbedingt wieder auf einen
+// realistischen Wert (60-240s) hochsetzen.
+#define MIN_COMPRESSOR_OFF_SECONDS_FLOOR 5
 
 // Empfohlene Mindest-Einschaltzeit gegen Flattern bei verrauschten Werten.
 #define DEFAULT_MIN_COMPRESSOR_ON_SECONDS 90

@@ -122,10 +122,13 @@ Zum erneuten Einrichten eines anderen WLANs: im Dashboard unter
 - Kühlung schaltet **ein**, wenn die Temperatur über *Zieltemp + Einschalt-Offset* steigt.
 - Kühlung schaltet **aus**, wenn die Temperatur unter *Zieltemp − Ausschalt-Offset* fällt.
 - **Kompressorschutz (nicht abschaltbar):** Nach dem Ausschalten muss eine
-  Mindestzeit (Default 4 Minuten, minimal einstellbar 60 Sekunden)
-  vergehen, bevor erneut eingeschaltet werden darf - schützt den
-  Kompressor vor schädlichem schnellem Takten. Gilt auch im manuellen
-  Modus; das Dashboard zeigt dann einen Countdown.
+  Mindestzeit (Default 4 Minuten, minimal einstellbar 5 Sekunden) vergehen,
+  bevor erneut eingeschaltet werden darf - schützt den Kompressor vor
+  schädlichem schnellem Takten. Gilt auch im manuellen Modus; das Dashboard
+  zeigt dann einen Countdown. Die 5-Sekunden-Untergrenze ist bewusst niedrig
+  gehalten, um ohne angeschlossenen Kompressor zügig testen zu können -
+  **vor dem Anschluss an einen echten Kühlschrank im Dashboard unbedingt
+  wieder auf einen realistischen Wert (60-240s) hochsetzen.**
 - Nach dem letzten Gärplan-Schritt hält das Gerät dessen Zieltemperatur
   dauerhaft (Status "Abgeschlossen"), statt die Kühlung abzuschalten - so
   wärmt sich das Bier nicht unbemerkt auf.

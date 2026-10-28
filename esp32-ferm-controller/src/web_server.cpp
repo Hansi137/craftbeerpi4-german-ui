@@ -168,10 +168,11 @@ void handlePutSettings(AsyncWebServerRequest* request, JsonVariant& json) {
     s.offOffsetC = obj["offOffsetC"] | s.offOffsetC;
 
     // Sicherheitsgrenze: Mindest-Ausschaltzeit kann über die API NIE unter
-    // 60 Sekunden gesetzt werden (siehe cooling_control.h - der
-    // Kompressorschutz ist nicht abschaltbar).
+    // MIN_COMPRESSOR_OFF_SECONDS_FLOOR gesetzt werden (siehe config.h bzw.
+    // cooling_control.h - der Kompressorschutz ist nicht abschaltbar, nur
+    // für Testzwecke ohne angeschlossenen Kompressor niedrig einstellbar).
     uint32_t requestedMinOff = obj["minCompressorOffSeconds"] | s.minCompressorOffSeconds;
-    s.minCompressorOffSeconds = requestedMinOff < 60 ? 60 : requestedMinOff;
+    s.minCompressorOffSeconds = requestedMinOff < MIN_COMPRESSOR_OFF_SECONDS_FLOOR ? MIN_COMPRESSOR_OFF_SECONDS_FLOOR : requestedMinOff;
 
     s.minCompressorOnSeconds = obj["minCompressorOnSeconds"] | s.minCompressorOnSeconds;
     s.cbpiReportEnabled = obj["cbpiReportEnabled"] | s.cbpiReportEnabled;
