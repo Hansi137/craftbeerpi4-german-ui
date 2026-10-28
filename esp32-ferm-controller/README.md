@@ -61,15 +61,29 @@ eigene Verkabelung anpassen.
 
 Zwei gleichwertige Wege - beide nutzen dieselben Dateien in `src/`.
 
+⚠️ **Wichtige Board-Einstellung (live verifiziert, siehe "Verifikation" unten):**
+Dieses Board hat natives USB - der USB-C-Port liegt direkt am Chip, nicht an
+einem separaten UART-Brücken-Chip. Ohne **"USB CDC On Boot: Enabled"**
+bleibt `Serial.print()` (Debug-Ausgabe im seriellen Monitor) komplett stumm,
+obwohl die Firmware ganz normal läuft - das kostet sonst viel Verwirrung
+beim ersten Flashen.
+
 ### Weg A: Arduino CLI / Arduino IDE
 
 1. Boards-Verwalter-URL hinzufügen: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`, ESP32-Board-Paket installieren.
 2. Folgende Bibliotheken über den Bibliotheksverwalter installieren: `WiFiManager` (tzapu), `ESPAsyncWebServer` (lacamera), `ArduinoJson`, `DallasTemperature`, `OneWire`.
 3. Sketch `src/` öffnen (Arduino IDE erkennt `main.cpp` als Teil des Sketches, solange alle Dateien im selben Ordner liegen - bei Bedarf den Ordner in `esp32-ferm-controller` umbenennen und `main.cpp` zu `esp32-ferm-controller.ino` umbenennen, oder per `arduino-cli compile` wie unten bauen).
 4. Dashboard-Dateien auf LittleFS hochladen: mit dem Plugin "ESP32 Sketch Data Upload" (Arduino IDE) bzw. `arduino-cli` + `mklittlefs` den Inhalt von `data/` flashen.
-5. Board **"ESP32S3 Dev Module"** auswählen (das Projekt richtet sich an ein ESP32-S3-Board, siehe Abschnitt "Hardware"), flashen, seriellen Monitor bei 115200 Baud öffnen.
+5. Board **"ESP32S3 Dev Module"** auswählen, unter **Tools → USB CDC On Boot → "Enabled"** setzen (siehe Hinweis oben), flashen, seriellen Monitor bei 115200 Baud öffnen.
+
+Mit `arduino-cli` entspricht das dem FQBN-Zusatz `:CDCOnBoot=cdc`, z.B.:
+```sh
+arduino-cli compile --fqbn "esp32:esp32:esp32s3:CDCOnBoot=cdc" --upload -p COM3 esp32-ferm-controller/src
+```
 
 ### Weg B: PlatformIO
+
+`platformio.ini` setzt die nötigen Build-Flags (`ARDUINO_USB_CDC_ON_BOOT=1`) für dieses Board bereits automatisch:
 
 ```sh
 cd esp32-ferm-controller
@@ -182,32 +196,31 @@ Hardware testen.
 
 ## Verifikation
 
-In der Entwicklungsumgebung, in der dieses Projekt entstanden ist, war kein
-PlatformIO und kein nativer C++-Compiler verfügbar, wohl aber Arduino CLI
-mit installiertem ESP32-Core. Tatsächlich durchgeführt:
-
 - **Vollständige Firmware kompiliert sauber** gegen den echten ESP32-S3-Toolchain
   (`arduino-cli compile --fqbn esp32:esp32:esp32s3`) inklusive aller
   Bibliotheken (WiFiManager, ESPAsyncWebServer, ArduinoJson, DallasTemperature,
-  OneWire) - 0 Warnungen im eigenen Code. (Ein erster Durchlauf lief versehentlich
-  gegen das falsche Chip-Target, klassisches ESP32 statt S3 - nach Korrektur der
-  Pin-Belegung auf das tatsächliche S3-Board erneut gegen den richtigen
-  Toolchain verifiziert.)
-- **`test/selftest/` kompiliert ebenfalls sauber** gegen denselben Toolchain.
-- Die konkreten Testfälle in `test/selftest/` und `test/test_*` (Schwellwerte,
-  Kompressorschutz-Grenzfälle, manueller Modus, Schritt-Übergänge,
-  Rampen-Interpolation bei 0/50/100%) wurden beim Schreiben der Logik von
-  Hand durchgerechnet.
+  OneWire) - 0 Warnungen im eigenen Code.
+- **`test/selftest/` tatsächlich auf echter Hardware geflasht und ausgeführt**
+  (über COM3, mit aktiviertem `USB CDC On Boot` - siehe Hinweis oben): alle
+  **28 von 28 Tests bestanden**, inklusive Hysterese-Schwellwerte,
+  Kompressorschutz-Grenzfälle (0s/239s/240s), manueller Modus (Mindestzeit
+  wird auch dort respektiert), Gärplan-Schritt-Übergänge mit Überhang,
+  Plan-Ende hält letzte Temperatur, Rampen-Interpolation bei 0/50/100%. Das
+  ist dieselbe Logik, die auch in der Haupt-Firmware läuft (`src/cooling_control.*`,
+  `src/schedule.*`) - kein separater Testpfad.
+- Dabei live zwei reale Probleme gefunden und behoben, die reines
+  Code-Lesen nicht aufgedeckt hätte: das Board ist tatsächlich ein ESP32-S3
+  (erste Kompilierung lief versehentlich gegen klassisches ESP32), und ohne
+  `USB CDC On Boot: Enabled` kam über das USB-Kabel keinerlei
+  Serial-Ausgabe an, obwohl die Firmware normal lief.
 
-**Was das nicht abdeckt:** Ohne angeschlossene Hardware und ohne
-Codeausführung in der Entwicklungsumgebung wurde kein Testlauf tatsächlich
-*ausgeführt* - "kompiliert fehlerfrei" ist nicht dasselbe wie "läuft korrekt".
-Bitte vor dem Anschluss an den echten Kühlschrank folgende Checkliste
-durchgehen:
+**Was damit noch nicht abgedeckt ist:** Sensor, Relais, WLAN-Verbindung und
+das Web-Dashboard liefen nicht in diesem Testlauf mit (der Selbsttest
+braucht bewusst keine Peripherie). Bitte vor dem Anschluss an den echten
+Kühlschrank folgende Checkliste durchgehen:
 
-1. `test/selftest/` flashen, seriellen Monitor öffnen, prüfen dass
-   **"ALLE TESTS BESTANDEN"** erscheint.
-2. Haupt-Firmware flashen, Ersteinrichtung durchlaufen (siehe oben).
+1. ✅ `test/selftest/` flashen, seriellen Monitor öffnen, **"ALLE TESTS BESTANDEN"** prüfen - bereits erledigt, siehe oben.
+2. Haupt-Firmware flashen (mit `USB CDC On Boot: Enabled`!), Ersteinrichtung durchlaufen (siehe oben).
 3. Stromzyklus **fernab vom Kühlschrank** testen: Gerät aus- und wieder
    einschalten, prüfen dass es sich ohne erneutes Setup-Portal automatisch
    mit dem WLAN verbindet.
