@@ -13,24 +13,36 @@ uint32_t lastRetryMillis = 0;
 namespace wifi_setup {
 
 bool connect() {
-    wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SECONDS);
     wm.setConfigPortalTimeout(WIFI_SETUP_PORTAL_TIMEOUT_SECONDS);
 
-    // Ist bereits ein WLAN gespeichert (jeder Boot nach der Ersteinrichtung),
-    // wird der automatische Portal-Fallback bewusst deaktiviert: steht das
-    // bekannte Netz gerade nicht zur Verfügung (z.B. Gerät im Keller ohne
-    // Empfang), würde autoConnect() sonst bis zu WIFI_SETUP_PORTAL_TIMEOUT_
-    // SECONDS (Default 3 Minuten) lang blockieren, bevor Kühl-Logik, Display
-    // und Dashboard überhaupt starten - für ein Gerät, das genau für so
-    // einen Standort gedacht ist, inakzeptabel. Ohne Portal-Fallback kehrt
-    // autoConnect() nach höchstens WIFI_CONNECT_TIMEOUT_SECONDS zurück.
-    // Das Portal bleibt nur für die echte Ersteinrichtung (noch kein WLAN
-    // gespeichert) bzw. nach einem expliziten "WLAN zurücksetzen" aktiv -
-    // dort steht der Nutzer ja gerade direkt davor.
-    wm.setEnableConfigPortal(!wm.getWiFiIsSaved());
+    if (wm.getWiFiIsSaved()) {
+        // Schon mal eingerichtet (jeder Boot nach der Ersteinrichtung): NUR
+        // kurz und FEST BEGRENZT versuchen, mit einer eigenen millis()-
+        // Schleife statt über wm.autoConnect()/setConnectTimeout() - ein
+        // früherer Versuch, das über WiFiManagers eigenes Timeout-Handling
+        // zu lösen, blieb live auf dem Gerät hängen und brauchte einen
+        // manuellen Reset, vermutlich abhängig von internem
+        // WiFiManager-/IDF-Verhalten, das sich von hier aus nicht zuverlässig
+        // nachvollziehen lässt. Diese Schleife hier hat eine garantierte
+        // Obergrenze (WIFI_CONNECT_TIMEOUT_SECONDS) und hängt von nichts
+        // anderem ab als WiFi.status(). KEIN automatisches Einrichtungs-
+        // Portal, falls das bekannte Netz gerade nicht erreichbar ist (z.B.
+        // Gerät im Keller) - Kühl-Logik/Display/Dashboard starten danach so
+        // oder so.
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(); // nutzt die zuletzt gespeicherten Zugangsdaten aus dem Flash
+        uint32_t startMillis = millis();
+        while (WiFi.status() != WL_CONNECTED &&
+               (uint32_t)(millis() - startMillis) < (uint32_t)WIFI_CONNECT_TIMEOUT_SECONDS * 1000UL) {
+            delay(100);
+        }
+        return WiFi.status() == WL_CONNECTED;
+    }
 
-    bool connected = wm.autoConnect(WIFI_SETUP_AP_NAME);
-    return connected;
+    // Noch nie eingerichtet (bzw. nach einem "WLAN zurücksetzen") - jetzt
+    // macht das Einrichtungs-Portal Sinn, der Nutzer steht ja gerade direkt
+    // davor. Dieser Pfad ist unverändert der schon mehrfach live getestete.
+    return wm.autoConnect(WIFI_SETUP_AP_NAME);
 }
 
 void retryIfDisconnected(uint32_t nowMillis) {
