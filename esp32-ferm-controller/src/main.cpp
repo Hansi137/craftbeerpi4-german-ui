@@ -201,6 +201,7 @@ void loop() {
 
         cbpi_reporter::reportIfDue(appState.settings, appState.currentTempC, now);
         history::recordIfDue(now);
+        wifi_setup::retryIfDisconnected(now);
     }
 
     if ((uint32_t)(now - lastStateSaveMillis) >= STATE_SAVE_INTERVAL_MS) {

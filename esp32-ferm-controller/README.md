@@ -124,6 +124,17 @@ pio device monitor                 # serielle Ausgabe ansehen
 Zum erneuten Einrichten eines anderen WLANs: im Dashboard unter
 **Einstellungen → WLAN zurücksetzen**.
 
+**Kein WLAN am Aufstellort (z.B. Keller):** Sobald einmal ein WLAN
+eingerichtet wurde, versucht das Gerät beim Booten höchstens
+`WIFI_CONNECT_TIMEOUT_SECONDS` (Default 15s) lang, sich damit zu verbinden -
+ist das bekannte Netz nicht erreichbar, läuft es danach einfach **offline**
+weiter (Kühl-Logik, Display und das eigene Dashboard brauchen kein WLAN,
+nur das optionale CraftBeerPi-Reporting). Das Einrichtungs-Portal öffnet
+sich dabei bewusst NICHT automatisch erneut - das wäre bei jedem Boot ohne
+Empfang ein mehrminütiges Blockieren, bevor Kühlung/Display überhaupt
+starten. Im Hintergrund versucht es alle `WIFI_RECONNECT_INTERVAL_MS`
+(Default 60s) erneut, falls doch wieder Empfang da ist.
+
 ## Kühl-Logik (Hysterese + Kompressorschutz)
 
 - Kühlung schaltet **ein**, wenn die Temperatur über *Zieltemp + Einschalt-Offset* steigt.

@@ -7,19 +7,37 @@
 
 namespace {
 WiFiManager wm;
+uint32_t lastRetryMillis = 0;
 }
 
 namespace wifi_setup {
 
 bool connect() {
+    wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_SECONDS);
     wm.setConfigPortalTimeout(WIFI_SETUP_PORTAL_TIMEOUT_SECONDS);
-    // autoConnect versucht zuerst die gespeicherten Zugangsdaten. Klappt das
-    // nicht (keine gespeichert, oder das bekannte Netz ist nicht in
-    // Reichweite), öffnet es automatisch den Einrichtungs-Access-Point mit
-    // dem hier angegebenen Namen und kehrt erst zurück, wenn der Nutzer
-    // etwas eingetragen hat oder das Portal-Timeout erreicht ist.
+
+    // Ist bereits ein WLAN gespeichert (jeder Boot nach der Ersteinrichtung),
+    // wird der automatische Portal-Fallback bewusst deaktiviert: steht das
+    // bekannte Netz gerade nicht zur Verfügung (z.B. Gerät im Keller ohne
+    // Empfang), würde autoConnect() sonst bis zu WIFI_SETUP_PORTAL_TIMEOUT_
+    // SECONDS (Default 3 Minuten) lang blockieren, bevor Kühl-Logik, Display
+    // und Dashboard überhaupt starten - für ein Gerät, das genau für so
+    // einen Standort gedacht ist, inakzeptabel. Ohne Portal-Fallback kehrt
+    // autoConnect() nach höchstens WIFI_CONNECT_TIMEOUT_SECONDS zurück.
+    // Das Portal bleibt nur für die echte Ersteinrichtung (noch kein WLAN
+    // gespeichert) bzw. nach einem expliziten "WLAN zurücksetzen" aktiv -
+    // dort steht der Nutzer ja gerade direkt davor.
+    wm.setEnableConfigPortal(!wm.getWiFiIsSaved());
+
     bool connected = wm.autoConnect(WIFI_SETUP_AP_NAME);
     return connected;
+}
+
+void retryIfDisconnected(uint32_t nowMillis) {
+    if (isConnected()) { lastRetryMillis = nowMillis; return; }
+    if (lastRetryMillis != 0 && (uint32_t)(nowMillis - lastRetryMillis) < WIFI_RECONNECT_INTERVAL_MS) return;
+    lastRetryMillis = nowMillis;
+    WiFi.reconnect();
 }
 
 void resetAndRestart() {

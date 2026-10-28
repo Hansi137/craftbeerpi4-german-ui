@@ -87,7 +87,22 @@
 
 // Wie lange das Einrichtungs-Portal offen bleibt, bevor das Gerät es
 // automatisch wieder schließt und einen erneuten Boot-Versuch macht.
+// Gilt nur fuer die Ersteinrichtung (bzw. nach "WLAN zuruecksetzen") - siehe
+// wifi_setup.cpp: ist bereits ein WLAN gespeichert, wird das Portal beim
+// Booten bewusst NICHT geoeffnet, falls das bekannte Netz gerade nicht
+// erreichbar ist (z.B. im Keller), damit Kuehl-Logik/Display/Dashboard
+// trotzdem sofort starten.
 #define WIFI_SETUP_PORTAL_TIMEOUT_SECONDS 180
+
+// Wie lange beim Booten hoechstens auf die Verbindung zum bereits bekannten
+// WLAN gewartet wird, bevor offline weitergemacht wird (siehe oben).
+#define WIFI_CONNECT_TIMEOUT_SECONDS 15
+
+// Wie oft im Hintergrund ein erneuter Verbindungsversuch unternommen wird,
+// waehrend kein WLAN verbunden ist (z.B. weil das Geraet gerade im Keller
+// ausserhalb der Reichweite steht) - rein informativ/fuer CraftBeerPi-
+// Reporting, die Kuehl-Logik braucht dafuer kein WLAN.
+#define WIFI_RECONNECT_INTERVAL_MS (60UL * 1000UL)
 
 // Wie oft Temperatur gemessen und die Kühl-Logik ausgewertet wird.
 #define CONTROL_LOOP_INTERVAL_MS 5000

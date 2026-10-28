@@ -209,6 +209,18 @@ void begin() {
     tft.fillScreen(COLOR_BG);
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH); // Hintergrundbeleuchtung an (siehe TFT_BACKLIGHT_ON in Setup206)
+
+    // Sofort sichtbarer Hinweis, noch bevor update() zum ersten Mal läuft:
+    // der WLAN-Verbindungsversuch in setup() (wifi_setup::connect()) kann
+    // bis zu WIFI_CONNECT_TIMEOUT_SECONDS dauern, bevor loop() überhaupt
+    // startet - ohne dieses Boot-Banner wäre der Bildschirm bis dahin
+    // einfach schwarz (Hintergrundbeleuchtung an, aber ohne Inhalt sieht das
+    // wie "Display kaputt" aus).
+    tft.setTextColor(COLOR_TEXT, COLOR_BG);
+    tft.setTextSize(2);
+    tft.setCursor(4, 70);
+    tft.print("Starte...");
+
     lastDrawn = DrawnState{}; // valid=false erzwingt den allerersten Redraw
 }
 
