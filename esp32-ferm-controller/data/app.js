@@ -243,6 +243,7 @@
       $('set-offoffset').value = s.offOffsetC;
       $('set-minoff').value = s.minCompressorOffSeconds;
       $('set-minon').value = s.minCompressorOnSeconds;
+      $('set-relay-inverted').checked = !s.relayActiveHigh;
       $('set-cbpi-enabled').checked = s.cbpiReportEnabled;
       $('set-cbpi-host').value = s.cbpiHost;
       $('set-cbpi-port').value = s.cbpiPort;
@@ -257,6 +258,7 @@
       offOffsetC: parseFloat($('set-offoffset').value) || 0,
       minCompressorOffSeconds: parseInt($('set-minoff').value, 10) || 240,
       minCompressorOnSeconds: parseInt($('set-minon').value, 10) || 0,
+      relayActiveHigh: !$('set-relay-inverted').checked,
       cbpiReportEnabled: $('set-cbpi-enabled').checked,
       cbpiHost: $('set-cbpi-host').value,
       cbpiPort: parseInt($('set-cbpi-port').value, 10) || 8000,

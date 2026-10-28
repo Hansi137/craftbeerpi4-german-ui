@@ -10,6 +10,16 @@ namespace {
 
 TFT_eSPI tft = TFT_eSPI();
 
+// Feste Bildschirmgröße statt tft.width()/tft.height(): für dieses Panel
+// (ST7789 170x320, 8-Bit Parallel) liefern die Laufzeit-Abfragen nach
+// setRotation() nicht zuverlässig die erwartete 320x170-Landschaftsgröße
+// (live auf dem Gerät beobachtet - Text landete teilweise gedreht/am
+// falschen Rand). Das bereits funktionierende esp32thermometer-
+// Vorgängerprojekt auf demselben Board nutzt exakt dieselben festen Werte
+// (SCREEN_W 320 / SCREEN_H 170), siehe github.com/Hansi137/esp32thermometer.
+const int16_t SCREEN_W = 320;
+const int16_t SCREEN_H = 170;
+
 // Zuletzt gezeichneter Stand - update() zeichnet nur neu, wenn sich
 // mindestens einer dieser Werte seit dem letzten Aufruf geändert hat.
 struct DrawnState {
@@ -30,13 +40,24 @@ struct DrawnState {
 DrawnState lastDrawn;
 uint32_t lastCheckMillis = 0;
 
-const uint16_t COLOR_BG = TFT_BLACK;
-const uint16_t COLOR_TEXT = TFT_WHITE;
-const uint16_t COLOR_MUTED = 0x7BEF; // mittleres Grau (RGB565)
-const uint16_t COLOR_COOLING_ON = TFT_CYAN;
-const uint16_t COLOR_COOLING_OFF = 0x4208; // dunkles Grau
-const uint16_t COLOR_WARN = TFT_ORANGE;
-const uint16_t COLOR_RUNNING = TFT_GREEN;
+// Farbschema an das Web-Dashboard angelehnt (siehe data/style.css), damit
+// Display und Browser optisch zusammenpassen: dunkler Hintergrund, Teal als
+// Akzent, Grün/Orange/Rot für Status analog zur CraftBeerPi-Optik.
+uint16_t COLOR_BG, COLOR_TEXT, COLOR_MUTED, COLOR_ACCENT;
+uint16_t COLOR_COOLING_ON, COLOR_COOLING_OFF;
+uint16_t COLOR_WARN, COLOR_RUNNING, COLOR_FINISHED;
+
+void initColors() {
+    COLOR_BG = TFT_BLACK;
+    COLOR_TEXT = tft.color565(0xE8, 0xEA, 0xF0);       // --text
+    COLOR_MUTED = tft.color565(0x8A, 0x93, 0xA8);      // --text-secondary
+    COLOR_ACCENT = tft.color565(0x14, 0xC7, 0xB6);     // --accent-light (Teal)
+    COLOR_COOLING_ON = tft.color565(0x14, 0xC7, 0xB6); // --accent-light: Kühlung aktiv
+    COLOR_COOLING_OFF = tft.color565(0x2A, 0x3A, 0x5A);// --bg-elevated: inaktiv, dezent
+    COLOR_WARN = tft.color565(0xE6, 0xA2, 0x3C);       // --warn
+    COLOR_RUNNING = tft.color565(0x2E, 0xCC, 0x71);    // --success
+    COLOR_FINISHED = tft.color565(0xE6, 0xA2, 0x3C);   // --warn
+}
 
 const char* stateLabel(ScheduleState s) {
     switch (s) {
@@ -96,10 +117,9 @@ bool stateChanged(const DrawnState& a, const DrawnState& b) {
 
 void draw(const DrawnState& s) {
     tft.fillScreen(COLOR_BG);
-    int w = tft.width();
 
     // Kopfzeile
-    tft.setTextColor(COLOR_MUTED, COLOR_BG);
+    tft.setTextColor(COLOR_ACCENT, COLOR_BG);
     tft.setTextSize(1);
     tft.setCursor(4, 4);
     tft.print("Gaerschrank-Controller");
@@ -107,7 +127,7 @@ void draw(const DrawnState& s) {
     // Temperatur gross
     tft.setTextSize(4);
     tft.setTextColor(COLOR_TEXT, COLOR_BG);
-    tft.setCursor(4, 24);
+    tft.setCursor(4, 22);
     if (s.sensorOk) {
         tft.print(s.tempTenths / 10);
         tft.print('.');
@@ -121,7 +141,7 @@ void draw(const DrawnState& s) {
     // Zieltemperatur
     tft.setTextSize(2);
     tft.setTextColor(COLOR_MUTED, COLOR_BG);
-    tft.setCursor(4, 70);
+    tft.setCursor(4, 64);
     tft.print("Ziel: ");
     tft.print(s.targetTenths / 10);
     tft.print('.');
@@ -129,29 +149,33 @@ void draw(const DrawnState& s) {
     tft.print((char)247);
     tft.print('C');
 
-    // Kuehl-Status als farbiger Balken
-    int barY = 95;
-    int barH = 28;
+    // Kuehl-Status als farbiger Balken (volle Bildschirmbreite)
+    const int barY = 88;
+    const int barH = 26;
     uint16_t barColor = s.relayOn ? COLOR_COOLING_ON : COLOR_COOLING_OFF;
-    tft.fillRect(0, barY, w, barH, barColor);
+    tft.fillRect(0, barY, SCREEN_W, barH, barColor);
     tft.setTextColor(s.relayOn ? TFT_BLACK : COLOR_TEXT, barColor);
     tft.setTextSize(2);
-    tft.setCursor(6, barY + 6);
+    tft.setCursor(6, barY + 5);
     tft.print(s.relayOn ? "KUEHLUNG AN" : "Kuehlung aus");
 
+    int nextY = barY + barH + 4;
     if (s.guardActive) {
         tft.setTextSize(1);
         tft.setTextColor(COLOR_WARN, COLOR_BG);
-        tft.setCursor(4, barY + barH + 4);
+        tft.setCursor(4, nextY);
         tft.print("Kompressorschutz: noch ");
         tft.print(fmtDuration(s.guardSecondsRemaining));
+        nextY += 12;
     }
 
     // Gaerplan-Status
-    int planY = 130;
     tft.setTextSize(1);
-    tft.setTextColor(s.scheduleState == ScheduleState::RUNNING ? COLOR_RUNNING : COLOR_MUTED, COLOR_BG);
-    tft.setCursor(4, planY);
+    uint16_t planColor = COLOR_MUTED;
+    if (s.scheduleState == ScheduleState::RUNNING) planColor = COLOR_RUNNING;
+    else if (s.scheduleState == ScheduleState::FINISHED) planColor = COLOR_FINISHED;
+    tft.setTextColor(planColor, COLOR_BG);
+    tft.setCursor(4, nextY);
     tft.print("Plan: ");
     tft.print(stateLabel(s.scheduleState));
     if (s.scheduleState == ScheduleState::RUNNING || s.scheduleState == ScheduleState::FINISHED) {
@@ -164,7 +188,7 @@ void draw(const DrawnState& s) {
 
     // Fusszeile: WLAN-Status
     tft.setTextColor(COLOR_MUTED, COLOR_BG);
-    tft.setCursor(4, tft.height() - 12);
+    tft.setCursor(4, SCREEN_H - 12);
     if (s.wifiConnected) {
         IPAddress ip(s.ip);
         tft.print("WLAN: ");
@@ -180,7 +204,8 @@ namespace display {
 
 void begin() {
     tft.init();
-    tft.setRotation(1); // Querformat: 320x170
+    tft.setRotation(1); // Querformat, siehe SCREEN_W/SCREEN_H oben
+    initColors();
     tft.fillScreen(COLOR_BG);
     pinMode(TFT_BL, OUTPUT);
     digitalWrite(TFT_BL, HIGH); // Hintergrundbeleuchtung an (siehe TFT_BACKLIGHT_ON in Setup206)

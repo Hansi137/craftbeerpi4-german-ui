@@ -41,7 +41,10 @@
 // true, wenn das Relais-Modul bei HIGH schaltet (die meisten einfachen
 // Module), false bei "active low"-Modulen (schaltet bei LOW - häufig bei
 // fertigen Relais-Platinen mit Optokoppler, auf dem Modul meist aufgedruckt
-// oder im Datenblatt nachzulesen).
+// oder im Datenblatt nachzulesen). Nur der STARTWERT beim allerersten Boot
+// (bzw. wenn settings.json fehlt) - danach zur Laufzeit über das Dashboard
+// unter "Einstellungen" umschaltbar (analog zur "Invertiert"-Option bei
+// CraftBeerPi-GPIO-Aktoren), ohne neu zu flashen.
 #define RELAY_ACTIVE_HIGH true
 
 // ---------------------------------------------------------------------

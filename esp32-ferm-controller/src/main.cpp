@@ -62,6 +62,10 @@ void applyRelayDecision(bool shouldBeOn) {
 }
 
 void runControlCycle(uint32_t deltaSeconds) {
+    // 0. Relais-Polarität mit den (ggf. gerade per Dashboard geänderten)
+    //    Einstellungen synchron halten - no-op, wenn unverändert.
+    relay.setActiveHigh(appState.settings.relayActiveHigh);
+
     // 1. Temperatur messen.
     float temp = tempSensor.readTempC();
     appState.sensorOk = !isnan(temp);
@@ -162,7 +166,7 @@ void setup() {
         Serial.println("[WARNUNG] Kein DS18B20-Sensor gefunden - bitte Verkabelung pruefen (siehe README.md).");
     }
 
-    relay.begin();
+    relay.begin(appState.settings.relayActiveHigh);
     lastOffMillis = millis(); // Kompressorschutz-Timer beginnt bei jedem Boot neu (siehe cooling_control.h)
 
     Serial.println("Verbinde mit WLAN (oder oeffne Einrichtungs-Portal falls noch keins bekannt ist)...");

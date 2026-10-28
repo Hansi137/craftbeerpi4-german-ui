@@ -19,6 +19,10 @@ struct Settings {
     uint16_t cbpiPort;
     char cbpiKey[16];
     uint32_t cbpiReportIntervalSeconds;
+    // Relais-Polarität zur Laufzeit umschaltbar (analog zur "Invertiert"-
+    // Option bei CraftBeerPi-GPIO-Aktoren) - überschreibt den Default aus
+    // config.h (RELAY_ACTIVE_HIGH), ohne dass neu geflasht werden muss.
+    bool relayActiveHigh;
 };
 
 namespace persistence {

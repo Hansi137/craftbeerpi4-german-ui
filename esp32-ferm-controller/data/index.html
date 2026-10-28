@@ -117,6 +117,18 @@
       </div>
 
       <div class="card">
+        <h3 class="card-title">Relais</h3>
+        <div class="row">
+          <span class="label">Relais invertiert (active-low)</span>
+          <label class="switch">
+            <input type="checkbox" id="set-relay-inverted">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="muted">Je nach Relais-Modul schaltet "AN" bei LOW statt HIGH - analog zur "Invertiert"-Option bei CraftBeerPi-GPIO-Aktoren. Falsch herum eingestellt läuft die Kühlung dauerhaft gegenteilig zur Anzeige - im Zweifel mit angeschlossenem Relais testen, bevor es an einen echten Kühlschrank geht.</p>
+      </div>
+
+      <div class="card">
         <h3 class="card-title">Kompressorschutz</h3>
         <p class="muted">Mindest-Ausschaltzeit kann aus Sicherheitsgründen nicht unter 5s gesetzt werden - niedrige Werte nur zum Testen ohne angeschlossenen Kompressor! Für echten Kühlschrankbetrieb mindestens 60-240s verwenden.</p>
         <label class="field-label">Mindest-Ausschaltzeit (Sekunden)</label>

@@ -120,6 +120,7 @@ bool loadSettings(Settings& out) {
     out.cbpiPort = 8000;
     copyName(out.cbpiKey, sizeof(out.cbpiKey), "");
     out.cbpiReportIntervalSeconds = DEFAULT_CBPI_REPORT_INTERVAL_SECONDS;
+    out.relayActiveHigh = RELAY_ACTIVE_HIGH;
 
     File f = LittleFS.open(SETTINGS_PATH, "r");
     if (!f) return false;
@@ -146,6 +147,7 @@ bool loadSettings(Settings& out) {
     out.cbpiPort = doc["cbpiPort"] | 8000;
     copyName(out.cbpiKey, sizeof(out.cbpiKey), doc["cbpiKey"] | "");
     out.cbpiReportIntervalSeconds = doc["cbpiReportIntervalSeconds"] | DEFAULT_CBPI_REPORT_INTERVAL_SECONDS;
+    out.relayActiveHigh = doc["relayActiveHigh"] | (bool)RELAY_ACTIVE_HIGH;
     return true;
 }
 
@@ -161,6 +163,7 @@ bool saveSettings(const Settings& s) {
     doc["cbpiPort"] = s.cbpiPort;
     doc["cbpiKey"] = s.cbpiKey;
     doc["cbpiReportIntervalSeconds"] = s.cbpiReportIntervalSeconds;
+    doc["relayActiveHigh"] = s.relayActiveHigh;
 
     File f = LittleFS.open(SETTINGS_PATH, "w");
     if (!f) return false;

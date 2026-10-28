@@ -154,6 +154,7 @@ void handleGetSettings(AsyncWebServerRequest* request) {
     doc["cbpiPort"] = s.cbpiPort;
     doc["cbpiKey"] = s.cbpiKey;
     doc["cbpiReportIntervalSeconds"] = s.cbpiReportIntervalSeconds;
+    doc["relayActiveHigh"] = s.relayActiveHigh;
     sendJson(request, 200, doc);
 }
 
@@ -175,6 +176,7 @@ void handlePutSettings(AsyncWebServerRequest* request, JsonVariant& json) {
     s.minCompressorOffSeconds = requestedMinOff < MIN_COMPRESSOR_OFF_SECONDS_FLOOR ? MIN_COMPRESSOR_OFF_SECONDS_FLOOR : requestedMinOff;
 
     s.minCompressorOnSeconds = obj["minCompressorOnSeconds"] | s.minCompressorOnSeconds;
+    s.relayActiveHigh = obj["relayActiveHigh"] | s.relayActiveHigh;
     s.cbpiReportEnabled = obj["cbpiReportEnabled"] | s.cbpiReportEnabled;
     if (obj["cbpiHost"].is<const char*>()) {
         strncpy(s.cbpiHost, obj["cbpiHost"], sizeof(s.cbpiHost) - 1);
