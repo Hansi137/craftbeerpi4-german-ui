@@ -11,17 +11,19 @@
 // PIN-BELEGUNG - UNBEDINGT an die eigene Verkabelung anpassen!
 //
 // Board: LilyGO T-Display S3 (ESP32-S3 mit eingebautem 1,9" 170x320
-// ST7789-Display). Diese Firmware nutzt das Display selbst nicht, aber die
-// Pin-Wahl unten berücksichtigt, welche GPIOs auf diesem Board bereits für
-// Onboard-Peripherie reserviert sind - bestätigt durch ein früheres,
-// funktionierendes Projekt auf demselben Board
-// (https://github.com/Hansi137/esp32thermometer):
-//   GPIO0  - Boot-Taster (Display-Helligkeit im Referenzprojekt)
-//   GPIO4  - Akku-Spannungsmessung (ADC, Spannungsteiler)
-//   GPIO14 - Taster 1
-//   GPIO15 - LCD-Power-Enable
-//   GPIO38 - Display-Hintergrundbeleuchtung (PWM)
-//   GPIO43/44 - Standard-UART0 (hier von Serial.begin() in main.cpp genutzt)
+// ST7789-Display, siehe src/display.cpp). Die Pin-Wahl unten berücksichtigt,
+// welche GPIOs auf diesem Board bereits für Onboard-Peripherie reserviert
+// sind - bestätigt durch ein früheres, funktionierendes Projekt auf
+// demselben Board (https://github.com/Hansi137/esp32thermometer) sowie
+// TFT_eSPIs mitgelieferte Setup206_LilyGo_T_Display_S3.h:
+//   GPIO0      - Boot-Taster
+//   GPIO4      - Akku-Spannungsmessung (ADC, Spannungsteiler)
+//   GPIO5/6/7  - Display Reset/CS/DC
+//   GPIO8/9    - Display WR/RD (8-Bit Parallelbus)
+//   GPIO14     - Taster 1
+//   GPIO38     - Display-Hintergrundbeleuchtung (von display.cpp angesteuert)
+//   GPIO39-42, 45-48 - Display-Datenleitungen D0-D7 (8-Bit Parallelbus)
+//   GPIO43/44  - Standard-UART0 (hier von Serial.begin() in main.cpp genutzt)
 // Alle oben genannten Pins bewusst NICHT für Sensor/Relais verwendet.
 // ---------------------------------------------------------------------
 

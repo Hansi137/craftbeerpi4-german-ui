@@ -24,6 +24,7 @@
 #include "wifi_setup.h"
 #include "web_server.h"
 #include "cbpi_reporter.h"
+#include "display.h"
 
 AppState appState;
 
@@ -147,6 +148,8 @@ void setup() {
 
     appState.bootMillis = millis();
 
+    display::begin();
+
     if (!persistence::begin()) {
         Serial.println("[FEHLER] LittleFS konnte nicht gemountet werden!");
     }
@@ -197,4 +200,6 @@ void loop() {
         lastStateSaveMillis = now;
         persistence::saveState(appState.progress);
     }
+
+    display::update(); // throttelt sich intern selbst auf max. 1x/Sekunde
 }

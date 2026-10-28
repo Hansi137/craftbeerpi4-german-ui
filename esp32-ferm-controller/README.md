@@ -34,8 +34,10 @@ Kompressor. Das ist kein Bereich für Trial-and-Error:
 ## Hardware
 
 - **LilyGO T-Display S3** (ESP32-S3 mit eingebautem 1,9" 170x320
-  ST7789-Display, natives USB) - diese Firmware nutzt das Display selbst
-  nicht, es muss nur frei bleiben
+  ST7789-Display, natives USB) - das eingebaute Display zeigt Temperatur,
+  Zieltemperatur, Kühl-Status, Kompressorschutz-Countdown, Gärplan-Fortschritt
+  und WLAN-Status als reine Status-Anzeige (keine Touch-/Tasten-Bedienung,
+  Steuerung läuft übers Web-Dashboard)
 - DS18B20-Temperatursensor (wasserdicht erhältlich - für den Kühlschrank
   empfehlenswert)
 - 4,7 kΩ Pull-Up-Widerstand zwischen DS18B20-Datenleitung und 3,3V
@@ -54,8 +56,10 @@ GPIO21 ist dort exakt derselbe DS18B20-Pin, GPIO18 taucht in dessen
 Pin-Belegung gar nicht auf (also frei). Auf diesem Board bereits durch
 Onboard-Peripherie belegt und deshalb bewusst nicht für Sensor/Relais
 verwendet: GPIO0 (Boot-Taster), GPIO4 (Akku-Spannungsmessung), GPIO14
-(Taster), GPIO15 (LCD-Power), GPIO38 (Display-Hintergrundbeleuchtung),
-GPIO43/44 (Standard-UART0, von `Serial.begin()` genutzt).
+(Taster), GPIO43/44 (Standard-UART0, von `Serial.begin()` genutzt), sowie
+für das eingebaute Display GPIO5/6/7/8/9 (Reset/CS/DC/WR/RD), GPIO38
+(Hintergrundbeleuchtung, von `src/display.cpp` aktiv angesteuert) und
+GPIO39-42/45-48 (8-Bit Parallelbus zum Display).
 
 Die Pins sowie "aktiv-high/low" für dein konkretes Relais-Modul stehen als
 klar kommentierte Konstanten in `src/config.h` - vor dem Flashen an die
@@ -75,10 +79,13 @@ beim ersten Flashen.
 ### Weg A: Arduino CLI / Arduino IDE
 
 1. Boards-Verwalter-URL hinzufügen: `https://espressif.github.io/arduino-esp32/package_esp32_index.json`, ESP32-Board-Paket installieren.
-2. Folgende Bibliotheken über den Bibliotheksverwalter installieren: `WiFiManager` (tzapu), `ESPAsyncWebServer` (lacamera), `ArduinoJson`, `DallasTemperature`, `OneWire`.
-3. Sketch `src/` öffnen (Arduino IDE erkennt `main.cpp` als Teil des Sketches, solange alle Dateien im selben Ordner liegen - bei Bedarf den Ordner in `esp32-ferm-controller` umbenennen und `main.cpp` zu `esp32-ferm-controller.ino` umbenennen, oder per `arduino-cli compile` wie unten bauen).
-4. Dashboard-Dateien auf LittleFS hochladen: mit dem Plugin "ESP32 Sketch Data Upload" (Arduino IDE) bzw. `arduino-cli` + `mklittlefs` den Inhalt von `data/` flashen.
-5. Board **"ESP32S3 Dev Module"** auswählen, unter **Tools → USB CDC On Boot → "Enabled"** setzen (siehe Hinweis oben), flashen, seriellen Monitor bei 115200 Baud öffnen.
+2. Folgende Bibliotheken über den Bibliotheksverwalter installieren: `WiFiManager` (tzapu), `ESPAsyncWebServer` (lacamera), `ArduinoJson`, `DallasTemperature`, `OneWire`, `TFT_eSPI` (Bodmer).
+3. **TFT_eSPI konfigurieren** (einmalig, direkt in der installierten Bibliothek - bei Arduino IDE/CLI gibt es anders als bei PlatformIO keinen sauberen Pro-Projekt-Weg dafür): in `TFT_eSPI/User_Setup_Select.h` die Zeile
+   `#include <User_Setups/Setup206_LilyGo_T_Display_S3.h>` einkommentieren
+   (Zeile ~133, die Datei bringt TFT_eSPI für genau dieses Board bereits fertig mit) und die Standard-Zeile `#include <User_Setup.h>` auskommentiert lassen.
+4. Sketch `src/` öffnen (Arduino IDE erkennt `main.cpp` als Teil des Sketches, solange alle Dateien im selben Ordner liegen - bei Bedarf den Ordner in `esp32-ferm-controller` umbenennen und `main.cpp` zu `esp32-ferm-controller.ino` umbenennen, oder per `arduino-cli compile` wie unten bauen).
+5. Dashboard-Dateien auf LittleFS hochladen: mit dem Plugin "ESP32 Sketch Data Upload" (Arduino IDE) bzw. `arduino-cli` + `mklittlefs` den Inhalt von `data/` flashen.
+6. Board **"ESP32S3 Dev Module"** auswählen, unter **Tools → USB CDC On Boot → "Enabled"** setzen (siehe Hinweis oben), flashen, seriellen Monitor bei 115200 Baud öffnen.
 
 Mit `arduino-cli` entspricht das dem FQBN-Zusatz `:CDCOnBoot=cdc`, z.B.:
 ```sh
@@ -87,7 +94,7 @@ arduino-cli compile --fqbn "esp32:esp32:esp32s3:CDCOnBoot=cdc" --upload -p COM3 
 
 ### Weg B: PlatformIO
 
-`platformio.ini` setzt die nötigen Build-Flags (`ARDUINO_USB_CDC_ON_BOOT=1`) für dieses Board bereits automatisch:
+`platformio.ini` setzt die nötigen Build-Flags (`ARDUINO_USB_CDC_ON_BOOT=1` sowie die komplette TFT_eSPI-Display-Konfiguration) für dieses Board bereits automatisch - hier ist kein manueller Eingriff in eine installierte Bibliothek nötig:
 
 ```sh
 cd esp32-ferm-controller
@@ -188,7 +195,8 @@ esp32-ferm-controller/
 │   ├── persistence.*            LittleFS-JSON (Gärplan/Einstellungen/Zustand)
 │   ├── wifi_setup.*             WiFiManager-Wrapper
 │   ├── web_server.*             Dashboard + REST-API
-│   └── cbpi_reporter.*          Optionales CraftBeerPi-Reporting
+│   ├── cbpi_reporter.*          Optionales CraftBeerPi-Reporting
+│   └── display.*                Status-Anzeige auf dem eingebauten TFT (TFT_eSPI)
 ├── data/                      Dashboard (auf LittleFS geflasht)
 └── test/
     ├── test_cooling_control/    PlatformIO-Unity-Tests (pio test -e native)
@@ -221,23 +229,39 @@ Hardware testen.
   `USB CDC On Boot: Enabled` kam über das USB-Kabel keinerlei
   Serial-Ausgabe an, obwohl die Firmware normal lief.
 
-**Was damit noch nicht abgedeckt ist:** Sensor, Relais, WLAN-Verbindung und
-das Web-Dashboard liefen nicht in diesem Testlauf mit (der Selbsttest
-braucht bewusst keine Peripherie). Bitte vor dem Anschluss an den echten
-Kühlschrank folgende Checkliste durchgehen:
+Danach live auf dem echten Gerät weiterverfolgt (über COM3):
 
-1. ✅ `test/selftest/` flashen, seriellen Monitor öffnen, **"ALLE TESTS BESTANDEN"** prüfen - bereits erledigt, siehe oben.
-2. Haupt-Firmware flashen (mit `USB CDC On Boot: Enabled`!), Ersteinrichtung durchlaufen (siehe oben).
+- ✅ Haupt-Firmware + Dashboard geflasht, bootet sauber, WLAN verbindet sich
+  automatisch (nutzte sogar schon gespeicherte Zugangsdaten vom
+  esp32thermometer-Vorgängerprojekt - WLAN-Zugangsdaten liegen in einem
+  eigenen, firmwareunabhängigen NVS-Bereich).
+- ✅ Dashboard über die echte IP erreichbar, `/api/status` liefert einen
+  plausiblen Sensorwert, Standard-Gärplan korrekt aus dem LittleFS-Flash
+  geladen, Relais korrekt AUS/IDLE im Leerlauf.
+- ✅ Dabei zwei reale Bugs gefunden und behoben: der manuelle Schalter im
+  Dashboard blieb nach Touch-Bedienung gesperrt (Fokus/Blur-Sperre
+  entfernt), und die Kompressorschutz-Untergrenze war für zügiges Testen zu
+  hoch (60s → 5s, weiterhin nicht auf 0 setzbar).
+- ⬜ **Display-Anzeige (TFT_eSPI) noch nicht visuell bestätigt** - kompiliert
+  sauber und die Firmware bootet damit fehlerfrei, aber ob tatsächlich
+  etwas Sinnvolles auf dem Bildschirm erscheint, kann von hier aus nicht
+  geprüft werden (kein Kamerazugriff auf das Gerät).
+- ⬜ Relais-Verhalten mit echtem Kompressor sowie der volle Gärplan-Ablauf
+  (Start → Schrittwechsel → Fertig) stehen noch aus.
+
+Checkliste für den Rest, bevor es an den echten Kühlschrank geht:
+
+1. ✅ `test/selftest/` - alle 28 Tests bestanden (siehe oben).
+2. ✅ Haupt-Firmware + Dashboard geflasht und erreichbar (siehe oben).
 3. Stromzyklus **fernab vom Kühlschrank** testen: Gerät aus- und wieder
    einschalten, prüfen dass es sich ohne erneutes Setup-Portal automatisch
    mit dem WLAN verbindet.
-4. Prüfen, dass eine plausible Raumtemperatur angezeigt wird.
-5. Relais-Klicken hören und im Dashboard den Status-Wechsel sehen (z.B.
-   über die Einstellungen kurzzeitig eine sehr niedrige Zieltemperatur
-   setzen oder den manuellen Modus nutzen).
-6. Kompressorschutz bewusst testen: im manuellen Modus zweimal schnell
-   hintereinander ein-/ausschalten und den Countdown im Dashboard
-   beobachten.
+4. Display visuell prüfen: zeigt es Temperatur/Status sinnvoll an?
+5. Kompressorschutz-Countdown im Dashboard beobachten (aktuell auf 5s
+   Testwert gestellt - vor echtem Betrieb wieder auf 60-240s hochsetzen!).
+6. Einen kompletten Gärplan-Durchlauf im Zeitraffer testen (sehr kurze
+   Schrittdauern eintragen, Start klicken, Schrittwechsel + "Fertig"-Zustand
+   beobachten).
 7. **Erst danach** an Netzspannung und den echten Kühlschrank anschließen.
 
 ## Offene Anpassungen
