@@ -86,11 +86,22 @@
           </label>
         </div>
         <div class="row">
-          <span class="label">Kühlung</span>
+          <span class="label">Kühlung (angefordert)</span>
           <label class="switch">
             <input type="checkbox" id="manual-relay" disabled>
             <span class="slider"></span>
           </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="row">
+          <span class="label">Kühlung (tatsächlich)</span>
+          <span class="badge" id="manual-relay-actual">–</span>
+        </div>
+        <div class="row" id="manual-guard-row" hidden>
+          <span class="label">Kompressorschutz aktiv</span>
+          <span class="value" id="manual-guard-remaining">–</span>
         </div>
       </div>
     </section>

@@ -89,11 +89,24 @@
     $('status-uptime').textContent = fmtDuration(s.uptimeSeconds);
     $('status-version').textContent = s.firmwareVersion;
 
-    // Manuellen Tab synchron halten, solange der Nutzer dort nicht gerade tippt.
-    if (!manualEditing) {
-      $('manual-active').checked = s.manualOverrideActive;
-      $('manual-relay').disabled = !s.manualOverrideActive;
-      $('manual-relay').checked = s.manualRequestOn;
+    // Manuellen Tab immer mit dem Server-Stand synchron halten.
+    $('manual-active').checked = s.manualOverrideActive;
+    $('manual-relay').disabled = !s.manualOverrideActive;
+    $('manual-relay').checked = s.manualRequestOn;
+
+    // Live-Anzeige, was das Relais TATSÄCHLICH gerade tut (kann vom
+    // "angefordert"-Schalter abweichen, z.B. während der Kompressorschutz
+    // ein Einschalten noch verzögert).
+    var actualBadge = $('manual-relay-actual');
+    actualBadge.textContent = s.relayOn ? 'AN' : 'AUS';
+    actualBadge.className = 'badge ' + (s.relayOn ? 'on' : 'off');
+
+    var manualGuardRow = $('manual-guard-row');
+    if (s.guardActive) {
+      manualGuardRow.hidden = false;
+      $('manual-guard-remaining').textContent = 'noch ' + fmtDuration(s.guardSecondsRemaining);
+    } else {
+      manualGuardRow.hidden = true;
     }
   }
 
@@ -197,8 +210,14 @@
   // ============================================================
   // Manueller Modus
   // ============================================================
-  var manualEditing = false;
-
+  // Jeder Klick auf einen der beiden Schalter löst sofort sendManual() aus
+  // (kein "tippt der Nutzer gerade"-Zustand wie bei einem Textfeld, der vor
+  // dem nächsten Status-Poll geschützt werden müsste) - renderStatus()
+  // synchronisiert die Schalter deshalb bei jedem Poll bedingungslos mit dem
+  // Server. (Eine frühere Fokus/Blur-basierte Sperre hat genau das
+  // verhindert und dafür gesorgt, dass der "Kühlung"-Schalter nach dem
+  // Aktivieren von "Manueller Modus" per Touch oft dauerhaft deaktiviert
+  // blieb, weil der Blur auf Touch-Geräten nicht zuverlässig feuert.)
   function sendManual() {
     var active = $('manual-active').checked;
     var relayOn = $('manual-relay').checked;
@@ -207,15 +226,12 @@
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: active, relayOn: relayOn })
-    }).then(function () { showToast('Manueller Modus aktualisiert'); })
+    }).then(function () { showToast('Manueller Modus aktualisiert'); pollStatus(); })
       .catch(function () { showToast('Fehlgeschlagen', true); });
   }
 
   ['manual-active', 'manual-relay'].forEach(function (id) {
-    var el = $(id);
-    el.addEventListener('focus', function () { manualEditing = true; });
-    el.addEventListener('blur', function () { manualEditing = false; });
-    el.addEventListener('change', sendManual);
+    $(id).addEventListener('change', sendManual);
   });
 
   // ============================================================
