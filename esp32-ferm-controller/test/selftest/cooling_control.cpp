@@ -73,3 +73,39 @@ CoolingDecision evaluateCoolingRelay(const CoolingInputs& in) {
     }
     return out;
 }
+
+CoolingDecision evaluateFallbackRelay(const FallbackInputs& in) {
+    CoolingDecision out{};
+    out.relayShouldBeOn = in.relayCurrentlyOn;
+    out.blockedByMinOffGuard = false;
+    out.guardSecondsRemaining = 0;
+
+    // Die Ziel-Taktzeiten dürfen den Kompressorschutz nie unterschreiten -
+    // derselbe Grundsatz wie bei der normalen Hysterese.
+    uint32_t onTarget = in.fallbackOnSeconds > in.minCompressorOnSeconds
+                             ? in.fallbackOnSeconds : in.minCompressorOnSeconds;
+    uint32_t offTarget = in.fallbackOffSeconds > in.minCompressorOffSeconds
+                              ? in.fallbackOffSeconds : in.minCompressorOffSeconds;
+
+    if (in.relayCurrentlyOn) {
+        out.relayShouldBeOn = in.secondsSinceLastOn < onTarget;
+        return out;
+    }
+
+    if (in.secondsSinceLastOff < offTarget) {
+        out.relayShouldBeOn = false;
+        out.blockedByMinOffGuard = true; // dieselbe Dashboard-Anzeige wie beim normalen Kompressorschutz
+        out.guardSecondsRemaining = offTarget - in.secondsSinceLastOff;
+        return out;
+    }
+    out.relayShouldBeOn = true;
+    return out;
+}
+
+TempZone classifyTempZone(float currentTempC, float targetTempC,
+                           float onOffsetC, float offOffsetC, bool sensorOk) {
+    if (!sensorOk) return TempZone::UNKNOWN;
+    if (currentTempC >= targetTempC + onOffsetC) return TempZone::WARM;
+    if (currentTempC <= targetTempC - offOffsetC) return TempZone::COLD;
+    return TempZone::OK;
+}

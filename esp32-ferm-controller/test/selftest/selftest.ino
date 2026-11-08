@@ -132,6 +132,47 @@ void testManualOverride() {
     check(d3.relayShouldBeOn == true, "Manuell AN schaltet nach Ablauf der Mindestzeit ein (trotz -5C)");
 }
 
+void testFallbackCycle() {
+    Serial.println("--- Hysterese: Fallback-Takt bei Sensorausfall ---");
+    FallbackInputs in{};
+    in.fallbackOnSeconds = 600;
+    in.fallbackOffSeconds = 3600;
+    in.minCompressorOnSeconds = 90;
+    in.minCompressorOffSeconds = 240;
+
+    in.relayCurrentlyOn = true;
+    in.secondsSinceLastOn = 599;
+    check(evaluateFallbackRelay(in).relayShouldBeOn == true, "599s von 600s AN: bleibt an");
+    in.secondsSinceLastOn = 600;
+    check(evaluateFallbackRelay(in).relayShouldBeOn == false, "600s AN erreicht: schaltet aus");
+
+    in.relayCurrentlyOn = false;
+    in.secondsSinceLastOff = 3599;
+    auto d1 = evaluateFallbackRelay(in);
+    check(d1.relayShouldBeOn == false, "3599s von 3600s AUS: bleibt aus");
+    check(d1.blockedByMinOffGuard == true, "...als blockiert markiert");
+    in.secondsSinceLastOff = 3600;
+    check(evaluateFallbackRelay(in).relayShouldBeOn == true, "3600s AUS erreicht: schaltet ein");
+
+    // Ein zu kurz gelernter Takt darf den Kompressorschutz nicht unterlaufen.
+    in.fallbackOnSeconds = 5;
+    in.fallbackOffSeconds = 10;
+    in.secondsSinceLastOff = 10;
+    check(evaluateFallbackRelay(in).relayShouldBeOn == false, "Kurzer Takt (10s) < Kompressorschutz (240s): bleibt aus");
+    in.secondsSinceLastOff = 240;
+    check(evaluateFallbackRelay(in).relayShouldBeOn == true, "Nach 240s (Kompressorschutz): schaltet trotz kurzem Takt ein");
+}
+
+void testTempZone() {
+    Serial.println("--- Temperatur-Farbzonen (Status-Anzeige) ---");
+    check(classifyTempZone(4.0f, 4.0f, 0.5f, 0.2f, true) == TempZone::OK, "am Ziel: OK");
+    check(classifyTempZone(4.49f, 4.0f, 0.5f, 0.2f, true) == TempZone::OK, "knapp unter oberer Schwelle: noch OK");
+    check(classifyTempZone(4.5f, 4.0f, 0.5f, 0.2f, true) == TempZone::WARM, "obere Schwelle erreicht: WARM");
+    check(classifyTempZone(3.81f, 4.0f, 0.5f, 0.2f, true) == TempZone::OK, "knapp ueber unterer Schwelle: noch OK");
+    check(classifyTempZone(3.8f, 4.0f, 0.5f, 0.2f, true) == TempZone::COLD, "untere Schwelle erreicht: COLD");
+    check(classifyTempZone(4.0f, 4.0f, 0.5f, 0.2f, false) == TempZone::UNKNOWN, "Sensor ausgefallen: UNKNOWN");
+}
+
 void testScheduleAdvance() {
     Serial.println("--- Gaerplan: Fortschritt ---");
     Schedule sched{};
@@ -212,6 +253,8 @@ void setup() {
     testHysteresisBasics();
     testMinOffGuard();
     testManualOverride();
+    testFallbackCycle();
+    testTempZone();
     testScheduleAdvance();
     testRampInterpolation();
 

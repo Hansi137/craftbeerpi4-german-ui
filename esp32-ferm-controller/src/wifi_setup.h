@@ -7,6 +7,13 @@
 // sie danach selbst im Flash (NVS) - bei jedem weiteren Einschalten
 // verbindet sich das Gerät automatisch, ganz ohne dieses Portal erneut zu
 // zeigen.
+//
+// Zusätzlich läuft dauerhaft ein eigener, fest konfigurierter lokaler
+// Access Point (LOCAL_AP_NAME/LOCAL_AP_PASSWORD, siehe config.h) parallel
+// zur Heim-WLAN-Verbindung (WIFI_AP_STA) - so bleibt das Dashboard auch
+// erreichbar, wenn am Aufstellort gar kein Heim-WLAN-Signal ankommt (z.B.
+// Keller): Handy direkt mit diesem Netz verbinden, Dashboard liegt dann
+// fest unter http://192.168.4.1.
 
 #pragma once
 
@@ -40,5 +47,10 @@ void resetAndRestart();
 
 bool isConnected();
 int rssi();
+
+// Name/IP des dauerhaft laufenden lokalen Access Points - für Anzeige im
+// Dashboard/Display, falls kein Heim-WLAN erreichbar ist.
+const char* localApName();
+uint32_t localApIp();
 
 } // namespace wifi_setup

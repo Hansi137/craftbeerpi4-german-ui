@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>Gärschrank-Controller</title>
+<link rel="icon" type="image/png" href="/logo.png">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <header class="topbar">
-    <span class="topbar-icon">🌡️</span>
+    <img class="topbar-logo" src="/logo.png" alt="">
     <span class="topbar-title">Gärschrank-Controller</span>
   </header>
 
@@ -22,6 +23,9 @@
   <main>
     <!-- ===================== STATUS ===================== -->
     <section id="tab-status" class="tab-panel active">
+      <div class="banner-warn" id="fallback-banner" hidden>
+        ⚠️ Sensor ausgefallen - Kühlung läuft im Fallback-Takt (<span id="fallback-cycle-info">–</span>), nicht nach echter Temperaturmessung. Bitte Sensor/Verkabelung prüfen.
+      </div>
       <div class="card card-center">
         <div class="big-temp" id="status-temp">--,-°C</div>
         <div class="muted" id="status-target">Ziel: --°C</div>
@@ -44,6 +48,8 @@
 
       <div class="card">
         <div class="row"><span class="label">WLAN</span><span class="value" id="status-wifi">–</span></div>
+        <div class="row"><span class="label">Lokaler AP</span><span class="value" id="status-local-ap">–</span></div>
+        <div class="row"><span class="label">Uhrzeit</span><span class="value" id="status-time">–</span></div>
         <div class="row"><span class="label">Laufzeit</span><span class="value" id="status-uptime">–</span></div>
         <div class="row"><span class="label">Firmware</span><span class="value" id="status-version">–</span></div>
       </div>
@@ -144,6 +150,18 @@
       </div>
 
       <div class="card">
+        <h3 class="card-title">Sensorausfall</h3>
+        <div class="row">
+          <span class="label">Fallback-Takt statt Abschaltung</span>
+          <label class="switch">
+            <input type="checkbox" id="set-sensorfail-fallback">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <p class="muted">Fällt der Temperatursensor aus, kann die Kühlung entweder komplett abschalten (sicherster, aber riskiert tagelanges Aufwärmen, falls niemand vor Ort ist) oder nach einem festen An/Aus-Takt weiterlaufen - abgeleitet aus dem zuletzt beobachteten normalen Kühlzyklus. Der Kompressorschutz bleibt in beiden Fällen aktiv.</p>
+      </div>
+
+      <div class="card">
         <h3 class="card-title">CraftBeerPi-Reporting</h3>
         <div class="row">
           <span class="label">Aktiv</span>
@@ -179,7 +197,7 @@
 
       <div class="card">
         <h3 class="card-title">WLAN</h3>
-        <p class="muted">Setzt die gespeicherten WLAN-Zugangsdaten zurück und startet neu - danach erscheint wieder das Einrichtungs-Portal.</p>
+        <p class="muted">Setzt die gespeicherten WLAN-Zugangsdaten zurück und startet neu - danach erscheint wieder das Einrichtungs-Portal. Der lokale Access Point (siehe Status-Tab) ist davon nicht betroffen und bleibt immer aktiv.</p>
         <button class="btn btn-danger btn-block" id="wifi-reset">WLAN zurücksetzen</button>
       </div>
     </section>

@@ -30,6 +30,13 @@
 // DS18B20-Datenleitung (OneWire). Braucht einen 4,7 kOhm Pull-Up-Widerstand
 // zwischen Datenleitung und 3,3V. GPIO21 ist exakt der Pin, den auch das
 // oben verlinkte Referenzprojekt für denselben Sensor auf diesem Board nutzt.
+//
+// (Während eines Sensorausfalls stand hier zwischenzeitlich der Verdacht,
+// GPIO21 könnte wegen einer Onboard-Verdrahtung als "TP_RESET" für einen
+// Touch-Controller ungeeignet sein, und der Pin wurde kurzzeitig auf GPIO17
+// umgestellt. Die tatsächliche Ursache war aber simpler: eine kalte
+// Lötstelle auf der Rasterplatine zwischen Sensor und ESP32. Deshalb wieder
+// zurück auf GPIO21, passend zur realen Verkabelung.)
 #define PIN_ONEWIRE_DATA 21
 
 // Steuerleitung zum Relais-Modul. GPIO18 ist auf diesem Board frei
@@ -73,6 +80,20 @@
 
 #define DEFAULT_CBPI_REPORT_INTERVAL_SECONDS 60
 
+// Fallback-Takt bei Sensorausfall (siehe cooling_control.h): Bootstrap-Werte,
+// die nur verwendet werden, bevor der allererste reale Kühlzyklus seit dem
+// allerersten Start beobachtet wurde. Danach überschreibt main.cpp diese
+// Werte laufend mit der zuletzt beobachteten echten An-/Ausschaltdauer
+// (persistiert in /fallback.json, überlebt also auch Neustarts).
+#define DEFAULT_FALLBACK_ON_SECONDS 600
+#define DEFAULT_FALLBACK_OFF_SECONDS 3600
+
+// Wanduhrzeit fuer /history.csv-Zeitstempel (siehe time_sync.h) - NTP-Server
+// und Zeitzone als POSIX-TZ-String (Deutschland: MEZ/MESZ mit den
+// EU-Umstellungsregeln, letzter Sonntag im Maerz/Oktober).
+#define NTP_SERVER "pool.ntp.org"
+#define TIME_ZONE_POSIX "CET-1CEST,M3.5.0,M10.5.0/3"
+
 // Gärungsverlauf-Logger (history.*): wie oft ein Datenpunkt geschrieben
 // wird, und wie groß /history.csv maximal werden darf, bevor die ältere
 // Hälfte verworfen wird. 300s * ~350KB ergibt bei ~40 Byte/Zeile grob
@@ -84,6 +105,16 @@
 // Name des WiFiManager-Einrichtungs-Access-Points beim allerersten Start
 // bzw. nach einem WLAN-Reset.
 #define WIFI_SETUP_AP_NAME "FermControl-Setup"
+
+// Lokaler Access Point: läuft IMMER zusätzlich zur Heim-WLAN-Verbindung
+// (WiFi.mode(WIFI_AP_STA), siehe wifi_setup.cpp) - unabhängig davon, ob das
+// Heim-WLAN gerade erreichbar ist oder nicht. Damit bleibt das Dashboard per
+// Handy erreichbar, auch am Aufstellort ganz ohne Heim-WLAN-Empfang (z.B.
+// Keller): einfach mit diesem Netz statt dem Heim-WLAN verbinden, Dashboard
+// liegt dann fest unter http://192.168.4.1. Passwort unbedingt anpassen
+// (mind. 8 Zeichen, sonst lehnt der ESP32 softAP() die Anfrage ab).
+#define LOCAL_AP_NAME "FermControl-Lokal"
+#define LOCAL_AP_PASSWORD "biergaerung"
 
 // Wie lange das Einrichtungs-Portal offen bleibt, bevor das Gerät es
 // automatisch wieder schließt und einen erneuten Boot-Versuch macht.

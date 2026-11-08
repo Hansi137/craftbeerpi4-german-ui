@@ -28,6 +28,15 @@ struct AppState {
     bool guardActive = false;
     uint32_t guardSecondsRemaining = 0;
 
+    // Fallback-Takt bei Sensorausfall (siehe cooling_control.h): true, solange
+    // gerade nach dem Fallback-Takt statt nach echter Hysterese geregelt wird.
+    // fallbackOnSeconds/-OffSeconds sind der zuletzt aus echtem Betrieb
+    // gelernte Takt (siehe main.cpp applyRelayDecision(), persistiert über
+    // persistence::saveFallbackCycle()).
+    bool sensorFailFallbackActive = false;
+    uint32_t fallbackOnSeconds = 0;
+    uint32_t fallbackOffSeconds = 0;
+
     // Vom Dashboard gesetzt, von main.cpp gelesen:
     bool manualOverrideActive = false;
     bool manualRequestOn = false;

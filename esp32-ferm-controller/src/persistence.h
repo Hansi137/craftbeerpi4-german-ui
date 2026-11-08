@@ -26,6 +26,21 @@ struct Settings {
     // Intervall für den Gärungsverlauf-Logger (history.*), in Sekunden.
     // 0 schaltet die Aufzeichnung ab.
     uint32_t historyIntervalSeconds;
+    // Bei Sensorausfall: fester An/Aus-Takt statt Komplettabschaltung der
+    // Kühlung (siehe cooling_control.h evaluateFallbackRelay). false = altes
+    // Verhalten (Kühlung bleibt sicherheitshalber ganz aus, bis der Sensor
+    // wieder Werte liefert).
+    bool sensorFailFallbackEnabled;
+};
+
+// Zuletzt beobachtete reale An-/Ausschaltdauer des Relais, während der
+// Sensor noch gültige Werte lieferte - wird von main.cpp laufend aktualisiert
+// und hier persistiert, damit sie einen Neustart während eines Sensorausfalls
+// überlebt (sonst würde jeder Reboot während eines laufenden Ausfalls auf die
+// generischen Bootstrap-Werte aus config.h zurückfallen).
+struct FallbackCycle {
+    uint32_t onSeconds;
+    uint32_t offSeconds;
 };
 
 namespace persistence {
@@ -44,5 +59,8 @@ bool saveSettings(const Settings& s);
 
 bool loadState(ScheduleProgress& out);
 bool saveState(const ScheduleProgress& s);
+
+bool loadFallbackCycle(FallbackCycle& out);
+bool saveFallbackCycle(const FallbackCycle& c);
 
 } // namespace persistence

@@ -26,6 +26,7 @@
 #include "cbpi_reporter.h"
 #include "display.h"
 #include "history.h"
+#include "time_sync.h"
 
 AppState appState;
 
@@ -37,6 +38,7 @@ RelayOutput relay;
 uint32_t lastControlMillis = 0;
 uint32_t lastStateSaveMillis = 0;
 uint32_t lastOffMillis = 0; // für den Kompressorschutz-Timer
+uint32_t lastOnMillis = 0;  // für den Fallback-Takt bei Sensorausfall (Zeit im EIN-Zustand)
 
 // Effektive Zieltemperatur für den aktuell aktiven Gärplan-Schritt
 // (inkl. Rampe, falls konfiguriert). Nur sinnvoll, wenn ein Schritt aktiv
@@ -55,10 +57,37 @@ float computeEffectiveTarget() {
 
 void applyRelayDecision(bool shouldBeOn) {
     bool wasOn = relay.isOn();
+    uint32_t now = millis();
+    bool learnedCycleChanged = false;
+
+    if (wasOn && !shouldBeOn) {
+        // Nur lernen, wenn der Sensor beim Ausschalten noch gültige Werte
+        // lieferte - sonst würde ein Fallback-Takt-Zyklus (der ja selbst aus
+        // dem gelernten Wert gespeist wird) sich laufend selbst neu
+        // bestätigen, statt beim zuletzt wirklich beobachteten Normalbetrieb
+        // zu bleiben.
+        uint32_t onDuration = (now - lastOnMillis) / 1000;
+        if (appState.sensorOk && onDuration > 0) {
+            appState.fallbackOnSeconds = onDuration;
+            learnedCycleChanged = true;
+        }
+        lastOffMillis = now;
+    }
+    if (!wasOn && shouldBeOn) {
+        uint32_t offDuration = (now - lastOffMillis) / 1000;
+        if (appState.sensorOk && offDuration > 0) {
+            appState.fallbackOffSeconds = offDuration;
+            learnedCycleChanged = true;
+        }
+        lastOnMillis = now;
+    }
+
     relay.setOn(shouldBeOn);
     appState.relayOn = shouldBeOn;
-    if (wasOn && !shouldBeOn) {
-        lastOffMillis = millis();
+
+    if (learnedCycleChanged) {
+        FallbackCycle c{appState.fallbackOnSeconds, appState.fallbackOffSeconds};
+        persistence::saveFallbackCycle(c);
     }
 }
 
@@ -85,17 +114,39 @@ void runControlCycle(uint32_t deltaSeconds) {
     }
 
     uint32_t secondsSinceOff = (millis() - lastOffMillis) / 1000;
+    uint32_t secondsSinceOn = (millis() - lastOnMillis) / 1000;
 
-    // 4. Kühl-Entscheidung treffen. Ohne gültigen Sensorwert wird die
-    //    Kühlung sicherheitshalber ausgeschaltet, statt mit einem
-    //    Fantasiewert weiterzurechnen (ein hängender/abgezogener Sensor darf
-    //    niemals dazu führen, dass die Kühlung unkontrolliert weiterläuft).
+    // 4. Kühl-Entscheidung treffen. Ohne gültigen Sensorwert kann die normale
+    //    Hysterese nicht mehr entscheiden (ein hängender/abgezogener Sensor
+    //    darf niemals dazu führen, dass mit einem Fantasiewert weiter-
+    //    gerechnet wird). Je nach Einstellung entweder ein fester Fallback-
+    //    Takt (siehe cooling_control.h) oder - wie ursprünglich - komplette
+    //    Abschaltung.
     if (!appState.sensorOk && !appState.manualOverrideActive) {
-        applyRelayDecision(false);
-        appState.guardActive = false;
-        appState.guardSecondsRemaining = 0;
+        if (appState.settings.sensorFailFallbackEnabled) {
+            FallbackInputs in{};
+            in.relayCurrentlyOn = relay.isOn();
+            in.secondsSinceLastOn = secondsSinceOn;
+            in.secondsSinceLastOff = secondsSinceOff;
+            in.fallbackOnSeconds = appState.fallbackOnSeconds;
+            in.fallbackOffSeconds = appState.fallbackOffSeconds;
+            in.minCompressorOffSeconds = appState.settings.minCompressorOffSeconds;
+            in.minCompressorOnSeconds = appState.settings.minCompressorOnSeconds;
+
+            CoolingDecision decision = evaluateFallbackRelay(in);
+            applyRelayDecision(decision.relayShouldBeOn);
+            appState.guardActive = decision.blockedByMinOffGuard;
+            appState.guardSecondsRemaining = decision.guardSecondsRemaining;
+            appState.sensorFailFallbackActive = true;
+        } else {
+            applyRelayDecision(false);
+            appState.guardActive = false;
+            appState.guardSecondsRemaining = 0;
+            appState.sensorFailFallbackActive = false;
+        }
         return;
     }
+    appState.sensorFailFallbackActive = false;
 
     if (appState.manualOverrideActive) {
         CoolingInputs in{};
@@ -161,6 +212,10 @@ void setup() {
     persistence::loadSchedule(appState.schedule);
     persistence::loadSettings(appState.settings);
     persistence::loadState(appState.progress);
+    FallbackCycle fallbackCycle{};
+    persistence::loadFallbackCycle(fallbackCycle);
+    appState.fallbackOnSeconds = fallbackCycle.onSeconds;
+    appState.fallbackOffSeconds = fallbackCycle.offSeconds;
     history::begin();
 
     tempSensor.begin();
@@ -180,6 +235,9 @@ void setup() {
     } else {
         Serial.println("[WARNUNG] Keine WLAN-Verbindung (Einrichtungs-Portal-Timeout). Dashboard ist nur ueber den Einrichtungs-AP erreichbar, bis ein WLAN konfiguriert ist.");
     }
+    // Nicht blockierend - synchronisiert im Hintergrund, sobald irgendwann
+    // eine Internetverbindung besteht (siehe time_sync.h).
+    time_sync::begin();
 
     web_server::begin();
     Serial.println("Webserver gestartet.");

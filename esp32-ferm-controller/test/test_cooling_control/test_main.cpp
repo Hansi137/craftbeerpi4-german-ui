@@ -123,6 +123,74 @@ void test_manual_on_still_respects_min_off_guard(void) {
     TEST_ASSERT_TRUE(d2.relayShouldBeOn); // Temperaturschwelle wird im manuellen Modus ignoriert
 }
 
+void test_fallback_turns_off_after_on_target(void) {
+    FallbackInputs in{};
+    in.relayCurrentlyOn = true;
+    in.fallbackOnSeconds = 600;
+    in.fallbackOffSeconds = 3600;
+    in.minCompressorOnSeconds = 90;
+    in.minCompressorOffSeconds = 240;
+
+    in.secondsSinceLastOn = 599;
+    TEST_ASSERT_TRUE(evaluateFallbackRelay(in).relayShouldBeOn);
+
+    in.secondsSinceLastOn = 600;
+    TEST_ASSERT_FALSE(evaluateFallbackRelay(in).relayShouldBeOn);
+}
+
+void test_fallback_turns_on_after_off_target(void) {
+    FallbackInputs in{};
+    in.relayCurrentlyOn = false;
+    in.fallbackOnSeconds = 600;
+    in.fallbackOffSeconds = 3600;
+    in.minCompressorOnSeconds = 90;
+    in.minCompressorOffSeconds = 240;
+
+    in.secondsSinceLastOff = 3599;
+    CoolingDecision d1 = evaluateFallbackRelay(in);
+    TEST_ASSERT_FALSE(d1.relayShouldBeOn);
+    TEST_ASSERT_TRUE(d1.blockedByMinOffGuard);
+    TEST_ASSERT_EQUAL_UINT32(1, d1.guardSecondsRemaining);
+
+    in.secondsSinceLastOff = 3600;
+    TEST_ASSERT_TRUE(evaluateFallbackRelay(in).relayShouldBeOn);
+}
+
+void test_fallback_never_undercuts_compressor_guard(void) {
+    // Ein (zu) kurz gelernter Takt darf den Kompressorschutz nicht aushebeln -
+    // die Mindestzeiten muessen gewinnen.
+    FallbackInputs in{};
+    in.relayCurrentlyOn = false;
+    in.fallbackOnSeconds = 5;
+    in.fallbackOffSeconds = 10;
+    in.minCompressorOnSeconds = 90;
+    in.minCompressorOffSeconds = 240;
+
+    in.secondsSinceLastOff = 10; // > gelernter Takt, aber < Kompressorschutz
+    TEST_ASSERT_FALSE(evaluateFallbackRelay(in).relayShouldBeOn);
+
+    in.secondsSinceLastOff = 240;
+    TEST_ASSERT_TRUE(evaluateFallbackRelay(in).relayShouldBeOn);
+}
+
+void test_classify_ok_in_deadband(void) {
+    TEST_ASSERT_EQUAL(TempZone::OK, classifyTempZone(4.0f, 4.0f, 0.5f, 0.2f, true));
+}
+
+void test_classify_warm_at_on_threshold(void) {
+    TEST_ASSERT_EQUAL(TempZone::OK, classifyTempZone(4.49f, 4.0f, 0.5f, 0.2f, true));
+    TEST_ASSERT_EQUAL(TempZone::WARM, classifyTempZone(4.5f, 4.0f, 0.5f, 0.2f, true));
+}
+
+void test_classify_cold_at_off_threshold(void) {
+    TEST_ASSERT_EQUAL(TempZone::OK, classifyTempZone(3.81f, 4.0f, 0.5f, 0.2f, true));
+    TEST_ASSERT_EQUAL(TempZone::COLD, classifyTempZone(3.8f, 4.0f, 0.5f, 0.2f, true));
+}
+
+void test_classify_unknown_when_sensor_failed(void) {
+    TEST_ASSERT_EQUAL(TempZone::UNKNOWN, classifyTempZone(4.0f, 4.0f, 0.5f, 0.2f, false));
+}
+
 int main(int argc, char** argv) {
     UNITY_BEGIN();
     RUN_TEST(test_stays_off_below_upper_threshold);
@@ -133,5 +201,12 @@ int main(int argc, char** argv) {
     RUN_TEST(test_min_off_guard_releases_exactly_at_boundary);
     RUN_TEST(test_manual_off_always_wins_immediately);
     RUN_TEST(test_manual_on_still_respects_min_off_guard);
+    RUN_TEST(test_fallback_turns_off_after_on_target);
+    RUN_TEST(test_fallback_turns_on_after_off_target);
+    RUN_TEST(test_fallback_never_undercuts_compressor_guard);
+    RUN_TEST(test_classify_ok_in_deadband);
+    RUN_TEST(test_classify_warm_at_on_threshold);
+    RUN_TEST(test_classify_cold_at_off_threshold);
+    RUN_TEST(test_classify_unknown_when_sensor_failed);
     return UNITY_END();
 }

@@ -10,6 +10,7 @@ namespace {
 const char* SCHEDULE_PATH = "/schedule.json";
 const char* SETTINGS_PATH = "/settings.json";
 const char* STATE_PATH = "/state.json";
+const char* FALLBACK_PATH = "/fallback.json";
 const char* SCHEDULE_DEFAULT_PATH = "/schedule.default.json";
 const char* SETTINGS_DEFAULT_PATH = "/settings.default.json";
 
@@ -122,6 +123,7 @@ bool loadSettings(Settings& out) {
     out.cbpiReportIntervalSeconds = DEFAULT_CBPI_REPORT_INTERVAL_SECONDS;
     out.relayActiveHigh = RELAY_ACTIVE_HIGH;
     out.historyIntervalSeconds = DEFAULT_HISTORY_INTERVAL_SECONDS;
+    out.sensorFailFallbackEnabled = true;
 
     File f = LittleFS.open(SETTINGS_PATH, "r");
     if (!f) return false;
@@ -150,6 +152,7 @@ bool loadSettings(Settings& out) {
     out.cbpiReportIntervalSeconds = doc["cbpiReportIntervalSeconds"] | DEFAULT_CBPI_REPORT_INTERVAL_SECONDS;
     out.relayActiveHigh = doc["relayActiveHigh"] | (bool)RELAY_ACTIVE_HIGH;
     out.historyIntervalSeconds = doc["historyIntervalSeconds"] | (uint32_t)DEFAULT_HISTORY_INTERVAL_SECONDS;
+    out.sensorFailFallbackEnabled = doc["sensorFailFallbackEnabled"] | true;
     return true;
 }
 
@@ -167,6 +170,7 @@ bool saveSettings(const Settings& s) {
     doc["cbpiReportIntervalSeconds"] = s.cbpiReportIntervalSeconds;
     doc["relayActiveHigh"] = s.relayActiveHigh;
     doc["historyIntervalSeconds"] = s.historyIntervalSeconds;
+    doc["sensorFailFallbackEnabled"] = s.sensorFailFallbackEnabled;
 
     File f = LittleFS.open(SETTINGS_PATH, "w");
     if (!f) return false;
@@ -202,6 +206,35 @@ bool saveState(const ScheduleProgress& s) {
     doc["stepElapsedSeconds"] = s.stepElapsedSeconds;
 
     File f = LittleFS.open(STATE_PATH, "w");
+    if (!f) return false;
+    bool ok = serializeJson(doc, f) > 0;
+    f.close();
+    return ok;
+}
+
+bool loadFallbackCycle(FallbackCycle& out) {
+    out.onSeconds = DEFAULT_FALLBACK_ON_SECONDS;
+    out.offSeconds = DEFAULT_FALLBACK_OFF_SECONDS;
+
+    File f = LittleFS.open(FALLBACK_PATH, "r");
+    if (!f) return false;
+
+    JsonDocument doc;
+    DeserializationError err = deserializeJson(doc, f);
+    f.close();
+    if (err) return false;
+
+    out.onSeconds = doc["onSeconds"] | (uint32_t)DEFAULT_FALLBACK_ON_SECONDS;
+    out.offSeconds = doc["offSeconds"] | (uint32_t)DEFAULT_FALLBACK_OFF_SECONDS;
+    return true;
+}
+
+bool saveFallbackCycle(const FallbackCycle& c) {
+    JsonDocument doc;
+    doc["onSeconds"] = c.onSeconds;
+    doc["offSeconds"] = c.offSeconds;
+
+    File f = LittleFS.open(FALLBACK_PATH, "w");
     if (!f) return false;
     bool ok = serializeJson(doc, f) > 0;
     f.close();

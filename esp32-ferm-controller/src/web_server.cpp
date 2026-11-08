@@ -3,6 +3,8 @@
 #include "persistence.h"
 #include "wifi_setup.h"
 #include "history.h"
+#include "cooling_control.h"
+#include "time_sync.h"
 #include "config.h"
 
 #include <LittleFS.h>
@@ -94,9 +96,20 @@ void handleGetStatus(AsyncWebServerRequest* request) {
     }
     doc["sensorOk"] = appState.sensorOk;
     doc["effectiveTargetTempC"] = appState.effectiveTargetTempC;
+    switch (classifyTempZone(appState.currentTempC, appState.effectiveTargetTempC,
+                              appState.settings.onOffsetC, appState.settings.offOffsetC,
+                              appState.sensorOk)) {
+        case TempZone::WARM: doc["tempZone"] = "warm"; break;
+        case TempZone::COLD: doc["tempZone"] = "cold"; break;
+        case TempZone::OK: doc["tempZone"] = "ok"; break;
+        default: doc["tempZone"] = "unknown"; break;
+    }
     doc["relayOn"] = appState.relayOn;
     doc["guardActive"] = appState.guardActive;
     doc["guardSecondsRemaining"] = appState.guardSecondsRemaining;
+    doc["sensorFailFallbackActive"] = appState.sensorFailFallbackActive;
+    doc["fallbackOnSeconds"] = appState.fallbackOnSeconds;
+    doc["fallbackOffSeconds"] = appState.fallbackOffSeconds;
 
     doc["scheduleState"] = stateToString(appState.progress.state);
     doc["currentStepIndex"] = appState.progress.currentStepIndex;
@@ -117,6 +130,10 @@ void handleGetStatus(AsyncWebServerRequest* request) {
 
     doc["wifiConnected"] = appState.wifiConnected;
     doc["wifiRssi"] = appState.wifiRssi;
+    doc["localApName"] = wifi_setup::localApName();
+    doc["localApIp"] = IPAddress(wifi_setup::localApIp()).toString();
+    doc["timeSynced"] = time_sync::isSynced();
+    doc["currentTimestamp"] = time_sync::isoTimestamp();
     doc["uptimeSeconds"] = (millis() - appState.bootMillis) / 1000;
     doc["firmwareVersion"] = FIRMWARE_VERSION;
 
@@ -157,6 +174,7 @@ void handleGetSettings(AsyncWebServerRequest* request) {
     doc["cbpiReportIntervalSeconds"] = s.cbpiReportIntervalSeconds;
     doc["relayActiveHigh"] = s.relayActiveHigh;
     doc["historyIntervalSeconds"] = s.historyIntervalSeconds;
+    doc["sensorFailFallbackEnabled"] = s.sensorFailFallbackEnabled;
     sendJson(request, 200, doc);
 }
 
@@ -180,6 +198,7 @@ void handlePutSettings(AsyncWebServerRequest* request, JsonVariant& json) {
     s.minCompressorOnSeconds = obj["minCompressorOnSeconds"] | s.minCompressorOnSeconds;
     s.relayActiveHigh = obj["relayActiveHigh"] | s.relayActiveHigh;
     s.historyIntervalSeconds = obj["historyIntervalSeconds"] | s.historyIntervalSeconds;
+    s.sensorFailFallbackEnabled = obj["sensorFailFallbackEnabled"] | s.sensorFailFallbackEnabled;
     s.cbpiReportEnabled = obj["cbpiReportEnabled"] | s.cbpiReportEnabled;
     if (obj["cbpiHost"].is<const char*>()) {
         strncpy(s.cbpiHost, obj["cbpiHost"], sizeof(s.cbpiHost) - 1);
@@ -202,9 +221,18 @@ void handlePutSettings(AsyncWebServerRequest* request, JsonVariant& json) {
 
 void handleControlStart(AsyncWebServerRequest* request) {
     appState.manualOverrideActive = false;
+    // Nur bei Schritt 0 anfangen, wenn wirklich noch nichts lief (currentStepIndex
+    // == -1, siehe handleControlReset) oder der gespeicherte Schritt wegen einer
+    // zwischenzeitlichen Gaerplan-Aenderung nicht mehr existiert. Sonst - z.B.
+    // nach "Stop" oder nach Verlassen des manuellen Modus (beides landet in
+    // IDLE, laesst currentStepIndex/stepElapsedSeconds aber unangetastet) -
+    // beim vorhandenen Fortschritt weitermachen statt ihn wegzuwerfen.
+    if (appState.progress.currentStepIndex < 0 ||
+        appState.progress.currentStepIndex >= appState.schedule.stepCount) {
+        appState.progress.currentStepIndex = 0;
+        appState.progress.stepElapsedSeconds = 0;
+    }
     appState.progress.state = ScheduleState::RUNNING;
-    appState.progress.currentStepIndex = 0;
-    appState.progress.stepElapsedSeconds = 0;
     persistence::saveState(appState.progress);
     sendOk(request);
 }
@@ -260,7 +288,42 @@ void handleGetHistoryCsv(AsyncWebServerRequest* request) {
         sendError(request, 404, "Kein Verlauf vorhanden");
         return;
     }
-    AsyncWebServerResponse* response = request->beginResponse(LittleFS, "/history.csv", "text/csv");
+    // Waehrend des Downloads darf history.cpp die Datei nicht per Verdichtung
+    // (remove()+rename()) ersetzen, siehe history::setDownloadInProgress().
+    // onDisconnect() wird in JEDEM Fall aufgerufen (Download fertig, vom
+    // Client abgebrochen oder Verbindung verloren), daher kein Leak der
+    // Sperre moeglich.
+    history::setDownloadInProgress(true);
+    request->onDisconnect([]() { history::setDownloadInProgress(false); });
+
+    File f = LittleFS.open("/history.csv", "r");
+    if (!f) {
+        history::setDownloadInProgress(false);
+        sendError(request, 500, "Verlauf konnte nicht geoeffnet werden");
+        return;
+    }
+
+    // Bewusst eine selbst gebaute Chunked-Response statt
+    // beginResponse(LittleFS, path, contentType): Letztere kuendigt einen
+    // festen Content-Length an und unterstuetzt dadurch HTTP-Range-Requests,
+    // die Browser-Downloadmanager bei laengeren Downloads von sich aus
+    // stellen (z.B. zum Fortsetzen) - das Zusammenspiel davon mit dem
+    // Datei-Response dieser Server-Version duerfte der Grund sein, warum
+    // der Download im Browser wiederholt als unterbrochen/"Internetverbindung
+    // pruefen" markiert wurde, obwohl ein einfacher sequentieller Abruf
+    // (z.B. per curl) tadellos funktioniert. Eine Chunked-Response (kein
+    // Content-Length, "Transfer-Encoding: chunked") hat kein Range-Konzept
+    // und braucht dabei auch keinen RAM-Puffer fuer die ganze Datei (die
+    // bis zu HISTORY_MAX_BYTES = 350KB gross werden kann - mehr als frei
+    // verfuegbarer Heap auf dem ESP32-S3 ohne PSRAM).
+    AsyncWebServerResponse* response = request->beginChunkedResponse(
+        "text/csv",
+        [f](uint8_t* buffer, size_t maxLen, size_t index) mutable -> size_t {
+            (void)index;
+            size_t n = f.read(buffer, maxLen);
+            if (n == 0) f.close();
+            return n;
+        });
     response->addHeader("Content-Disposition", "attachment; filename=\"gaerverlauf.csv\"");
     request->send(response);
 }
@@ -295,6 +358,9 @@ void begin() {
     });
     server.on("/app.js", HTTP_GET, [](AsyncWebServerRequest* request) {
         request->send(LittleFS, "/app.js", "application/javascript");
+    });
+    server.on("/logo.png", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->send(LittleFS, "/logo.png", "image/png");
     });
 
     server.on("/api/status", HTTP_GET, handleGetStatus);

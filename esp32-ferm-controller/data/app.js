@@ -53,10 +53,23 @@
   var STATE_LABELS = { IDLE: 'Bereit', RUNNING: 'Läuft', FINISHED: 'Abgeschlossen', MANUAL: 'Manuell' };
 
   function renderStatus(s) {
-    $('status-temp').textContent = s.sensorOk && s.currentTempC !== null
+    var tempEl = $('status-temp');
+    tempEl.textContent = s.sensorOk && s.currentTempC !== null
       ? s.currentTempC.toFixed(1) + '°C'
       : '– Sensor –';
+    tempEl.classList.remove('zone-ok', 'zone-warm', 'zone-cold');
+    if (s.tempZone === 'ok' || s.tempZone === 'warm' || s.tempZone === 'cold') {
+      tempEl.classList.add('zone-' + s.tempZone);
+    }
     $('status-target').textContent = 'Ziel: ' + s.effectiveTargetTempC.toFixed(1) + '°C';
+
+    var fallbackBanner = $('fallback-banner');
+    if (s.sensorFailFallbackActive) {
+      fallbackBanner.hidden = false;
+      $('fallback-cycle-info').textContent = 'An ' + fmtDuration(s.fallbackOnSeconds) + ' / Aus ' + fmtDuration(s.fallbackOffSeconds);
+    } else {
+      fallbackBanner.hidden = true;
+    }
 
     var relayBadge = $('status-relay');
     relayBadge.textContent = s.relayOn ? 'AN' : 'AUS';
@@ -86,6 +99,8 @@
     }
 
     $('status-wifi').textContent = s.wifiConnected ? ('verbunden (' + s.wifiRssi + ' dBm)') : 'getrennt';
+    $('status-local-ap').textContent = s.localApName + ' (' + s.localApIp + ')';
+    $('status-time').textContent = s.timeSynced ? s.currentTimestamp.replace('T', ' ') : 'nicht synchronisiert';
     $('status-uptime').textContent = fmtDuration(s.uptimeSeconds);
     $('status-version').textContent = s.firmwareVersion;
 
@@ -325,6 +340,7 @@
       $('set-minon').value = s.minCompressorOnSeconds;
       $('set-relay-inverted').checked = !s.relayActiveHigh;
       $('set-history-interval').value = s.historyIntervalSeconds;
+      $('set-sensorfail-fallback').checked = s.sensorFailFallbackEnabled;
       $('set-cbpi-enabled').checked = s.cbpiReportEnabled;
       $('set-cbpi-host').value = s.cbpiHost;
       $('set-cbpi-port').value = s.cbpiPort;
@@ -341,6 +357,7 @@
       minCompressorOnSeconds: parseInt($('set-minon').value, 10) || 0,
       relayActiveHigh: !$('set-relay-inverted').checked,
       historyIntervalSeconds: parseInt($('set-history-interval').value, 10) || 0,
+      sensorFailFallbackEnabled: $('set-sensorfail-fallback').checked,
       cbpiReportEnabled: $('set-cbpi-enabled').checked,
       cbpiHost: $('set-cbpi-host').value,
       cbpiPort: parseInt($('set-cbpi-port').value, 10) || 8000,

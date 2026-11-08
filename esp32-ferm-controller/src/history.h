@@ -24,4 +24,14 @@ void recordIfDue(uint32_t nowMillis);
 // Leert den Verlauf (Kopfzeile bleibt erhalten) - z.B. für einen neuen Sud.
 void clear();
 
+// Vom CSV-Download-Handler (web_server.cpp) gesetzt, solange ein Download
+// von /history.csv läuft: unterdrückt in dieser Zeit die Verdichtung
+// (compactIfTooLarge() in history.cpp), die die Datei sonst per remove()+
+// rename() komplett ersetzen würde, während der Webserver noch eine eigene,
+// offene Leseanfrage auf genau diese Datei bedient - das hätte den Download
+// mitten im Transfer abgebrochen. Neue Messpunkte werden während des
+// Downloads weiter normal angehängt (unkritisch, siehe Kommentar in
+// compactIfTooLarge()), nur die Verdichtung wird kurz zurückgestellt.
+void setDownloadInProgress(bool inProgress);
+
 } // namespace history
